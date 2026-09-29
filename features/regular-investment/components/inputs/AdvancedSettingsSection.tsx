@@ -65,6 +65,7 @@ export function AdvancedSettingsSection({
               description={`${t('bonds.is_rebought_desc')} (-${currentDef.rebuyDiscount.toFixed(2)} PLN/szt)`}
               action={
                 <Switch
+                  aria-label={t('bonds.is_rebought')}
                   checked={inputs.isRebought}
                   onCheckedChange={(checked) => onUpdate('isRebought', checked)}
                 />
@@ -79,6 +80,7 @@ export function AdvancedSettingsSection({
             description={t('bonds.rollover_desc')}
             action={
               <Switch
+                aria-label={t('bonds.reinvest')}
                 checked={!!inputs.rollover}
                 onCheckedChange={(checked) => onUpdate('rollover', checked)}
               />
@@ -88,14 +90,20 @@ export function AdvancedSettingsSection({
           <div className="flex items-center justify-between border-t border-border pt-4">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <Label className="text-sm font-semibold">{t('bonds.custom_tax_rate')}</Label>
+                <Label htmlFor="regular-custom-tax-toggle" className="text-sm font-semibold">
+                  {t('bonds.custom_tax_rate')}
+                </Label>
                 <InfoTooltip content={t('regular_form.tax_help')} />
               </div>
               <p className="text-base leading-6 text-muted-foreground">
                 {t('bonds.belka_tax_desc')}
               </p>
             </div>
-            <Switch checked={showCustomTax} onCheckedChange={onShowCustomTaxChange} />
+            <Switch
+              id="regular-custom-tax-toggle"
+              checked={showCustomTax}
+              onCheckedChange={onShowCustomTaxChange}
+            />
           </div>
 
           {showCustomTax ? (

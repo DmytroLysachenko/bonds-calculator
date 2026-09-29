@@ -22,7 +22,7 @@ interface BondSeries {
   id: string;
   seriesCode: string;
   firstYearRate: string | number;
-  baseMargin: string | number;
+  baseMargin: string | number | null;
   emissionMonth: string;
 }
 interface BondConfigSectionProps {
@@ -219,7 +219,7 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
                 value: s.id,
                 label: s.seriesCode,
                 meta: formatSeriesMonth(s.emissionMonth),
-                description: `${Number(s.firstYearRate).toFixed(2)}% + ${Number(s.baseMargin).toFixed(2)}%`,
+                description: `${Number(s.firstYearRate).toFixed(2)}%${s.baseMargin === null ? '' : ` + ${Number(s.baseMargin).toFixed(2)}%`}`,
               })),
             ]}
           />

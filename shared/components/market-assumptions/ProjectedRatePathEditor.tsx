@@ -9,6 +9,7 @@ export function ProjectedRatePathEditor({
   values,
   prefix,
   variableLabel,
+  descriptionId,
   min,
   max,
   step,
@@ -17,6 +18,7 @@ export function ProjectedRatePathEditor({
   values: number[];
   prefix: string;
   variableLabel: string;
+  descriptionId?: string;
   min: number;
   max: number;
   step: number;
@@ -40,6 +42,7 @@ export function ProjectedRatePathEditor({
           <Input
             id={`${id}-${index}`}
             aria-label={`${variableLabel}, ${prefix}${index + 1}`}
+            aria-describedby={descriptionId}
             type="number"
             min={min}
             max={max}

@@ -11,14 +11,17 @@ import type { AssumptionSetupMode } from '@/shared/lib/market-assumptions-form-m
 export function ProjectionModeButtons({
   value,
   onChange,
+  label,
 }: {
   value: AssumptionSetupMode;
   onChange: (value: AssumptionSetupMode) => void;
+  label: string;
 }) {
   const { t } = useAppI18n();
 
   return (
     <SegmentedControl
+      label={label}
       value={value}
       options={[
         { value: 'fixed', label: t('bonds.market_assumptions.mode_fixed') },

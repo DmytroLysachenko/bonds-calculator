@@ -87,7 +87,11 @@ export function InflationAssumptionSection({
           </CurrentAssumptionValue>
         }
       >
-        <ProjectionModeButtons value={activeInflationMode} onChange={onModeChange} />
+        <ProjectionModeButtons
+          value={activeInflationMode}
+          onChange={onModeChange}
+          label={t('bonds.inflation.rate')}
+        />
       </AssumptionHeader>
 
       {activeInflationMode === 'fixed' ? (
@@ -174,7 +178,11 @@ export function NbpAssumptionSection({
           />
         }
       >
-        <ProjectionModeButtons value={activeNbpMode} onChange={onModeChange} />
+        <ProjectionModeButtons
+          value={activeNbpMode}
+          onChange={onModeChange}
+          label={t('bonds.nbp_rate_label')}
+        />
       </AssumptionHeader>
       {activeNbpMode === 'fixed' ? (
         <NbpPresetControls
