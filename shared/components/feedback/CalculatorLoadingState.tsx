@@ -1,7 +1,6 @@
 import { Skeleton } from '@/components/ui/skeleton';
 
 type CalculatorLoadingStateProps = {
-  label: string;
   metricCount?: 1 | 2 | 3;
   chartClassName?: string;
 };
@@ -14,12 +13,11 @@ const metricGridClassByCount = {
 
 /** Keeps first-calculation feedback consistent without hiding a committed result. */
 export function CalculatorLoadingState({
-  label,
   metricCount = 3,
   chartClassName = 'h-[300px] md:h-[420px]',
 }: CalculatorLoadingStateProps) {
   return (
-    <div className="ui-control-stack" role="status" aria-live="polite" aria-label={label}>
+    <div className="ui-control-stack" aria-hidden="true">
       <div className="ui-surface-flush space-y-4 p-5 md:p-6">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-10 w-2/3 max-w-sm" />

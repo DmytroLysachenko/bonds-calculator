@@ -41,8 +41,6 @@ export const RecalculateButton = ({
         'fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(23rem,calc(100vw-2.5rem))]',
         className,
       )}
-      role="status"
-      aria-live="polite"
     >
       <div className="ui-action-dock px-4 py-4 text-foreground">
         <div className="flex items-start justify-between gap-3">

@@ -39,8 +39,9 @@ export function CalculatorWorkspace({
   const previousHasResults = useRef(hasResults);
   const previousIsDirty = useRef(isDirty);
   const planRegion = useRef<HTMLElement>(null);
+  const resultsRegion = useRef<HTMLElement>(null);
   const editButton = useRef<HTMLButtonElement>(null);
-  const focusAfterTransition = useRef<'edit' | 'controls' | null>(null);
+  const focusAfterTransition = useRef<'edit' | 'controls' | 'results' | null>(null);
   const requestedTarget = useRef<string | null>(null);
   const hasScenarioReceipt = Boolean(scenarioSummary?.length);
   const showScenarioReceipt = hasResults && hasScenarioReceipt && !isPlanOpen;
@@ -51,9 +52,12 @@ export function CalculatorWorkspace({
 
     if (!hasResults) {
       setIsPlanOpen(true);
-    } else if (receivedFirstResult || committedEditedPlan) {
+    } else if (!isDirty && (receivedFirstResult || committedEditedPlan)) {
       if (planRegion.current?.contains(document.activeElement)) {
         focusAfterTransition.current = 'edit';
+      } else if (document.activeElement === document.body) {
+        // A submit control outside this workspace may unmount when calculation completes.
+        focusAfterTransition.current = 'results';
       }
       setIsPlanOpen(false);
     }
@@ -78,6 +82,9 @@ export function CalculatorWorkspace({
       focusTarget?.focus();
       section?.scrollIntoView({ block: 'start' });
       requestedTarget.current = null;
+      focusAfterTransition.current = null;
+    } else if (focusAfterTransition.current === 'results' && hasResults && !isDirty) {
+      resultsRegion.current?.focus();
       focusAfterTransition.current = null;
     }
   });
@@ -174,17 +181,12 @@ export function CalculatorWorkspace({
           )}
         </section>
         <section
+          ref={resultsRegion}
           id="calculator-results"
+          tabIndex={-1}
           aria-busy={isCalculating || undefined}
           className={cn('ui-section-anchor', pageLayout.sectionFlow, resultsClassName)}
         >
-          <p className="sr-only" role="status" aria-atomic="true">
-            {isCalculating
-              ? t('common.calculating')
-              : hasResults && !isDirty
-                ? t('common.results_ready')
-                : ''}
-          </p>
           {results}
         </section>
       </div>
