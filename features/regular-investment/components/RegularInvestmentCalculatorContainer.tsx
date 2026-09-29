@@ -11,6 +11,7 @@ import { RecalculateButton } from '@/shared/components/feedback/RecalculateButto
 import { ScenarioReadyPanel } from '@/shared/components/feedback/ScenarioReadyPanel';
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { CalculatorWorkspace } from '@/shared/components/page/CalculatorWorkspace';
+import { isCalculatorInputEnter } from '@/shared/lib/calculator-keyboard-submit';
 
 import { useRegularInvestmentCalculator } from '../hooks/useRegularInvestmentCalculator';
 import { getRegularInvestmentGuardrails } from '../lib/regular-investment-guardrails';
@@ -56,7 +57,7 @@ export const RegularInvestmentCalculatorContainer: React.FC = () => {
     t('regular_investment_page.reading_guide.check_real_value'),
   ];
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && (isDirty || !results)) {
+    if (isCalculatorInputEnter(event) && (isDirty || !results)) {
       if (hasBlockingGuardrails) {
         guardrailSummaryRef.current?.focus();
         return;
@@ -114,13 +115,23 @@ export const RegularInvestmentCalculatorContainer: React.FC = () => {
           },
           {
             label: t('bonds.tax_strategy'),
-            value: receiptInputs.taxStrategy,
+            value: t(
+              receiptInputs.taxStrategy === 'IKE'
+                ? 'bonds.tax_ike'
+                : receiptInputs.taxStrategy === 'IKZE'
+                  ? 'bonds.tax_ikze'
+                  : 'bonds.tax_standard',
+            ),
             editTargetId: 'regular-budget-setup',
           },
           {
             label: t('bonds.receipt_cash_policy'),
-            value: t('bonds.timing.rollover_title'),
-            editTargetId: 'regular-policy-setup',
+            value: t(
+              receiptInputs.rollover
+                ? 'bonds.receipt_rollover'
+                : 'bonds.receipt_hold_maturity_cash',
+            ),
+            editTargetId: 'regular-advanced-setup',
           },
         ]}
         controls={
@@ -161,10 +172,7 @@ export const RegularInvestmentCalculatorContainer: React.FC = () => {
             ) : null}
 
             {isCalculating && !results ? (
-              <CalculatorLoadingState
-                label={t('common.loading')}
-                chartClassName="h-[320px] md:h-[420px]"
-              />
+              <CalculatorLoadingState chartClassName="h-[320px] md:h-[420px]" />
             ) : null}
 
             {results ? (

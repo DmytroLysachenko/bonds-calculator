@@ -69,10 +69,10 @@ export function useRegularInvestmentCalculator() {
   );
 
   const setBondType = useCallback(
-    (type: BondType) => {
+    (type: BondType, horizonChoice: 'preserve' | 'native') => {
       if (!definitions) return;
       updateDraft((previous) =>
-        resolveRegularInvestmentBondTypeUpdate(previous, type, definitions[type]),
+        resolveRegularInvestmentBondTypeUpdate(previous, type, definitions[type], horizonChoice),
       );
     },
     [definitions, updateDraft],

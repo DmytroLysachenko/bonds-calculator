@@ -67,8 +67,10 @@ export function useLadder() {
   );
 
   const setBondType = useCallback(
-    (type: BondType) => {
-      updateDraft((previous) => resolveLadderBondTypeUpdate(previous, type, definitions));
+    (type: BondType, horizonChoice: 'preserve' | 'native') => {
+      updateDraft((previous) =>
+        resolveLadderBondTypeUpdate(previous, type, definitions, horizonChoice),
+      );
     },
     [definitions, updateDraft],
   );

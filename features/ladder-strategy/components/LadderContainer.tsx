@@ -13,6 +13,7 @@ import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShel
 import { CalculatorWorkspace } from '@/shared/components/page/CalculatorWorkspace';
 import { CalculationMetaPanel } from '@/shared/components/results/CalculationMetaPanel';
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
+import { isCalculatorInputEnter } from '@/shared/lib/calculator-keyboard-submit';
 
 import { RegularInvestmentInputsForm } from '../../regular-investment/components/RegularInvestmentInputsForm';
 import { RegularInvestmentResultsSummary } from '../../regular-investment/components/RegularInvestmentResultsSummary';
@@ -87,7 +88,7 @@ export const LadderContainer: React.FC = () => {
     t('ladder_page.reading_guide.check_clustering'),
   ];
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && (isDirty || !results)) {
+    if (isCalculatorInputEnter(event) && (isDirty || !results)) {
       calculate();
     }
   };
@@ -141,13 +142,23 @@ export const LadderContainer: React.FC = () => {
           },
           {
             label: t('bonds.tax_strategy'),
-            value: receiptInputs.taxStrategy,
+            value: t(
+              receiptInputs.taxStrategy === 'IKE'
+                ? 'bonds.tax_ike'
+                : receiptInputs.taxStrategy === 'IKZE'
+                  ? 'bonds.tax_ikze'
+                  : 'bonds.tax_standard',
+            ),
             editTargetId: 'regular-budget-setup',
           },
           {
             label: t('bonds.receipt_cash_policy'),
-            value: t('bonds.timing.rollover_title'),
-            editTargetId: 'regular-policy-setup',
+            value: t(
+              receiptInputs.rollover
+                ? 'bonds.receipt_rollover'
+                : 'bonds.receipt_hold_maturity_cash',
+            ),
+            editTargetId: 'regular-advanced-setup',
           },
         ]}
         controls={
@@ -161,11 +172,7 @@ export const LadderContainer: React.FC = () => {
           <>
             {!results && !isCalculating ? <LadderEmptyState /> : null}
             {isCalculating && !results ? (
-              <CalculatorLoadingState
-                label={t('common.loading')}
-                metricCount={1}
-                chartClassName="h-[460px]"
-              />
+              <CalculatorLoadingState metricCount={1} chartClassName="h-[460px]" />
             ) : null}
 
             {results ? (

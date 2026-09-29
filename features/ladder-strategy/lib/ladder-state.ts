@@ -112,10 +112,11 @@ export function resolveLadderBondTypeUpdate(
   previous: RegularInvestmentInputs,
   type: BondType,
   definitions?: Record<BondType, (typeof BOND_DEFINITIONS)[BondType]> | null,
+  horizonChoice: 'preserve' | 'native' = 'preserve',
 ): RegularInvestmentInputs {
   const definition = definitions?.[type] ?? BOND_DEFINITIONS[type];
 
-  return {
+  const next = {
     ...previous,
     bondType: type,
     duration: definition.duration,
@@ -126,6 +127,15 @@ export function resolveLadderBondTypeUpdate(
     payoutFrequency: definition.payoutFrequency,
     rebuyDiscount: definition.rebuyDiscount,
   };
+  if (horizonChoice === 'native') {
+    next.investmentHorizonMonths = Math.round(definition.duration * 12);
+    next.withdrawalDate = getWithdrawalDateFromMonths(
+      previous.purchaseDate,
+      next.investmentHorizonMonths,
+    );
+    extendCustomRatePaths(next, previous);
+  }
+  return next;
 }
 
 function extendCustomRatePaths(next: RegularInvestmentInputs, previous: RegularInvestmentInputs) {
