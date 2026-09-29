@@ -50,8 +50,9 @@ export function AllocationStrategySection({
           </p>
           {targets.map((target, index) => (
             <div className="grid grid-cols-2 gap-2" key={target.bondType}>
-              <label>{target.bondType}</label>
+              <label htmlFor={`allocation-${target.bondType}`}>{target.bondType}</label>
               <Input
+                id={`allocation-${target.bondType}`}
                 type="number"
                 min={0}
                 max={100}

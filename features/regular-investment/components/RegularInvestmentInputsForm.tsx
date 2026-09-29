@@ -25,7 +25,7 @@ import { TimingSection } from './inputs/TimingSection';
 interface RegularInvestmentInputsFormProps {
   inputs: RegularInvestmentInputs;
   onUpdate: FieldUpdater<RegularInvestmentInputs>;
-  onBondTypeChange: (type: BondType) => void;
+  onBondTypeChange: (type: BondType, horizonChoice: 'preserve' | 'native') => void;
   action?: React.ReactNode;
   guardrails?: RegularInvestmentGuardrail[];
   guardrailSummaryRef?: React.RefObject<HTMLDivElement | null>;
@@ -154,7 +154,7 @@ export const RegularInvestmentInputsForm: React.FC<RegularInvestmentInputsFormPr
             <AllocationStrategySection inputs={inputs} onUpdate={onUpdate} t={t} />
           </ScenarioFieldset>
 
-          <ScenarioFieldset title={t('common.advanced')} divided>
+          <ScenarioFieldset id="regular-advanced-setup" title={t('common.advanced')} divided>
             <AdvancedSettingsSection
               inputs={inputs}
               currentDef={currentDef}
