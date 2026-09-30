@@ -16,7 +16,13 @@ describe('single-bond export provenance', () => {
     const envelope = {
       calculationVersion: 'model-v7',
       taxRulesRevision: 'tax-2026',
-      dataFreshness: { status: 'fresh', usedFallback: false },
+      dataFreshness: {
+        status: 'fresh',
+        usedFallback: false,
+        bondOfferSource: 'gov.pl',
+        lastSyncedAt: '2026-09-01T10:00:00Z',
+        coverageAsOf: '2026-09-01',
+      },
       offerTerms: {
         source: 'series',
         seriesCode: 'EDO0936',
@@ -32,6 +38,9 @@ describe('single-bond export provenance', () => {
       offerSeries: 'EDO0936',
       offerRevision: 'terms-2026-09',
       cashPolicy: 'rollover',
+      dataSource: 'gov.pl',
+      dataLastSyncedAt: '2026-09-01T10:00:00Z',
+      coverageAsOf: '2026-09-01',
       purchaseDate: '2026-09-01',
       withdrawalDate: '2036-09-01',
     });
@@ -42,5 +51,16 @@ describe('single-bond export provenance', () => {
       calculationVersion: undefined,
       cashPolicy: undefined,
     });
+  });
+
+  it('does not mistake the ignored legacy single rollover flag for engine policy', () => {
+    expect(buildSingleBondReportProvenance({ ...inputs, rollover: false })).toMatchObject({
+      cashPolicy: undefined,
+    });
+    expect(
+      buildSingleBondReportProvenance({ ...inputs, rollover: false }, {
+        diagnostics: [{ code: 'auto_rollover', severity: 'assumption' }],
+      } as SingleBondCalculationEnvelope),
+    ).toMatchObject({ cashPolicy: 'rollover' });
   });
 });

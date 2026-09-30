@@ -10,11 +10,7 @@ export function buildSingleBondReportProvenance(
     ? 'rollover'
     : envelope?.diagnostics?.some((item) => item.code === 'single_cycle')
       ? 'single_cycle'
-      : inputs.rollover === true
-        ? 'rollover'
-        : inputs.rollover === false
-          ? 'single_cycle'
-          : undefined;
+      : undefined;
 
   return {
     calculationVersion: envelope?.calculationVersion,
@@ -24,8 +20,10 @@ export function buildSingleBondReportProvenance(
     offerRevision: envelope?.offerTerms?.termsRevision,
     offerDocument: envelope?.offerTerms?.termsSourceUrl,
     offerVerified: envelope?.offerTerms?.termsAreVerified,
-    dataStatus: envelope?.dataFreshness.status,
-    coverageAsOf: envelope?.dataFreshness.coverageAsOf,
+    dataStatus: envelope?.dataFreshness?.status,
+    coverageAsOf: envelope?.dataFreshness?.coverageAsOf,
+    dataSource: envelope?.dataFreshness?.bondOfferSource,
+    dataLastSyncedAt: envelope?.dataFreshness?.lastSyncedAt,
     purchaseDate: inputs.purchaseDate,
     withdrawalDate: inputs.withdrawalDate,
     taxStrategy: inputs.taxStrategy,
