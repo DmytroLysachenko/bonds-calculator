@@ -15,4 +15,13 @@ describe('useComparisonPlanVisibility', () => {
     act(() => rerender({ hasResults: true, isDirty: false }));
     expect(result.current.isPlanOpen).toBe(false);
   });
+
+  it('does not hide a newer draft when an older calculation completes', () => {
+    const { result, rerender } = renderHook(
+      ({ hasResults, isDirty }) => useComparisonPlanVisibility(hasResults, isDirty),
+      { initialProps: { hasResults: false, isDirty: true } },
+    );
+    act(() => rerender({ hasResults: true, isDirty: true }));
+    expect(result.current.isPlanOpen).toBe(true);
+  });
 });

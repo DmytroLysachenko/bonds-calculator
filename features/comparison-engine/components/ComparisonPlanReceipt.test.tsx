@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ComparisonPlanReceipt } from './ComparisonPlanReceipt';
 
 const summary = [
-  { label: 'Quantity', value: '100 bonds' },
+  { label: 'Quantity', value: '100 bonds', editTargetId: 'comparison-shared-setup' },
   { label: 'Horizon', value: '10 years' },
 ];
 
@@ -26,6 +26,7 @@ function renderReceipt(isOpen: boolean, onOpenChange = vi.fn()) {
         closeLabel="Close plan"
         summary={summary}
         onOpenChange={onOpenChange}
+        jumpToResultsLabel="Jump to results"
       />,
     );
   });
@@ -48,10 +49,15 @@ describe('ComparisonPlanReceipt', () => {
     expect(container?.textContent).toContain('100 bonds');
 
     act(() => {
-      (container?.querySelector('button') as HTMLButtonElement).click();
+      (
+        Array.from(container?.querySelectorAll('button') ?? []).find((button) =>
+          button.textContent?.includes('Edit plan: Quantity'),
+        ) as HTMLButtonElement
+      ).click();
     });
 
-    expect(onOpenChange).toHaveBeenCalledWith(true);
+    expect(onOpenChange).toHaveBeenCalledWith(true, 'comparison-shared-setup');
+    expect(container?.querySelector('a')?.getAttribute('href')).toBe('#comparison-results');
   });
 
   it('keeps close-plan control separate from receipt facts', () => {

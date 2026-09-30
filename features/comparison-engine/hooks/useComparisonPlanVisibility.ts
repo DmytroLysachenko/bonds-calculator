@@ -14,7 +14,7 @@ export function useComparisonPlanVisibility(hasResults: boolean, isDirty: boolea
 
     if (!hasResults) {
       setIsPlanOpen(true);
-    } else if (receivedFirstResult || committedEditedPlan) {
+    } else if (!isDirty && (receivedFirstResult || committedEditedPlan)) {
       setIsPlanOpen(false);
     }
 

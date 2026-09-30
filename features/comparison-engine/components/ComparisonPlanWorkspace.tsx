@@ -58,7 +58,11 @@ export function ComparisonPlanWorkspace({
   return (
     <>
       <div className={comparisonLayout.workspace}>
-        <aside className={comparisonLayout.sharedBase} aria-label={sharedBaseLabel}>
+        <aside
+          id="comparison-shared-setup"
+          className={comparisonLayout.sharedBase}
+          aria-label={sharedBaseLabel}
+        >
           <ComparisonSharedBaseCard
             sharedConfig={sharedConfig}
             onUpdateSharedConfig={onUpdateSharedConfig}
@@ -66,7 +70,7 @@ export function ComparisonPlanWorkspace({
         </aside>
 
         <div className="min-w-0 ui-compact-flow">
-          <div className={comparisonLayout.scenarioGrid}>
+          <div id="comparison-scenarios-setup" className={comparisonLayout.scenarioGrid}>
             {[scenarioA, scenarioB].map((scenario) => (
               <ScenarioOverrideCard
                 key={scenario.colorClass}
@@ -100,11 +104,13 @@ export function ComparisonPlanWorkspace({
         </div>
       </div>
 
-      <ComparisonSharedAssumptionsPanel
-        sharedConfig={sharedConfig}
-        assumptionsBondType={assumptionsBondType}
-        onUpdateSharedConfig={onUpdateSharedConfig}
-      />
+      <div id="comparison-assumptions-setup">
+        <ComparisonSharedAssumptionsPanel
+          sharedConfig={sharedConfig}
+          assumptionsBondType={assumptionsBondType}
+          onUpdateSharedConfig={onUpdateSharedConfig}
+        />
+      </div>
     </>
   );
 }

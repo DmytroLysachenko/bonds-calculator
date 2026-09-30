@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronUp, Pencil } from 'lucide-react';
+import type { Ref } from 'react';
 
 import { Button } from '@/components/ui/button';
 
@@ -9,6 +10,7 @@ import { comparisonLayout } from './comparison-layout';
 interface ComparisonPlanSummaryItem {
   label: string;
   value: string;
+  editTargetId?: string;
 }
 
 interface ComparisonPlanReceiptProps {
@@ -17,7 +19,9 @@ interface ComparisonPlanReceiptProps {
   isOpen: boolean;
   planLabel: string;
   summary: ComparisonPlanSummaryItem[];
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, editTargetId?: string) => void;
+  jumpToResultsLabel?: string;
+  editButtonRef?: Ref<HTMLButtonElement>;
 }
 
 /** Keeps the comparison plan's collapsed receipt separate from input ownership. */
@@ -28,6 +32,8 @@ export function ComparisonPlanReceipt({
   planLabel,
   summary,
   onOpenChange,
+  editButtonRef,
+  jumpToResultsLabel,
 }: ComparisonPlanReceiptProps) {
   if (isOpen) {
     return (
@@ -62,11 +68,21 @@ export function ComparisonPlanReceipt({
                   <dd className="mt-1 break-words text-sm font-semibold text-foreground">
                     {item.value}
                   </dd>
+                  {item.editTargetId ? (
+                    <button
+                      type="button"
+                      className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline focus-visible:underline"
+                      onClick={() => onOpenChange(true, item.editTargetId)}
+                    >
+                      {editLabel}: {item.label}
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </dl>
           </div>
           <Button
+            ref={editButtonRef}
             type="button"
             variant="outline"
             size="sm"
@@ -77,6 +93,14 @@ export function ComparisonPlanReceipt({
             {editLabel}
           </Button>
         </div>
+        {jumpToResultsLabel ? (
+          <a
+            className="mt-4 inline-block text-sm font-medium text-primary underline-offset-2 hover:underline md:hidden"
+            href="#comparison-results"
+          >
+            {jumpToResultsLabel}
+          </a>
+        ) : null}
       </div>
     </section>
   );

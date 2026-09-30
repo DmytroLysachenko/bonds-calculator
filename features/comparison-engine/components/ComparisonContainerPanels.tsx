@@ -118,7 +118,7 @@ export function ComparisonSetupStatePanel({
       ) : null}
 
       {isCalculating && !hasResults ? (
-        <div className="ui-control-stack" role="status" aria-live="polite">
+        <div className="ui-control-stack" aria-hidden="true">
           <div className="ui-surface-flush space-y-4 p-5 md:p-6">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-8 w-2/3" />

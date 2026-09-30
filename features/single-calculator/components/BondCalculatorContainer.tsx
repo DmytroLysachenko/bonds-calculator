@@ -10,6 +10,7 @@ import { RecalculateButton } from '@/shared/components/feedback/RecalculateButto
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { CalculatorWorkspace } from '@/shared/components/page/CalculatorWorkspace';
 import { usePortfolioAccess } from '@/shared/hooks/usePortfolioAccess';
+import { buildSingleBondReportProvenance } from '@/shared/lib/report-provenance';
 
 import { useBondCalculator } from '../hooks/useBondCalculator';
 import {
@@ -58,6 +59,9 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
     isPersistenceReady,
   } = useBondCalculator(initialInputs, initialBondType);
   const { t, locale: language } = useAppI18n();
+  const committedCashPolicy = lastCommittedInputs
+    ? buildSingleBondReportProvenance(lastCommittedInputs, envelope).cashPolicy
+    : undefined;
   const { canManageWorkspace } = usePortfolioAccess();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
@@ -199,14 +203,24 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
             },
             {
               label: t('bonds.tax_strategy'),
-              value: committedInputs.taxStrategy,
+              value: t(
+                committedInputs.taxStrategy === 'IKE'
+                  ? 'bonds.tax_ike'
+                  : committedInputs.taxStrategy === 'IKZE'
+                    ? 'bonds.tax_ikze'
+                    : 'bonds.tax_standard',
+              ),
               editTargetId: 'single-timing-setup',
             },
             {
               label: t('bonds.receipt_cash_policy'),
-              value: committedInputs.rollover
-                ? t('bonds.receipt_rollover')
-                : t('bonds.receipt_no_rollover'),
+              value: committedCashPolicy
+                ? t(
+                    committedCashPolicy === 'rollover'
+                      ? 'bonds.receipt_rollover'
+                      : 'bonds.receipt_no_rollover',
+                  )
+                : t('common.not_available'),
               editTargetId: 'single-timing-setup',
             },
           ]}
