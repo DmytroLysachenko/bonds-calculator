@@ -38,7 +38,19 @@ describe('single bond PDF report', () => {
     } as unknown as CalculationResult;
     const envelope = {
       calculationVersion: 'historical-model-v7',
-      dataFreshness: { status: 'fallback', usedFallback: true },
+      taxRulesRevision: 'tax-2026',
+      dataFreshness: {
+        status: 'fallback',
+        usedFallback: true,
+        bondOfferSource: 'gov.pl',
+        coverageAsOf: '2026-09-01',
+      },
+      offerTerms: {
+        source: 'series',
+        seriesCode: 'EDO0936',
+        termsRevision: 'terms-2026-09',
+        termsAreVerified: true,
+      },
       assumptions: [],
       warnings: [],
       calculationNotes: [],
@@ -69,6 +81,10 @@ describe('single bond PDF report', () => {
     const extracted = pageTexts.join(' ');
     expect(extracted).toContain('Zażółć gęślą jaźń');
     expect(extracted).toContain('historical-model-v7');
+    expect(extracted).toContain('tax-2026');
+    expect(extracted).toContain('EDO0936');
+    expect(extracted).toContain('terms-2026-09');
+    expect(extracted).toContain('dane zapasowe');
     expect(extracted).toMatch(/[−-]10[,.]00/);
     await loadingTask.destroy();
   });

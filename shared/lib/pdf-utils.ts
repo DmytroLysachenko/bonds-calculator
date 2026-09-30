@@ -172,7 +172,17 @@ export async function buildSingleBondReportPdf(
       );
     }
     if (provenance.dataStatus)
-      row(translateMessage(language, 'comparison.freshness_status'), provenance.dataStatus);
+      row(
+        translateMessage(language, 'comparison.freshness_status'),
+        translateMessage(language, `comparison.status_${provenance.dataStatus}`),
+      );
+    if (provenance.dataSource)
+      row(translateMessage(language, 'comparison.offer_source'), provenance.dataSource);
+    if (provenance.dataLastSyncedAt)
+      row(
+        translateMessage(language, 'admin.inventory.cols.last_sync'),
+        provenance.dataLastSyncedAt,
+      );
     if (provenance.coverageAsOf) {
       row(translateMessage(language, 'common.coverage'), provenance.coverageAsOf);
     }
@@ -254,7 +264,31 @@ export async function buildSingleBondReportPdf(
       `${inputs.expectedNbpRate}%`,
     );
   }
-  row(translateMessage(language, 'bonds.tax_strategy'), provenance.taxStrategy);
+  row(
+    translateMessage(language, 'bonds.tax_strategy'),
+    translateMessage(
+      language,
+      provenance.taxStrategy === 'IKE'
+        ? 'bonds.tax_ike'
+        : provenance.taxStrategy === 'IKZE'
+          ? 'bonds.tax_ikze'
+          : 'bonds.tax_standard',
+    ),
+  );
+  row(
+    translateMessage(language, 'bonds.is_rebought'),
+    translateMessage(
+      language,
+      inputs.isRebought
+        ? 'export.single_bond_pdf.offer_verified_yes'
+        : 'export.single_bond_pdf.offer_verified_no_plain',
+    ),
+  );
+  if (inputs.inflationScenario)
+    row(
+      translateMessage(language, 'bonds.inflation.scenarios.label'),
+      translateMessage(language, `bonds.inflation.scenarios.${inputs.inflationScenario}`),
+    );
   if (provenance.cashPolicy)
     row(
       translateMessage(language, 'bonds.receipt_cash_policy'),

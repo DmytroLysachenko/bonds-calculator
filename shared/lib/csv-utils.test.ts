@@ -44,6 +44,8 @@ describe('csv-utils', () => {
       offerRevision: 'terms-2026-09',
       taxStrategy: 'STANDARD',
       cashPolicy: 'single_cycle',
+      dataSource: 'gov.pl',
+      coverageAsOf: '2026-09-01',
     }).split('\r\n');
 
     expect(withMetadata[0]?.startsWith(`${plain[0]};`)).toBe(true);
@@ -51,6 +53,8 @@ describe('csv-utils', () => {
     expect(withMetadata[1]).toContain('-10.00');
     expect(withMetadata[1]).toContain('"historical-model-v7"');
     expect(withMetadata[1]).toContain('"terms-2026-09"');
+    expect(withMetadata[1]).toContain('"gov.pl"');
+    expect(withMetadata[1]).toContain('"2026-09-01"');
   });
 
   it('builds a normalized timeline csv with localized helper columns', () => {

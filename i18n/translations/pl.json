@@ -2392,6 +2392,7 @@
       "offer_verified": "Warunki emisji potwierdzone",
       "offer_verified_yes": "Tak",
       "offer_verified_no": "Nie — oszacowanie",
+      "offer_verified_no_plain": "Nie",
       "scenario_not_history_note": "Raport zapisuje zatwierdzone założenia scenariusza i modelowany wynik; nie jest historią osiągniętych wyników.",
       "cpi_path": "Ścieżka inflacji (%)",
       "nbp_path": "Ścieżka stopy NBP (%)",

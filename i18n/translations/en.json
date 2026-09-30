@@ -2392,6 +2392,7 @@
       "offer_verified": "Offer terms evidenced",
       "offer_verified_yes": "Yes",
       "offer_verified_no": "No — an estimate",
+      "offer_verified_no_plain": "No",
       "scenario_not_history_note": "This report records the committed scenario inputs and modeled outcome; it is not a historical performance record.",
       "cpi_path": "CPI path (%)",
       "nbp_path": "NBP rate path (%)",

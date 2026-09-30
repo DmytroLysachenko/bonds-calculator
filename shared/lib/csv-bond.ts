@@ -12,6 +12,9 @@ export interface TimelineCsvMetadata {
   offerRevision?: string;
   offerDocument?: string;
   dataStatus?: string;
+  dataSource?: string;
+  dataLastSyncedAt?: string;
+  coverageAsOf?: string;
   purchaseDate?: string;
   withdrawalDate?: string;
   taxStrategy?: string;
@@ -83,6 +86,12 @@ export function convertTimelineToCSV(
             header: translateMessage(language, 'export.single_bond_pdf.offer_document'),
           },
           { key: 'dataStatus', header: translateMessage(language, 'comparison.freshness_status') },
+          { key: 'dataSource', header: translateMessage(language, 'comparison.offer_source') },
+          {
+            key: 'dataLastSyncedAt',
+            header: translateMessage(language, 'admin.inventory.cols.last_sync'),
+          },
+          { key: 'coverageAsOf', header: translateMessage(language, 'common.coverage') },
           {
             key: 'purchaseDate',
             header: translateMessage(language, 'export.single_bond_pdf.purchase_date'),
