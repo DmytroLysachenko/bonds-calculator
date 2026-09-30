@@ -99,7 +99,7 @@ export function BondCalculatorResultsPanel({
         />
       ) : null}
 
-      {isCalculating && !results ? <CalculatorLoadingState label={t('common.loading')} /> : null}
+      {isCalculating && !results ? <CalculatorLoadingState /> : null}
 
       {results ? (
         <div

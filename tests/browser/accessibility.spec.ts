@@ -242,3 +242,140 @@ test('single-calculator submission moves focus to blocking input feedback', asyn
   await expect(summary).toBeFocused();
   await expectNoBrowserDiagnostics(testInfo, diagnostics);
 });
+
+test('single-calculator success keeps keyboard focus out of the page body', async ({
+  page,
+}, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await page
+    .context()
+    .addCookies([{ name: 'app-language', value: 'en', domain: '127.0.0.1', path: '/' }]);
+  await stubOpportunisticSync(page);
+  await page.goto('/single-calculator', { waitUntil: 'networkidle' });
+
+  const calculate = page.getByRole('button', { name: /^calculate$/i }).last();
+  await calculate.focus();
+  await calculate.press('Enter');
+  await expect(page.getByRole('button', { name: 'Edit plan', exact: true })).toBeVisible();
+  await expect(page.locator('body')).not.toBeFocused();
+  await expect(page.locator('#calculator-results')).toBeFocused();
+
+  const edit = page.getByRole('button', { name: 'Edit plan', exact: true });
+  await edit.press('Enter');
+  await expect(page.locator('#calculator-inputs :focus')).toHaveCount(1);
+  const close = page.getByRole('button', { name: 'Close plan' });
+  await close.press('Enter');
+  await expect(edit).toBeFocused();
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+test('comparison keyboard plan controls never trigger an accidental calculation', async ({
+  page,
+}, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await page
+    .context()
+    .addCookies([{ name: 'app-language', value: 'en', domain: '127.0.0.1', path: '/' }]);
+  await stubOpportunisticSync(page);
+  await page.goto('/compare', { waitUntil: 'networkidle' });
+
+  const modeControl = page.locator('[data-comparison-plan] button').first();
+  await modeControl.focus();
+  await modeControl.press('Enter');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Edit plan' })).toHaveCount(0);
+  const calculate = page.getByRole('button', { name: /^calculate$/i }).first();
+  await expect(calculate).toBeVisible();
+  await calculate.press('Enter');
+  const edit = page.getByRole('button', { name: 'Edit plan', exact: true });
+  await expect(edit).toBeVisible();
+  await expect(page.locator('body')).not.toBeFocused();
+  await edit.press('Enter');
+  await expect(page.locator('[data-comparison-plan] :focus')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Close plan' }).press('Enter');
+  await expect(edit).toBeFocused();
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+test('comparison mobile receipt edits a named section and returns to results', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium', 'Mobile-only result navigation');
+  const diagnostics = installBrowserDiagnostics(page);
+  await page
+    .context()
+    .addCookies([{ name: 'app-language', value: 'en', domain: '127.0.0.1', path: '/' }]);
+  await stubOpportunisticSync(page);
+  await page.goto('/compare', { waitUntil: 'networkidle' });
+
+  await page
+    .getByRole('button', { name: /^calculate$/i })
+    .first()
+    .click();
+  const receipt = page.getByRole('region', { name: 'Scenario plan' });
+  await expect(receipt.getByRole('button', { name: 'Edit plan: Bond Quantity' })).toBeVisible();
+  await receipt.getByRole('button', { name: 'Edit plan: Bond Quantity' }).click();
+  await expect(page.locator('#comparison-shared-setup :focus')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Close plan' }).click();
+  await expect(receipt.getByRole('link', { name: 'Jump to results' })).toBeVisible();
+  await receipt.getByRole('link', { name: 'Jump to results' }).click();
+  await expect(page).toHaveURL(/#comparison-results$/);
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+test('regular family change requires a visible horizon choice', async ({ page }, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await page
+    .context()
+    .addCookies([{ name: 'app-language', value: 'en', domain: '127.0.0.1', path: '/' }]);
+  await stubOpportunisticSync(page);
+  await page.goto('/regular-investment', { waitUntil: 'networkidle' });
+
+  await page.locator('#bondType').click();
+  await page.getByRole('option', { name: /ROR/ }).click();
+  await expect(page.getByRole('group', { name: 'Choose the horizon for ROR' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Keep current horizon' })).toBeFocused();
+  await page.getByRole('button', { name: 'Use native maturity (12 months)' }).click();
+  await expect(page.locator('#bondType')).toContainText('ROR');
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+for (const scenario of [
+  {
+    locale: 'en',
+    bond: 'EDO',
+    section: /inflation setup/i,
+    advanced: 'Advanced',
+    field: 'Advanced yearly CPI path, Y1',
+  },
+  {
+    locale: 'pl',
+    bond: 'ROR',
+    section: /ustawienia stopy NBP/i,
+    advanced: 'Zaawansowane',
+    field: 'Zaawansowana roczna ścieżka NBP, Y1',
+  },
+] as const) {
+  test(`${scenario.locale} expanded ${scenario.bond} path keeps labelled keyboard fields`, async ({
+    page,
+  }, testInfo) => {
+    const diagnostics = installBrowserDiagnostics(page);
+    await page
+      .context()
+      .addCookies([
+        { name: 'app-language', value: scenario.locale, domain: '127.0.0.1', path: '/' },
+      ]);
+    await stubOpportunisticSync(page);
+    await page.goto(`/single-calculator?bond=${scenario.bond}`, { waitUntil: 'networkidle' });
+    await page.getByRole('button', { name: scenario.section }).click();
+    await page.getByRole('button', { name: scenario.advanced, exact: true }).click();
+    const field = page.getByRole('spinbutton', { name: scenario.field, exact: true });
+    await expect(field).toBeVisible();
+    await expect(field).toHaveAttribute('aria-describedby', /.+/);
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+      .analyze();
+    expect(results.violations).toEqual([]);
+    await expectNoBrowserDiagnostics(testInfo, diagnostics);
+  });
+}
