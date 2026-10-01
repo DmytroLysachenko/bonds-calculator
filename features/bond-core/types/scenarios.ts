@@ -23,6 +23,7 @@ export type SingleBondCalculationIntent = Pick<
   | 'savingsGoal'
   | 'customInflation'
   | 'customNbpRate'
+  /** Legacy input marker only: single-bond rollover is determined by the effective horizon. */
   | 'rollover'
   | 'timingMode'
   | 'investmentHorizonMonths'
@@ -257,6 +258,7 @@ export interface NormalizedBondComparisonPayload {
   customNbpRate?: number[];
   inflationScenario?: 'low' | 'base' | 'high';
   taxStrategy?: TaxStrategy;
+  /** Legacy true marker retains automatic handling; false is rejected. Use independent strategyPolicy for explicit choices. */
   reinvest?: boolean;
 }
 

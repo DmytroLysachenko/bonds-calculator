@@ -104,6 +104,10 @@ export const SingleBondCalculationIntentSchema = withDateOrderValidation(
     customInflation: customPathSchema('customInflation', -20, 100),
     customNbpRate: customPathSchema('customNbpRate', -10, 100),
     rollover: z.boolean().optional(),
+    // These strategy fields belong to comparison; accepting them here would
+    // silently discard a user's requested cash policy.
+    couponDisposition: z.never().optional(),
+    strategyPolicy: z.never().optional(),
     timingMode: z.enum(['general', 'exact']).optional(),
     investmentHorizonMonths: horizonMonths(360).optional(),
     useTaxWrapperLimit: z.boolean().optional(),
@@ -236,6 +240,8 @@ export const RegularInvestmentCalculationIntentSchema = withDateOrderValidation(
     customInflation: customPathSchema('customInflation', -20, 100),
     customNbpRate: customPathSchema('customNbpRate', -10, 100),
     rollover: z.boolean().optional(),
+    couponDisposition: z.never().optional(),
+    strategyPolicy: z.never().optional(),
     timingMode: z.enum(['general', 'exact']).optional(),
   }),
 ).superRefine((value, ctx) => {
@@ -258,7 +264,7 @@ export const RegularInvestmentCalculationIntentSchema = withDateOrderValidation(
 });
 
 const NormalizedBondComparisonPayloadSchema = withDateOrderValidation(
-  z.object({
+  z.strictObject({
     mode: z.literal('normalized').optional(),
     bondTypes: z.array(z.nativeEnum(BondType)).min(1).max(Object.keys(BondType).length),
     initialInvestment: money('initialInvestment', 100),
@@ -274,6 +280,14 @@ const NormalizedBondComparisonPayloadSchema = withDateOrderValidation(
   }),
 ).superRefine((value, ctx) => {
   validateEffectiveHorizon(value, ctx, 360);
+  if (value.reinvest === false) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['reinvest'],
+      message:
+        'Legacy reinvest=false does not select a supported maturity policy; use independent strategyPolicy',
+    });
+  }
   const start = new Date(value.purchaseDate).getTime();
   const end = new Date(value.withdrawalDate).getTime();
   validatePathLengths(
@@ -284,7 +298,7 @@ const NormalizedBondComparisonPayloadSchema = withDateOrderValidation(
 });
 
 const ComparisonSharedConfigSchema = withDateOrderValidation(
-  z.object({
+  z.strictObject({
     initialInvestment: money('initialInvestment', 100),
     purchaseDate: DateStringSchema,
     withdrawalDate: DateStringSchema,
@@ -332,7 +346,7 @@ const ComparisonScenarioOverrideSchema = z.strictObject({
 });
 
 const IndependentBondComparisonPayloadSchema = z
-  .object({
+  .strictObject({
     mode: z.literal('independent'),
     sharedConfig: ComparisonSharedConfigSchema,
     scenarioA: ComparisonScenarioOverrideSchema,
@@ -406,7 +420,7 @@ export const BondComparisonScenarioRequestSchema = z.object({
   payload: BondComparisonScenarioPayloadSchema,
 });
 
-export const RetirementPlannerPayloadSchema = z.object({
+export const RetirementPlannerPayloadSchema = z.strictObject({
   initialCapital: money('initialCapital', 1),
   monthlyWithdrawal: money('monthlyWithdrawal', 1, 10_000_000),
   expectedInflation: percent('expectedInflation', -20, 100),
@@ -418,7 +432,7 @@ export const RetirementPlannerPayloadSchema = z.object({
 });
 
 export const BondOptimizerPayloadSchema = z
-  .object({
+  .strictObject({
     initialInvestment: money('initialInvestment', 100),
     purchaseDate: DateStringSchema,
     withdrawalDate: DateStringSchema.optional(),
@@ -471,10 +485,10 @@ export const BondOptimizerPayloadSchema = z
   });
 
 export const PortfolioSimulationPayloadSchema = z
-  .object({
+  .strictObject({
     investments: z
       .array(
-        z.object({
+        z.strictObject({
           bondType: z.nativeEnum(BondType),
           amount: money('investment amount', 1),
           purchaseDate: DateStringSchema,

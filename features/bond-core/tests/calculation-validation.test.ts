@@ -171,6 +171,20 @@ describe('calculation request validation hardening', () => {
     );
   });
 
+  it('rejects legacy normalized reinvest rather than silently ignoring its policy', () => {
+    expectInvalid('unsupported normalized reinvest', () =>
+      BondComparisonScenarioPayloadSchema.parse({
+        mode: 'normalized',
+        bondTypes: [BondType.EDO, BondType.ROR],
+        initialInvestment: 10000,
+        purchaseDate: '2026-05-30',
+        withdrawalDate: '2028-05-30',
+        expectedInflation: 3,
+        reinvest: false,
+      }),
+    );
+  });
+
   it('rejects date order and impossible horizon combinations', () => {
     expectInvalid('exact date just beyond the maximum horizon', () =>
       BondInputsSchema.parse(
@@ -195,6 +209,16 @@ describe('calculation request validation hardening', () => {
         monthlyWithdrawal: 10,
         expectedInflation: 3,
         bondType: BondType.EDO,
+        horizonYears: 1,
+      }),
+    );
+    expectInvalid('unsupported retirement family', () =>
+      RetirementPlannerPayloadSchema.parse({
+        initialCapital: 100,
+        monthlyWithdrawal: 10,
+        expectedInflation: 3,
+        bondType: BondType.ROS,
+        taxStrategy: TaxStrategy.STANDARD,
         horizonYears: 1,
       }),
     );
@@ -263,6 +287,82 @@ describe('calculation request validation hardening', () => {
         }),
       );
     }
+  });
+
+  it('rejects unknown comparison policy fields instead of silently stripping them', () => {
+    const sharedConfig = {
+      initialInvestment: 10000,
+      purchaseDate: '2026-01-01',
+      withdrawalDate: '2028-01-01',
+      investmentHorizonMonths: 24,
+      expectedInflation: 3,
+    };
+    const independent = {
+      mode: 'independent',
+      sharedConfig,
+      scenarioA: { bondType: BondType.EDO },
+      scenarioB: { bondType: BondType.ROR },
+    };
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        ...independent,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        ...independent,
+        sharedConfig: { ...sharedConfig, reinvest: false },
+      }).success,
+    ).toBe(false);
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        mode: 'normalized',
+        bondTypes: [BondType.EDO],
+        initialInvestment: 10000,
+        purchaseDate: '2026-01-01',
+        withdrawalDate: '2028-01-01',
+        expectedInflation: 3,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects unmodeled policy fields in portfolio, optimizer and retirement requests', () => {
+    expect(
+      PortfolioSimulationPayloadSchema.safeParse({
+        investments: [
+          {
+            bondType: BondType.EDO,
+            amount: 100,
+            purchaseDate: '2026-01-01',
+            strategyPolicy: 'cash_after_maturity',
+          },
+        ],
+        expectedInflation: 3,
+        withdrawalDate: '2027-01-01',
+      }).success,
+    ).toBe(false);
+    expect(
+      BondOptimizerPayloadSchema.safeParse({
+        initialInvestment: 1000,
+        purchaseDate: '2026-01-01',
+        investmentHorizonMonths: 12,
+        expectedInflation: 3,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      RetirementPlannerPayloadSchema.safeParse({
+        initialCapital: 10000,
+        monthlyWithdrawal: 100,
+        expectedInflation: 3,
+        bondType: BondType.EDO,
+        taxStrategy: TaxStrategy.STANDARD,
+        horizonYears: 10,
+        rollover: false,
+      }).success,
+    ).toBe(false);
   });
 
   it('accepts a valid exact partial month under a one-month work horizon', () => {
