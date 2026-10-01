@@ -128,6 +128,7 @@ describe('portfolio simulation aggregation', () => {
       withdrawalDate: '2033-01-01',
     });
     const overview = { ...result, items: [] };
+    const detailedBytes = new TextEncoder().encode(JSON.stringify(result)).length;
     const serializedBytes = new TextEncoder().encode(JSON.stringify(overview)).length;
     expect(result.items).toHaveLength(100);
     expect(result.summary.totalInvested).toBe(10_000);
@@ -136,9 +137,10 @@ describe('portfolio simulation aggregation', () => {
       6,
     );
     expect(serializedBytes).toBeLessThan(400_000);
+    expect(detailedBytes).toBeGreaterThan(serializedBytes);
     // Diagnostic evidence, not a CI timing threshold; recorded with workload.
     process.stdout.write(
-      `portfolio benchmark: lots=100 months=108 wallMs=${Math.round(performance.now() - started)} overviewBytes=${serializedBytes}\n`,
+      `portfolio benchmark: lots=100 months=108 wallMs=${Math.round(performance.now() - started)} detailBytes=${detailedBytes} overviewBytes=${serializedBytes}\n`,
     );
   }, 60_000);
 
