@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
+import { is } from 'drizzle-orm';
+import { getTableConfig, PgTable } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres, { type Sql } from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import * as runtimeSchema from '@/db/schema';
 import { REQUIRED_MIGRATION_HASHES } from '@/lib/server/readiness/service';
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -48,6 +51,12 @@ integration('reviewed PostgreSQL migrations', () => {
         and table_name in ('rate_limit_windows', 'admin_audit_events', 'web_vital_aggregates')
       order by table_name
     `;
+    const bondColumns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_schema = 'public' and table_name = 'polish_bonds'
+        and column_name in ('full_name_en', 'description_en', 'first_year_rate')
+      order by column_name
+    `;
 
     expect(tables.map((row) => row.table_name)).toEqual([
       'admin_audit_events',
@@ -55,6 +64,28 @@ integration('reviewed PostgreSQL migrations', () => {
       'web_vital_aggregates',
     ]);
     expect(migrations.map((migration) => migration.hash)).toEqual(REQUIRED_MIGRATION_HASHES);
+    expect(bondColumns.map((column) => column.column_name)).toEqual([
+      'description_en',
+      'first_year_rate',
+      'full_name_en',
+    ]);
+  });
+
+  it('provides every runtime Drizzle table column through the reviewed journal', async () => {
+    const rows = await sql<{ table_name: string; column_name: string }[]>`
+      select table_name, column_name from information_schema.columns
+      where table_schema = 'public'
+    `;
+    const actual = new Set(rows.map((row) => `${row.table_name}.${row.column_name}`));
+    const missing = (Object.values(runtimeSchema) as unknown[])
+      .filter((value): value is PgTable => is(value, PgTable))
+      .flatMap((table) => {
+        const config = getTableConfig(table);
+        return config.columns
+          .map((column) => `${config.name}.${column.name}`)
+          .filter((column) => !actual.has(column));
+      });
+    expect(missing).toEqual([]);
   });
 
   it('enforces aggregate-only vital keys and accepts a migrated aggregate', async () => {

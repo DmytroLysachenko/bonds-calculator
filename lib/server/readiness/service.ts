@@ -55,7 +55,7 @@ export const REQUIRED_READINESS_TABLES = [
 ];
 const DRIZZLE_MIGRATIONS_TABLE = 'drizzle.__drizzle_migrations';
 /** Bump with every reviewed migration added to the journal. */
-export const REQUIRED_MIGRATION_COUNT = 10;
+export const REQUIRED_MIGRATION_COUNT = 13;
 /** SHA-256 hashes of the complete reviewed Drizzle journal, in migration order. */
 export const REQUIRED_MIGRATION_HASHES = [
   '0f4eecdf14be3137035a8807afcafdf6d2159924dadd276531c78d0d72a25257',
@@ -68,6 +68,9 @@ export const REQUIRED_MIGRATION_HASHES = [
   '6fc6efbb29b8cd445b843f4d4e42102e731b7f27e8d3867d298cd3819953e318',
   'e699eb7886b491bfadb5268293cb524068670ba48934eca91f5288283c9aa307',
   '18f427f3c035180ef1dc77f6be3f70c1aeb084c7ce9a42f66e13ffc28a303c38',
+  'c4aa1849e83c59e3b8d3b9a1761f50797c226a77ad077c24dccb134dc3f7d3d0',
+  '5ac76092b338827be6f8e1bb597889524c69890e7673c82abdba96bbc06a2cb4',
+  '644910352604010e81c666aafe3acb29a74a4670d01f04b2eca74bbfc630ab51',
 ] as const;
 
 export function checkReadinessEnv(env: ReadinessEnv): ReadinessCheck {
