@@ -13,7 +13,10 @@ export const MAX_INLINE_SCENARIO_LENGTH = 1_800;
 const singleScenarioSchema = z.object({
   version: z.literal(SCENARIO_CODEC_VERSION),
   kind: z.literal('single-bond'),
-  intent: BondInputsSchema,
+  intent: BondInputsSchema.refine(
+    (intent) => intent.couponDisposition === undefined,
+    'Single-bond portable intent does not support couponDisposition.',
+  ),
 });
 const comparisonScenarioSchema = z.object({
   version: z.literal(SCENARIO_CODEC_VERSION),

@@ -135,4 +135,83 @@ describe('scenario codec', () => {
       ]).toEqual(Array(5).fill(expected));
     },
   );
+
+  it.each([
+    ['maximum comparison horizon', 360, '2056-01-01', true],
+    ['overlong comparison horizon', 361, '2056-02-01', false],
+    ['fractional comparison horizon', 12.5, '2027-01-01', false],
+  ] as const)(
+    'keeps %s aligned across comparison API, package and URL',
+    (_label, months, withdrawalDate, expected) => {
+      const scenario = createComparisonScenarioPackage({
+        mode: 'independent',
+        sharedConfig: {
+          ...buildDefaultSharedConfig(new Date('2026-01-01T12:00:00Z')),
+          investmentHorizonMonths: months,
+          withdrawalDate,
+        },
+        scenarioA: { bondType: BondType.EDO },
+        scenarioB: { bondType: BondType.ROR },
+      });
+      const apiAccepted = (() => {
+        try {
+          parseCalculationScenarioRequest({
+            kind: ScenarioKind.BOND_COMPARISON,
+            payload: scenario.intent,
+          });
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      const packageAccepted = parseScenarioPackage(scenario).ok;
+      const urlAccepted = decodeScenarioFromUrl(
+        encodeURIComponent(serializeScenarioPackage(scenario)),
+      ).ok;
+      expect([apiAccepted, packageAccepted, urlAccepted]).toEqual(Array(3).fill(expected));
+    },
+  );
+
+  it('rejects an unknown comparison policy consistently at API, package and URL boundaries', () => {
+    const scenario = createComparisonScenarioPackage({
+      mode: 'independent',
+      sharedConfig: buildDefaultSharedConfig(new Date('2026-01-01T12:00:00Z')),
+      scenarioA: { bondType: BondType.EDO },
+      scenarioB: { bondType: BondType.ROR },
+    });
+    const malformed = {
+      ...scenario,
+      intent: { ...scenario.intent, rollover: false },
+    };
+    expect(() =>
+      parseCalculationScenarioRequest({
+        kind: ScenarioKind.BOND_COMPARISON,
+        payload: malformed.intent,
+      }),
+    ).toThrow();
+    expect(parseScenarioPackage(malformed).ok).toBe(false);
+    expect(decodeScenarioFromUrl(encodeURIComponent(JSON.stringify(malformed))).ok).toBe(false);
+  });
+
+  it('rejects unsupported single coupon policy at API, package, URL and persisted boundaries', () => {
+    const inputs = {
+      ...buildFallbackInputs(new Date('2026-01-31')),
+      couponDisposition: 'cash' as const,
+    };
+    const scenario = createSingleScenarioPackage(inputs);
+    expect(() =>
+      parseCalculationScenarioRequest({ kind: ScenarioKind.SINGLE_BOND, payload: inputs }),
+    ).toThrow();
+    expect(parseScenarioPackage(scenario).ok).toBe(false);
+    expect(decodeScenarioFromUrl(encodeURIComponent(JSON.stringify(scenario))).ok).toBe(false);
+    expect(
+      restoreSingleCalculatorState({
+        inputs,
+        envelope: null,
+        selectedSeriesId: null,
+        lastCommittedInputs: null,
+        isDirty: true,
+      }),
+    ).toBeNull();
+  });
 });

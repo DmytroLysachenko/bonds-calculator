@@ -2,8 +2,8 @@ import { BOND_DEFINITIONS } from '@/features/bond-core/constants/bond-definition
 import { MODEL_VERSION } from '@/features/bond-core/model-version';
 import { BondInputs, BondType } from '@/features/bond-core/types';
 import { SingleBondCalculationEnvelope } from '@/features/bond-core/types/scenarios';
-import { BondInputsSchema } from '@/features/bond-core/types/schemas';
 import { restoreVersionedEnvelope, stripDisplayOnlyInputs } from '@/shared/lib/calculator-state';
+import { parseScenarioPackage, SCENARIO_CODEC_VERSION } from '@/shared/lib/scenario-codec';
 
 import { applyDefinitionToInputs } from './single-calculator-state';
 
@@ -34,17 +34,24 @@ export function restoreSingleCalculatorState(
   }
 
   const restoredInputs = stripDisplayOnlyInputs(restoredState.inputs);
-  if (!restoredInputs || !BondInputsSchema.safeParse(restoredInputs).success) {
+  const decoded = restoredInputs
+    ? parseScenarioPackage({
+        version: SCENARIO_CODEC_VERSION,
+        kind: 'single-bond',
+        intent: restoredInputs,
+      })
+    : null;
+  if (!decoded?.ok || decoded.scenario.kind !== 'single-bond') {
     return null;
   }
 
-  const definition = BOND_DEFINITIONS[restoredInputs.bondType as BondType];
+  const definition = BOND_DEFINITIONS[decoded.scenario.intent.bondType as BondType];
   if (!definition) {
     return null;
   }
 
   const selectedSeriesId = normalizePersistedSelectedSeriesId(restoredState.selectedSeriesId);
-  const inputs = applyDefinitionToInputs(restoredInputs, definition, selectedSeriesId);
+  const inputs = applyDefinitionToInputs(decoded.scenario.intent, definition, selectedSeriesId);
 
   const restoredEnvelope = restoreVersionedEnvelope(restoredState.envelope, MODEL_VERSION);
 
