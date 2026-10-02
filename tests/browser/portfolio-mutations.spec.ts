@@ -12,6 +12,13 @@ test('persists a portfolio through the authenticated browser session', async ({ 
   const documentResponse = await page.goto('/notebook', { waitUntil: 'networkidle' });
   expect(documentResponse?.headers()['content-security-policy']).toContain("script-src 'self'");
 
+  const access = await page.evaluate(async () => {
+    const response = await fetch('/api/portfolio/access');
+    return { body: await response.json(), status: response.status };
+  });
+  expect(access.status).toBe(200);
+  expect(access.body.data.authMode).toBe('authenticated');
+
   const created = await page.evaluate(async () => {
     const response = await fetch('/api/portfolio', {
       method: 'POST',
@@ -55,7 +62,8 @@ test('persists a portfolio through the authenticated browser session', async ({ 
     return { body: await response.json(), status: response.status };
   }, created.body.data.id);
   expect(savedLot.status).toBe(200);
-  expect(savedLot.body.data).toMatchObject({ portfolioId: created.body.data.id, amount: '2' });
+  expect(savedLot.body.data).toMatchObject({ portfolioId: created.body.data.id });
+  expect(Number(savedLot.body.data.bondQuantity)).toBe(2);
 
   const updatedLot = await page.evaluate(
     async ({ lotId, portfolioId }) => {

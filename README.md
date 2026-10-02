@@ -80,6 +80,7 @@ pnpm test:ci
 pnpm test:coverage
 pnpm test:release
 pnpm test:db # requires an isolated TEST_DATABASE_URL
+TEST_DATABASE_URL=postgresql://... pnpm test:browser:integration # isolated disposable database only
 task test:db:local # starts an isolated disposable Postgres container on port 5433
 task db:local:up # starts the persistent local development database on port 5432
 pnpm test:core
@@ -93,6 +94,10 @@ pnpm scan:unused
 `pnpm test:ci` is the full Vitest suite; `pnpm test:release` is a faster,
 curated release signal and does not replace it. `pnpm test:db` applies the
 checked-in migration journal only to a disposable database.
+The authenticated browser integration suite also migrates its target database,
+creates temporary Auth.js fixtures, and runs a production webpack build with
+the integration-only PostgreSQL adapter. Never point `TEST_DATABASE_URL` at a
+development or production database.
 
 `pnpm scan:unused` is a green gate: it must report no unused files, exports,
 types, unlisted binaries, or configuration hints. The checked 70% coverage

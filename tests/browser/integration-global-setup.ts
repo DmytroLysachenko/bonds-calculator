@@ -26,12 +26,17 @@ export default async function integrationGlobalSetup() {
   try {
     await migrate(drizzle(sql), { migrationsFolder: 'drizzle' });
     await sql`
+      insert into polish_bonds (symbol, full_name, duration_days, interest_type)
+      values ('COI', 'Four-year inflation-linked bond', 1461, 'inflation_linked')
+      on conflict (symbol) do nothing
+    `;
+    await sql`
       insert into "user" (id, name, email)
       values (${userId}, 'Playwright Integration', ${`${userId}@example.test`})
     `;
     await sql`
       insert into session ("sessionToken", "userId", expires)
-      values (${sessionToken}, ${userId}, ${expires})
+      values (${sessionToken}, ${userId}, ${expires.toISOString()})
     `;
     await sql`
       insert into user_portfolios (user_id, name, description, share_id, is_public)

@@ -22,5 +22,17 @@ test('uses a persisted Auth.js session for private portfolio reads', async ({ pa
     return { body: await response.json(), status: response.status };
   });
   expect(portfolios.status).toBe(200);
-  expect(portfolios.body.data).toEqual([]);
+  expect(portfolios.body.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        shareId: fixture.publicShareId,
+        userId: fixture.userId,
+      }),
+    ]),
+  );
+  expect(
+    portfolios.body.data.every(
+      (portfolio: { userId: string }) => portfolio.userId === fixture.userId,
+    ),
+  ).toBe(true);
 });
