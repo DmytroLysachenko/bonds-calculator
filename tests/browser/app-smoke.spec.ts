@@ -110,6 +110,9 @@ test('trusted-core routes: accessible education, calculator, and economic journe
 
   for (const route of ['/education', '/single-calculator', '/economic-data']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
+    if (route === '/single-calculator') {
+      await page.waitForLoadState('networkidle');
+    }
     await expect(page.locator('main#main-content')).toBeVisible();
     await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
     await expect(page.locator('a[href="#main-content"]')).toBeAttached();
@@ -129,6 +132,7 @@ test('trusted-core routes: accessible education, calculator, and economic journe
   await expect(page.getByRole('link', { name: /calculate|oblicz|policz/i }).first()).toBeVisible();
 
   await page.goto('/single-calculator', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle');
   const calculateButton = page.getByRole('button', { name: /calculate|oblicz/i }).first();
   await calculateButton.focus();
   await expect(calculateButton).toBeFocused();

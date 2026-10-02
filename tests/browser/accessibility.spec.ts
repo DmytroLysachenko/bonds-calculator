@@ -208,7 +208,7 @@ test('mobile navigation control meets the 44px comfortable target and returns fo
 
   await navigationButton.focus();
   await navigationButton.press('Enter');
-  const navigation = page.locator('nav[aria-label]:visible');
+  const navigation = page.getByRole('navigation', { name: 'Nawigacja główna' });
   await expect(navigation).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(navigationButton).toBeFocused();
