@@ -27,6 +27,7 @@ test('populated calculator works with production-style CSP enforced', async ({
     !testInfo.project.name.endsWith('-csp'),
     'This scenario verifies enforced CSP projects.',
   );
+  await page.clock.setFixedTime(new Date('2026-09-28T12:00:00.000Z'));
   await prepareStrictPage(page);
   const response = await page.goto('/single-calculator', { waitUntil: 'domcontentloaded' });
   expect(response?.headers()['content-security-policy']).toContain(
@@ -40,6 +41,12 @@ test('populated calculator works with production-style CSP enforced', async ({
     .scrollIntoViewIfNeeded();
   const chart = page.locator('.recharts-surface').first();
   await expect(chart).toBeVisible();
+  if (testInfo.project.name === 'chromium-csp') {
+    await expect(chart).toHaveScreenshot('single-chart-csp.png', {
+      animations: 'disabled',
+      maxDiffPixelRatio: 0.02,
+    });
+  }
   await chart.hover({ position: { x: 100, y: 100 } });
   await page.setViewportSize({ width: 1100, height: 800 });
   await expect(chart).toBeVisible();
@@ -96,8 +103,8 @@ test('populated comparison works with strict CSP on a narrow viewport', async ({
   );
   await page.waitForLoadState('networkidle');
   await page
-    .getByRole('status')
     .getByRole('button', { name: /^(calculate|oblicz)$/i })
+    .first()
     .click();
   await expect(page.getByText(/comparison snapshot|migawka porównania/i)).toBeVisible({
     timeout: 30_000,
