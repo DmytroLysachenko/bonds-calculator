@@ -12,7 +12,10 @@ const colorClasses: Record<string, { background: string; border: string }> = {
 };
 
 /** CSP-safe palette class for the finite chart palettes used by the product. */
-export function chartColorClass(color: string | undefined, target: 'background' | 'border' = 'background') {
+export function chartColorClass(
+  color: string | undefined,
+  target: 'background' | 'border' = 'background',
+) {
   return (
     colorClasses[color?.toLowerCase() ?? '']?.[target] ??
     (target === 'border' ? 'border-muted-foreground' : 'bg-muted-foreground')

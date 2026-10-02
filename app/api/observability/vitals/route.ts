@@ -10,6 +10,7 @@ import {
   shouldSampleVital,
   type ValidatedVital,
 } from '@/lib/server/observability/vital-aggregates';
+import { telemetryRoute } from '@/shared/lib/telemetry-route';
 
 const logger = createServerLogger('WebVitals');
 const MAX_METRIC_PAYLOAD_BYTES = 2_048;
@@ -32,6 +33,7 @@ export const POST = apiHandler(
     const vital: ValidatedVital = await readJsonBody(request, payloadSchema, {
       maxBytes: MAX_METRIC_PAYLOAD_BYTES,
     });
+    vital.path = telemetryRoute(vital.path);
     if (shouldSampleVital()) {
       try {
         await recordVitalAggregate(vital);

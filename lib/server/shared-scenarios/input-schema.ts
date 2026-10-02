@@ -21,5 +21,3 @@ export const SharedScenarioAbuseReportSchema = z
     reason: z.enum(['spam', 'illegal-content', 'privacy', 'other']),
   })
   .strict();
-
-type SharedScenarioPayloadCommand = z.infer<typeof SharedScenarioPayloadSchema>;

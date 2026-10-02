@@ -10,6 +10,7 @@ import {
   BondOptimizerResultItem,
   ScenarioKind,
 } from '../types/scenarios';
+import { buildAssumptionDiagnostics } from '../utils/calculation-evidence';
 import { calculateBondInvestment } from '../utils/calculations';
 
 import { BaseHandler, HandlerContext, ScenarioHandler } from './base';
@@ -17,9 +18,9 @@ import { resolveScenarioInputs } from './resolved-inputs';
 
 export class OptimizerHandler
   extends BaseHandler
-  implements ScenarioHandler<BondOptimizerPayload, BondOptimizerResult>
+  implements ScenarioHandler<ScenarioKind.BOND_OPTIMIZER, BondOptimizerPayload, BondOptimizerResult>
 {
-  kind = ScenarioKind.BOND_OPTIMIZER;
+  readonly kind: ScenarioKind.BOND_OPTIMIZER = ScenarioKind.BOND_OPTIMIZER;
 
   async handle(
     payload: BondOptimizerPayload,
@@ -52,6 +53,7 @@ export class OptimizerHandler
       }
 
       const { inputs: resolvedInputs } = await resolveScenarioInputs({
+        data: this.data,
         inputs: {
           bondType,
           purchaseDate: payload.purchaseDate,
@@ -116,6 +118,15 @@ export class OptimizerHandler
       [],
       assumptions,
       context.dataFreshness,
+      undefined,
+      [
+        ...buildAssumptionDiagnostics(payload),
+        {
+          code: 'ranking_net_payout',
+          severity: 'assumption',
+          params: { years: horizonYears.toFixed(1) },
+        },
+      ],
     );
   }
 }

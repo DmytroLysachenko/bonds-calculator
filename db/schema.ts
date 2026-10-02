@@ -215,6 +215,10 @@ export const bondSeries = pgTable('bond_series', {
   maturityDate: date('maturity_date').notNull(),
   firstYearRate: numeric('first_year_rate', { precision: 5, scale: 2 }).notNull(),
   baseMargin: numeric('base_margin', { precision: 5, scale: 2 }),
+  earlyWithdrawalFee: numeric('early_withdrawal_fee', { precision: 8, scale: 2 }),
+  redemptionFeeCap: text('redemption_fee_cap'),
+  termsSourceUrl: text('terms_source_url'),
+  termsRevision: text('terms_revision'),
   createdAt: timestamp('created_at').defaultNow(),
 });
 

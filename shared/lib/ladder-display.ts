@@ -40,8 +40,13 @@ export function buildLadderMaturityBuckets(
       };
     }
 
-    accumulator[key].primaryValue += lot.netValue;
-    accumulator[key].amount += lot.netValue;
+    // A horizon liquidation value is not a future maturity payout. Until a
+    // full maturity projection is requested, show the guaranteed nominal
+    // principal scheduled for that maturity rather than relabelling an
+    // early-exit valuation as future cash.
+    const nominalPrincipal = Math.floor(lot.investedAmount / 100) * 100;
+    accumulator[key].primaryValue += nominalPrincipal;
+    accumulator[key].amount += nominalPrincipal;
     accumulator[key].count += 1;
 
     return accumulator;

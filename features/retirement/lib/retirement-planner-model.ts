@@ -16,7 +16,7 @@ export function getSupportedRetirementBondType(bondType: BondType) {
 export function createRetirementChartData(results: RetirementPlannerCalculationEnvelope | null) {
   return (
     results?.result.timeline
-      .filter((_, index) => index % 12 === 0)
+      .filter((_, index, timeline) => index % 12 === 0 || index === timeline.length - 1)
       .map((point) => ({
         year: point.year,
         date: point.date,
@@ -78,6 +78,9 @@ export function createRetirementPlannerLabels(t: Translate) {
     howToReadDesc: t('retirement_page.how_to_read_description'),
     balance: t('retirement_page.balance'),
     withdrawal: t('retirement_page.withdrawal'),
+    date: t('retirement_page.date'),
+    monthlyTable: t('retirement_page.monthly_table'),
+    monthlyTableDesc: t('retirement_page.monthly_table_description'),
     assumptionsAndWarnings: t('retirement_page.assumptions_and_warnings'),
     assumptionsAndWarningsDesc: t('retirement_page.assumptions_and_warnings_description'),
     audit: t('retirement_page.audit'),

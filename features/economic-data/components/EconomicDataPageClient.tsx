@@ -2,19 +2,14 @@
 
 import { Activity, Database, Info } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { usePathname, useSearchParams } from 'next/navigation';
-import React, { useCallback, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import React, { useCallback, useMemo, useState } from 'react';
 
 import { BondType } from '@/features/bond-core/types';
 import {
   RangeActions,
-  ReferenceStatusPanel,
   UsageGuidePanel,
 } from '@/features/economic-data/components/EconomicDashboardSections';
-import {
-  type ChartSeriesEnvelope,
-  type EconomicSeriesPoint,
-} from '@/features/economic-data/lib/economic-dashboard-model';
 import {
   buildEconomicPageLabels,
   buildEconomicUsageGuide,
@@ -30,7 +25,6 @@ import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShel
 import { SectionBlock } from '@/shared/components/page/SectionBlock';
 import { ReferenceDashboardHero } from '@/shared/components/reference/ReferenceDashboardHero';
 import { useBondDefinitions } from '@/shared/context/BondDefinitionsContext';
-import { useChartData } from '@/shared/hooks/useChartData';
 import { getBondRateContextCopy } from '@/shared/lib/bond-rate-context';
 
 const ChartLoading = () => (
@@ -55,17 +49,25 @@ const NBPRateChart = dynamic(
     ),
   { loading: ChartLoading },
 );
+const EconomicReferenceStatus = dynamic(
+  () =>
+    import('@/features/economic-data/components/EconomicReferenceStatus').then(
+      (module) => module.EconomicReferenceStatus,
+    ),
+  { loading: () => <div className="h-44 animate-pulse rounded-lg bg-muted" /> },
+);
 
-export function EconomicDataPageClient() {
+export function EconomicDataPageClient({ initialView }: { initialView: EconomicView }) {
   const { t, locale: language } = useAppI18n();
   const { definitions } = useBondDefinitions();
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [view, setView] = useState<EconomicView>(() => parseEconomicView(searchParams));
-  const { data: inflationMeta, isLoading: isLoadingInflation } =
-    useChartData<ChartSeriesEnvelope<EconomicSeriesPoint>>('/api/charts/inflation');
-  const { data: nbpMeta, isLoading: isLoadingNbp } =
-    useChartData<ChartSeriesEnvelope<EconomicSeriesPoint>>('/api/charts/nbp-rate');
+  const view = useMemo(() => {
+    const query = searchParams.toString();
+    return query ? parseEconomicView(new URLSearchParams(query)) : initialView;
+  }, [initialView, searchParams]);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
   const labels = buildEconomicPageLabels(t);
 
   const pageIntro = t('economic.page_intro');
@@ -78,14 +80,11 @@ export function EconomicDataPageClient() {
   const usageGuide = buildEconomicUsageGuide(t, floatingRateContext);
   const updateView = useCallback(
     (patch: Partial<EconomicView>) => {
-      setView((current) => {
-        const next = { ...current, ...patch };
-        const query = serializeEconomicView(next);
-        window.history.replaceState(window.history.state, '', `${pathname}?${query}`);
-        return next;
-      });
+      const next = { ...view, ...patch };
+      if (next.series === 'nbp') next.scale = 'readable';
+      router.push(`${pathname}?${serializeEconomicView(next)}`, { scroll: false });
     },
-    [pathname],
+    [pathname, router, view],
   );
   const selectedChart =
     view.series === 'cpi' ? (
@@ -93,7 +92,11 @@ export function EconomicDataPageClient() {
         title={t('economic.inflation_title')}
         description={t('economic.inflation_desc')}
       >
-        <InflationChart period={view.range} scaleMode={view.scale} />
+        <InflationChart
+          period={view.range}
+          scaleMode={view.scale}
+          onShowFullScale={() => updateView({ scale: 'full' })}
+        />
       </ChartSection>
     ) : (
       <ChartSection title={t('economic.nbp_rate_title')} description={t('economic.nbp_rate_desc')}>
@@ -109,7 +112,7 @@ export function EconomicDataPageClient() {
       isCalculating={false}
       hasResults={false}
     >
-      <div className="ui-page-flow" aria-busy={isLoadingInflation || isLoadingNbp}>
+      <div className="ui-page-flow">
         <ReferenceDashboardHero
           badge={
             <div className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.08em] text-muted-foreground">
@@ -143,19 +146,15 @@ export function EconomicDataPageClient() {
         >
           {selectedChart}
         </SectionBlock>
-        <details className="border-t border-border pt-5">
+        <details
+          className="border-t border-border pt-5"
+          onToggle={(event) => setIsStatusOpen(event.currentTarget.open)}
+        >
           <summary className="ui-focus-ring cursor-pointer text-sm font-semibold text-foreground">
             {t('economic.status_dashboard_title')}
           </summary>
           <div className="mt-5">
-            <ReferenceStatusPanel
-              inflationMeta={inflationMeta}
-              nbpMeta={nbpMeta}
-              isLoadingInflation={isLoadingInflation}
-              isLoadingNbp={isLoadingNbp}
-              labels={labels}
-              language={language}
-            />
+            {isStatusOpen ? <EconomicReferenceStatus labels={labels} language={language} /> : null}
           </div>
         </details>
         <details className="border-t border-border pt-5">

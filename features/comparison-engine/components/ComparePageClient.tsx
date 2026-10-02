@@ -13,7 +13,7 @@ export function ComparePageClient() {
 
   return (
     <PageTransition>
-      <div className="ui-wide-width mx-auto w-full space-y-8">
+      <div className="space-y-8">
         <FeatureStatusNotice
           status="conditional"
           eyebrow={t('comparison.page_notice_eyebrow')}

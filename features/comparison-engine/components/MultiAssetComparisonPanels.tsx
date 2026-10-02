@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Database } from 'lucide-react';
 
+import type { HistoricalReplayIssue } from '@/features/bond-core/utils/asset-calculations';
 import { cn } from '@/lib/utils';
 import { ScenarioReadyPanel } from '@/shared/components/feedback/ScenarioReadyPanel';
 
@@ -29,6 +30,12 @@ interface MultiAssetHistoryStatePanelProps {
   historySourceLabel: string;
   historyAsOfLabel: string;
   availabilitySummary: string;
+  coverageGaps: string[];
+  priceIndexIsApproximate: boolean;
+  replayIssue: HistoricalReplayIssue | null;
+  currencyBasis?: 'PLN' | 'mixed-USD-PLN';
+  observationBasis?: 'observed' | 'illustrative';
+  showRealValue: boolean;
   t: Translate;
 }
 
@@ -38,6 +45,12 @@ export function MultiAssetHistoryStatePanel({
   historySourceLabel,
   historyAsOfLabel,
   availabilitySummary,
+  coverageGaps,
+  priceIndexIsApproximate,
+  replayIssue,
+  currencyBasis,
+  observationBasis,
+  showRealValue,
   t,
 }: MultiAssetHistoryStatePanelProps) {
   return (
@@ -64,6 +77,21 @@ export function MultiAssetHistoryStatePanel({
           </p>
         </div>
       </div>
+      <p className="text-sm text-muted-foreground">
+        {t('multi_asset_page.history_state.basis', {
+          currency:
+            currencyBasis === 'PLN' ? 'PLN' : t('multi_asset_page.history_state.mixed_currency'),
+          observation: t(
+            `multi_asset_page.history_state.${observationBasis === 'observed' ? 'observed' : 'illustrative'}`,
+          ),
+          value: t(`multi_asset_page.history_state.${showRealValue ? 'real' : 'nominal'}`),
+        })}
+      </p>
+      {replayIssue ? (
+        <p className="text-sm text-warning" role="alert">
+          {t(`multi_asset_page.history_state.replay_issue_${replayIssue}`)}
+        </p>
+      ) : null}
       <div className="grid gap-0 rounded-lg bg-card md:grid-cols-3">
         <MetaCell
           label={t('multi_asset_page.history_state.coverage_label')}
@@ -84,9 +112,24 @@ export function MultiAssetHistoryStatePanel({
           <span className="font-medium text-foreground">{availabilitySummary}</span>
         </p>
       ) : null}
+      {coverageGaps.length > 0 ? (
+        <p className="text-sm text-warning">
+          {t('multi_asset_page.history_state.coverage_gaps', { months: coverageGaps.join(', ') })}
+        </p>
+      ) : null}
+      {priceIndexIsApproximate ? (
+        <p className="text-sm text-warning">
+          {t('multi_asset_page.history_state.price_index_approximation')}
+        </p>
+      ) : null}
       {usedFallbackHistory ? (
         <p className="text-sm text-warning">
           {t('multi_asset_page.history_state.fallback_warning')}
+        </p>
+      ) : null}
+      {usedFallbackHistory ? (
+        <p className="text-sm text-warning">
+          {t('multi_asset_page.history_state.currency_unavailable')}
         </p>
       ) : null}
     </section>

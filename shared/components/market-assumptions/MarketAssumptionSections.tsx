@@ -17,10 +17,11 @@ import {
   ProjectionModeButtons,
 } from '@/shared/components/market-assumptions/AssumptionSectionControls';
 import { AssumptionSetupMode } from '@/shared/lib/market-assumptions-form-model';
+import { type FieldUpdater } from '@/shared/types/field-updater';
 
-type UpdateHandler = {
-  bivarianceHack: (key: string, value: unknown) => void;
-}['bivarianceHack'];
+import type { MarketAssumptionFields } from '../MarketAssumptionsForm';
+
+type UpdateHandler = FieldUpdater<MarketAssumptionFields>;
 
 interface InflationAssumptionSectionProps {
   compact: boolean;
@@ -86,7 +87,11 @@ export function InflationAssumptionSection({
           </CurrentAssumptionValue>
         }
       >
-        <ProjectionModeButtons value={activeInflationMode} onChange={onModeChange} />
+        <ProjectionModeButtons
+          value={activeInflationMode}
+          onChange={onModeChange}
+          label={t('bonds.inflation.rate')}
+        />
       </AssumptionHeader>
 
       {activeInflationMode === 'fixed' ? (
@@ -173,7 +178,11 @@ export function NbpAssumptionSection({
           />
         }
       >
-        <ProjectionModeButtons value={activeNbpMode} onChange={onModeChange} />
+        <ProjectionModeButtons
+          value={activeNbpMode}
+          onChange={onModeChange}
+          label={t('bonds.nbp_rate_label')}
+        />
       </AssumptionHeader>
       {activeNbpMode === 'fixed' ? (
         <NbpPresetControls

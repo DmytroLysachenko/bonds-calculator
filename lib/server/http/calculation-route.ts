@@ -1,22 +1,23 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-import { calculationService } from '@/features/bond-core/application-service';
-import { BondInputs, RegularInvestmentInputs } from '@/features/bond-core/types';
 import {
   BondOptimizerPayload,
   CalculationScenarioRequest,
+  RegularInvestmentCalculationIntent,
   RetirementPlannerPayload,
   ScenarioKind,
+  SingleBondCalculationIntent,
 } from '@/features/bond-core/types/scenarios';
 import {
   BondComparisonScenarioPayloadSchema,
-  BondInputsSchema,
   BondOptimizerPayloadSchema,
   parseCalculationScenarioRequest,
-  RegularInvestmentInputsSchema,
+  RegularInvestmentCalculationIntentSchema,
   RetirementPlannerPayloadSchema,
+  SingleBondCalculationIntentSchema,
 } from '@/features/bond-core/types/schemas';
+import { calculationService } from '@/lib/server/calculation/composition';
 
 import { apiHandler } from './api-handler';
 import { calculationRateLimitPolicy } from './rate-limiter';
@@ -24,16 +25,16 @@ import { readJsonBody } from './read-json-body';
 import { okJson } from './responses';
 
 type PayloadByScenarioKind = {
-  [ScenarioKind.SINGLE_BOND]: BondInputs;
-  [ScenarioKind.REGULAR_INVESTMENT]: RegularInvestmentInputs;
+  [ScenarioKind.SINGLE_BOND]: SingleBondCalculationIntent;
+  [ScenarioKind.REGULAR_INVESTMENT]: RegularInvestmentCalculationIntent;
   [ScenarioKind.BOND_COMPARISON]: z.infer<typeof BondComparisonScenarioPayloadSchema>;
   [ScenarioKind.BOND_OPTIMIZER]: BondOptimizerPayload;
   [ScenarioKind.RETIREMENT_PLANNER]: RetirementPlannerPayload;
 };
 
 const scenarioSchemas = {
-  [ScenarioKind.SINGLE_BOND]: BondInputsSchema,
-  [ScenarioKind.REGULAR_INVESTMENT]: RegularInvestmentInputsSchema,
+  [ScenarioKind.SINGLE_BOND]: SingleBondCalculationIntentSchema,
+  [ScenarioKind.REGULAR_INVESTMENT]: RegularInvestmentCalculationIntentSchema,
   [ScenarioKind.BOND_COMPARISON]: BondComparisonScenarioPayloadSchema,
   [ScenarioKind.BOND_OPTIMIZER]: BondOptimizerPayloadSchema,
   [ScenarioKind.RETIREMENT_PLANNER]: RetirementPlannerPayloadSchema,

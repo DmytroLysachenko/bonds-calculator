@@ -1,53 +1,14 @@
-import { addMonths, differenceInDays, getDaysInYear, isAfter, parseISO } from 'date-fns';
+import { addMonths, format, isAfter, parseISO } from 'date-fns';
 import { Decimal } from 'decimal.js';
 
-import { BondType, InvestmentFrequency, LotBreakdown, RegularInvestmentInputs } from '../../types';
+import { BondType, InvestmentFrequency, LotBreakdown } from '../../types';
 import { SimulationEvent, SimulationEventType } from '../../types/simulation';
-
-import { getExpectedInflationForYearIndex } from './inflation';
 
 export function getRegularInvestmentInterval(frequency: InvestmentFrequency) {
   if (frequency === InvestmentFrequency.MONTHLY) {
     return 1;
   }
   return frequency === InvestmentFrequency.QUARTERLY ? 3 : 12;
-}
-
-interface AdvanceRegularInvestmentInflationInput {
-  currentInflation: Decimal;
-  monthIndex: number;
-  purchaseDate: Date;
-  expectedInflation: number;
-  customInflation?: RegularInvestmentInputs['customInflation'];
-}
-
-export function advanceRegularInvestmentInflation({
-  currentInflation,
-  monthIndex,
-  purchaseDate,
-  expectedInflation,
-  customInflation,
-}: AdvanceRegularInvestmentInflationInput) {
-  if (monthIndex <= 0) {
-    return currentInflation;
-  }
-
-  const currentMonthDate = addMonths(purchaseDate, monthIndex);
-  const previousMonthDate = addMonths(purchaseDate, monthIndex - 1);
-  const daysInMonth = differenceInDays(currentMonthDate, previousMonthDate);
-  const daysInYear = getDaysInYear(previousMonthDate);
-  const yearIndex = Math.floor((monthIndex - 1) / 12);
-  const annualInflation = getExpectedInflationForYearIndex(
-    expectedInflation,
-    customInflation,
-    yearIndex,
-  );
-  const monthlyFactor = new Decimal(annualInflation)
-    .dividedBy(100)
-    .times(daysInMonth)
-    .dividedBy(daysInYear);
-
-  return currentInflation.times(new Decimal(1).plus(monthlyFactor));
 }
 
 export function settleMaturedLots(
@@ -60,15 +21,16 @@ export function settleMaturedLots(
   lots.forEach((lot) => {
     const lotMaturityDate = parseISO(lot.maturityDate);
     if (
-      !lot.isMatured &&
+      lot.settledValue === undefined &&
       (currentMonthDate.getTime() === lotMaturityDate.getTime() ||
         isAfter(currentMonthDate, lotMaturityDate))
     ) {
       lot.isMatured = true;
+      lot.settledValue = lot.netValue;
       maturedLiquidity = maturedLiquidity.plus(lot.netValue);
       events.push({
         type: SimulationEventType.MATURITY,
-        date: currentMonthDate.toISOString(),
+        date: format(currentMonthDate, 'yyyy-MM-dd'),
         description: `Lot from ${lot.purchaseDate} matured`,
         value: lot.netValue,
       });
@@ -110,8 +72,8 @@ export function createRegularInvestmentLot({
     units,
     investedAmount,
     lot: {
-      purchaseDate: currentMonthDate.toISOString(),
-      maturityDate: lotMaturityDate.toISOString(),
+      purchaseDate: format(currentMonthDate, 'yyyy-MM-dd'),
+      maturityDate: format(lotMaturityDate, 'yyyy-MM-dd'),
       isMatured: false,
       investedAmount: investedAmount.toNumber(),
       accumulatedInterest: 0,

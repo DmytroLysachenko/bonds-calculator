@@ -5,10 +5,7 @@ import { apiHandler } from '@/lib/server/http/api-handler';
 import { readJsonBody } from '@/lib/server/http/read-json-body';
 import { okJson } from '@/lib/server/http/responses';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
-import {
-  portfolioDomainErrorResponse,
-  withAuthenticatedPortfolioOwner,
-} from '@/lib/server/portfolio/http';
+import { portfolioDomainErrorResponse, withPortfolioCommand } from '@/lib/server/portfolio/http';
 
 const PortfolioSimulationPayloadSchema = z
   .object({
@@ -18,7 +15,7 @@ const PortfolioSimulationPayloadSchema = z
   .strict();
 
 export const POST = apiHandler(async (req: NextRequest) => {
-  return withAuthenticatedPortfolioOwner(req, async (owner) => {
+  return withPortfolioCommand(req, async (owner) => {
     const { portfolioId, expectedInflation = 3.5 } = await readJsonBody(
       req,
       PortfolioSimulationPayloadSchema,

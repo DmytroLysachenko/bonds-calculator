@@ -1,11 +1,15 @@
 import { spawn } from 'node:child_process';
 import { appendFileSync, cpSync, existsSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 
 const port = process.env.PORT ?? '3100';
-const stderrFile = process.env.PLAYWRIGHT_SERVER_STDERR_FILE ?? '.playwright-server.stderr';
+const stderrFile =
+  process.env.PLAYWRIGHT_SERVER_STDERR_FILE ??
+  join(tmpdir(), `obligacje-calculator-playwright-${process.pid}.stderr`);
 rmSync(stderrFile, { force: true });
 const env = {
   ...process.env,

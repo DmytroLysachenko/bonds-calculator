@@ -6,9 +6,7 @@ import {
 import { BondInputs, RegularInvestmentInputs } from '../types';
 
 type SanitizeTarget =
-  | Partial<BondInputs>
-  | Partial<RegularInvestmentInputs>
-  | Record<string, unknown>;
+  Partial<BondInputs> | Partial<RegularInvestmentInputs> | Record<string, unknown>;
 
 /**
  * Sanitizes calculation inputs to prevent edge cases or malicious values

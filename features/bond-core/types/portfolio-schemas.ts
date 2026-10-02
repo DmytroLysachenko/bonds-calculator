@@ -36,21 +36,49 @@ export const PortfolioSchema = z
   })
   .strict();
 
+export const PortfolioUpdateSchema = z
+  .object({
+    name: PortfolioNameSchema.optional(),
+    description: PortfolioDescriptionSchema.optional(),
+  })
+  .strict()
+  .refine((command) => Object.keys(command).length > 0, 'Update must contain at least one field.');
+
+const PortfolioBondQuantitySchema = PortfolioAmountSchema;
+
 const InvestmentLotFields = {
   portfolioId: z.string().uuid(),
   bondType: z.enum(BondType),
   purchaseDate: IsoCalendarDateSchema,
-  amount: PortfolioAmountSchema,
+  bondQuantity: PortfolioBondQuantitySchema.optional(),
+  /** Deprecated transport key accepted only while existing clients migrate. */
+  amount: PortfolioBondQuantitySchema.optional(),
   selectedSeriesId: z.string().uuid().nullable().optional(),
   isRebought: z.boolean().default(false),
   notes: PortfolioNotesSchema.optional(),
 };
 
 /** Canonical create command for every portfolio-lot entry point. */
-export const InvestmentLotSchema = z.object(InvestmentLotFields).strict();
+export const InvestmentLotSchema = z
+  .object(InvestmentLotFields)
+  .strict()
+  .refine((command) => command.bondQuantity !== undefined || command.amount !== undefined, {
+    message: 'bondQuantity is required',
+    path: ['bondQuantity'],
+  })
+  .transform(({ amount, bondQuantity, ...command }) => ({
+    ...command,
+    bondQuantity: bondQuantity ?? amount!,
+  }));
 
-/** Legacy buy-transaction route uses same lot command minus series selection. */
-export const PortfolioLotTransactionSchema = InvestmentLotSchema.omit({ selectedSeriesId: true });
+/** Legacy buy-transaction route cannot record a selected issued series. */
+export const PortfolioLotTransactionSchema = InvestmentLotSchema.refine(
+  (command) => command.selectedSeriesId === undefined,
+  {
+    message: 'selectedSeriesId is not supported by the buy transaction command',
+    path: ['selectedSeriesId'],
+  },
+);
 
 /**
  * PATCH commands intentionally omit create defaults. Supplying `{}` is not an
@@ -61,10 +89,17 @@ export const InvestmentLotUpdateSchema = z
     portfolioId: InvestmentLotFields.portfolioId.optional(),
     bondType: InvestmentLotFields.bondType.optional(),
     purchaseDate: InvestmentLotFields.purchaseDate.optional(),
-    amount: PortfolioAmountSchema.optional(),
+    bondQuantity: PortfolioBondQuantitySchema.optional(),
+    amount: PortfolioBondQuantitySchema.optional(),
     selectedSeriesId: InvestmentLotFields.selectedSeriesId,
     isRebought: z.boolean().optional(),
     notes: PortfolioNotesSchema.optional(),
   })
   .strict()
-  .refine((command) => Object.keys(command).length > 0, 'Update must contain at least one field.');
+  .refine((command) => Object.keys(command).length > 0, 'Update must contain at least one field.')
+  .transform(({ amount, bondQuantity, ...command }) => ({
+    ...command,
+    ...(bondQuantity !== undefined || amount !== undefined
+      ? { bondQuantity: bondQuantity ?? amount }
+      : {}),
+  }));

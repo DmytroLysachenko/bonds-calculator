@@ -12,15 +12,24 @@ import { GET } from './route';
 describe('admin status route', () => {
   it('records an authorized read with a correlation id', async () => {
     mocks.status.mockResolvedValue({ ok: true });
-    const response = await GET(new Request('https://example.test/api/admin/status') as never, {} as never);
+    const response = await GET(
+      new Request('https://example.test/api/admin/status') as never,
+      {} as never,
+    );
     expect(response.status).toBe(200);
-    expect(mocks.audit).toHaveBeenCalledWith({ action: 'status-read', requestId: expect.any(String) });
+    expect(mocks.audit).toHaveBeenCalledWith({
+      action: 'status-read',
+      requestId: expect.any(String),
+    });
     expect(response.headers.get('x-request-id')).toBeTruthy();
   });
 
   it('keeps unauthorized responses public and non-diagnostic', async () => {
     mocks.authorize.mockRejectedValueOnce(new Error('UNAUTHORIZED_ADMIN_SESSION'));
-    const response = await GET(new Request('https://example.test/api/admin/status') as never, {} as never);
+    const response = await GET(
+      new Request('https://example.test/api/admin/status') as never,
+      {} as never,
+    );
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({
       error: 'Unauthorized',

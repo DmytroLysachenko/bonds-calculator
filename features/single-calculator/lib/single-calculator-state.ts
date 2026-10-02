@@ -191,10 +191,14 @@ export function resolveBondTypeInputUpdate(
   previous: BondInputs,
   type: BondType,
   definition: (typeof BOND_DEFINITIONS)[BondType],
+  horizonChoice: 'preserve' | 'native' = 'preserve',
 ) {
   const previousHorizonMonths = getHorizonMonths(previous.purchaseDate, previous.withdrawalDate);
   const fallbackHorizonMonths = Math.round(definition.duration * 12);
-  const nextHorizonMonths = Math.max(previousHorizonMonths, fallbackHorizonMonths);
+  const nextHorizonMonths =
+    horizonChoice === 'native'
+      ? fallbackHorizonMonths
+      : Math.max(previousHorizonMonths, fallbackHorizonMonths);
 
   return {
     ...previous,

@@ -3,13 +3,22 @@
 import { AlertTriangle, DatabaseZap, FileText, ShieldAlert, Target } from 'lucide-react';
 import React from 'react';
 
-import { CalculationDataFreshness } from '@/features/bond-core/types/scenarios';
+import {
+  CalculationDataFreshness,
+  CalculationDiagnostic,
+  CalculationEnvelope,
+} from '@/features/bond-core/types/scenarios';
 import { useAppI18n } from '@/i18n/client';
 import {
+  localizeCalculationDiagnostic,
+  localizeLegacyCalculationMessage,
+} from '@/shared/lib/calculation-evidence';
+import {
   getBondOfferFreshnessState,
-  getBondOfferSourceTranslationKey,
   getCalculationFreshnessMetaState,
+  getCalculationReferenceMeta,
 } from '@/shared/lib/data-freshness-display';
+import { buildReferenceProvenanceViewModel } from '@/shared/lib/data-reference';
 
 interface CalculationMetaPanelProps {
   warnings?: string[];
@@ -18,6 +27,9 @@ interface CalculationMetaPanelProps {
   dataQualityFlags?: string[];
   dataFreshness?: CalculationDataFreshness;
   calculationVersion?: string;
+  taxRulesRevision?: string;
+  offerTerms?: CalculationEnvelope<unknown>['offerTerms'];
+  diagnostics?: CalculationDiagnostic[];
   compact?: boolean;
 }
 
@@ -72,75 +84,27 @@ function humanizeFlag(
     .join(' ');
 }
 
-function translateEngineMessage(
-  value: string,
-  t: (key: string, params?: Record<string, string | number>) => string,
-) {
-  const numericValue = value.match(/-?\d+(?:\.\d+)?/)?.[0];
-
-  if (value.startsWith('Expected annual inflation:')) {
-    return t('bonds.engine_messages.expected_inflation', { value: numericValue ?? '' });
-  }
-
-  if (value.startsWith('Expected NBP reference rate:')) {
-    return t('bonds.engine_messages.expected_nbp_rate', { value: numericValue ?? '' });
-  }
-
-  if (value === 'Using custom user-supplied inflation overrides.') {
-    return t('bonds.engine_messages.custom_inflation');
-  }
-
-  if (value === 'Using custom user-supplied NBP rate overrides.') {
-    return t('bonds.engine_messages.custom_nbp');
-  }
-
-  if (value === 'Inflation history is missing; projected assumptions may be used.') {
-    return t('bonds.engine_messages.missing_inflation_history');
-  }
-
-  if (value === 'NBP rate history is missing; projected assumptions may be used.') {
-    return t('bonds.engine_messages.missing_nbp_history');
-  }
-
-  if (value === 'Historical data was unavailable; projected assumptions may be used.') {
-    return t('bonds.engine_messages.missing_history');
-  }
-
-  if (
-    value ===
-    'Rollover is disabled; the simulation stops at the first bond cycle or selected withdrawal date.'
-  ) {
-    return t('bonds.engine_messages.rollover_disabled');
-  }
-
-  if (value === 'Early redemption fee logic was applied before the native maturity date.') {
-    return t('bonds.engine_messages.early_redemption_applied');
-  }
-
-  const cycleMatch = value.match(
-    /^Simulation covered (\d+) bond cycles? across the selected horizon\.$/,
-  );
-  if (cycleMatch) {
-    return t('bonds.engine_messages.rollover_cycles', { count: cycleMatch[1] });
-  }
-
-  return value;
-}
-
 export const CalculationMetaPanel: React.FC<CalculationMetaPanelProps> = ({
   warnings = [],
   assumptions = [],
   calculationNotes = [],
   dataQualityFlags = [],
   dataFreshness,
-  calculationVersion = 'v1.2.0',
+  calculationVersion,
+  taxRulesRevision,
+  offerTerms,
+  diagnostics,
   compact = false,
 }) => {
-  const { t } = useAppI18n();
+  const { t, locale } = useAppI18n();
+  const hasTypedEngineNotes = diagnostics?.some(
+    (item) => item.code === 'rollover_cycles' || item.code === 'rollover_disabled',
+  );
 
   const hasContent =
     warnings.length > 0 ||
     assumptions.length > 0 ||
+    Boolean(diagnostics?.length) ||
     calculationNotes.length > 0 ||
     dataQualityFlags.length > 0 ||
     Boolean(dataFreshness);
@@ -151,6 +115,10 @@ export const CalculationMetaPanel: React.FC<CalculationMetaPanelProps> = ({
 
   const freshnessMeta = dataFreshness ? getCalculationFreshnessMetaState(dataFreshness) : null;
   const bondOffer = getBondOfferFreshnessState(dataFreshness);
+  const provenance = buildReferenceProvenanceViewModel(
+    getCalculationReferenceMeta(dataFreshness),
+    locale,
+  );
 
   return (
     <div className="space-y-5">
@@ -179,11 +147,7 @@ export const CalculationMetaPanel: React.FC<CalculationMetaPanelProps> = ({
             ) : null}
             <div>
               {t('comparison.offer_source')}:{' '}
-              <span className="font-semibold">
-                {t(
-                  `sidebar.freshness.offer_sources.${getBondOfferSourceTranslationKey(bondOffer.source)}`,
-                )}
-              </span>
+              <span className="font-semibold">{provenance.source}</span>
             </div>
             {bondOffer.isDegraded ? (
               <div className="font-semibold">{t('comparison.offer_degraded_warning')}</div>
@@ -199,19 +163,35 @@ export const CalculationMetaPanel: React.FC<CalculationMetaPanelProps> = ({
       >
         <MetaSection
           title={t('common.warnings')}
-          items={warnings.map((item) => translateEngineMessage(item, t))}
+          items={
+            diagnostics
+              ? diagnostics
+                  .filter((item) => item.severity === 'warning')
+                  .map((item) => localizeCalculationDiagnostic(item, t))
+              : warnings.map((item) => localizeLegacyCalculationMessage(item, t))
+          }
           icon={<AlertTriangle className="h-4 w-4" />}
           className="space-y-3 bg-warning/5 px-4 py-3 text-foreground"
         />
         <MetaSection
           title={t('common.assumptions')}
-          items={assumptions.map((item) => translateEngineMessage(item, t))}
+          items={
+            diagnostics
+              ? diagnostics
+                  .filter((item) => item.severity === 'assumption')
+                  .map((item) => localizeCalculationDiagnostic(item, t))
+              : assumptions.map((item) => localizeLegacyCalculationMessage(item, t))
+          }
           icon={<Target className="h-4 w-4" />}
           className="space-y-3 bg-muted/20 px-4 py-3 text-foreground"
         />
         <MetaSection
           title={t('common.notes')}
-          items={calculationNotes.map((item) => translateEngineMessage(item, t))}
+          items={
+            hasTypedEngineNotes
+              ? []
+              : calculationNotes.map((item) => localizeLegacyCalculationMessage(item, t))
+          }
           icon={<FileText className="h-4 w-4" />}
           className="space-y-3 bg-muted/20 px-4 py-3 text-foreground"
         />
@@ -231,10 +211,28 @@ export const CalculationMetaPanel: React.FC<CalculationMetaPanelProps> = ({
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span>{t('comparison.live_calculation')}</span>
-          <span>
-            {t('common.engine_version')}:{' '}
-            <span className="font-semibold text-foreground">{calculationVersion}</span>
-          </span>
+          {calculationVersion ? (
+            <span>
+              {t('common.engine_version')}:{' '}
+              <span className="font-semibold text-foreground">{calculationVersion}</span>
+            </span>
+          ) : null}
+          {taxRulesRevision ? (
+            <span>
+              {t('export.single_bond_pdf.tax_rules_revision')}:{' '}
+              <span className="font-semibold text-foreground">{taxRulesRevision}</span>
+            </span>
+          ) : null}
+          {offerTerms ? (
+            <span>
+              {t('export.single_bond_pdf.offer_source')}:{' '}
+              <span className="font-semibold text-foreground">
+                {offerTerms.seriesCode ??
+                  t(`export.single_bond_pdf.offer_source_${offerTerms.source}`)}
+              </span>
+              {offerTerms.termsRevision ? ` · ${offerTerms.termsRevision}` : null}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import { isNavigationRoute, pageRoutePolicy } from '@/lib/route-policy';
 import type { FeatureStatus } from '@/shared/types/feature-status';
 
 export type FeaturePlacement = 'primary' | 'preview' | 'recovery-lab';
@@ -14,7 +15,7 @@ export type FeatureDefinition = {
 
 const featureCatalog = [
   {
-    route: '/single-calculator',
+    route: pageRoutePolicy.single_calculator.path,
     navigationSection: 'core',
     status: 'trusted',
     placement: 'primary',
@@ -23,7 +24,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.single_calculator',
   },
   {
-    route: '/economic-data',
+    route: pageRoutePolicy.economic_data.path,
     navigationSection: 'core',
     status: 'reference',
     placement: 'primary',
@@ -32,7 +33,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.economic_data',
   },
   {
-    route: '/education',
+    route: pageRoutePolicy.education.path,
     navigationSection: 'core',
     status: 'trusted',
     placement: 'primary',
@@ -41,7 +42,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.education',
   },
   {
-    route: '/compare',
+    route: pageRoutePolicy.comparison.path,
     navigationSection: 'conditional',
     status: 'conditional',
     placement: 'preview',
@@ -50,7 +51,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.comparison',
   },
   {
-    route: '/regular-investment',
+    route: pageRoutePolicy.regular_investment.path,
     navigationSection: 'conditional',
     status: 'conditional',
     placement: 'preview',
@@ -59,7 +60,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.regular_investment',
   },
   {
-    route: '/ladder',
+    route: pageRoutePolicy.ladder.path,
     navigationSection: 'conditional',
     status: 'conditional',
     placement: 'preview',
@@ -68,7 +69,7 @@ const featureCatalog = [
     descriptionKey: 'landing.cards.ladder',
   },
   {
-    route: '/notebook',
+    route: pageRoutePolicy.notebook.path,
     navigationSection: 'conditional',
     status: 'conditional',
     placement: 'preview',
@@ -85,7 +86,10 @@ export function getFeaturesForPlacement(placement: FeaturePlacement): readonly F
 export function getFeaturesForNavigation(
   navigationSection: FeatureDefinition['navigationSection'],
 ): readonly FeatureDefinition[] {
-  return featureCatalog.filter((feature) => feature.navigationSection === navigationSection);
+  return featureCatalog.filter(
+    (feature) =>
+      feature.navigationSection === navigationSection && isNavigationRoute(feature.route),
+  );
 }
 
 export function getTrustedReleaseFeatures(): readonly FeatureDefinition[] {

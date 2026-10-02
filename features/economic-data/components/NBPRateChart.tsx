@@ -41,9 +41,13 @@ export const NBPRateChart = ({ period = 'ALL' }: { period?: PeriodValue }) => {
   if (isLoading) {
     return <Skeleton className="h-[470px] w-full rounded-lg" />;
   }
-  if (isError) {
+  if (isError && !response) {
     return (
-      <div className="flex h-[400px] w-full items-center justify-center text-destructive">
+      <div
+        className="flex h-[400px] w-full items-center justify-center text-destructive"
+        role="status"
+        aria-live="polite"
+      >
         {t('economic.failed_to_load')}
       </div>
     );
@@ -60,6 +64,8 @@ export const NBPRateChart = ({ period = 'ALL' }: { period?: PeriodValue }) => {
       fallbackTone={response?.usedFallback ? 'warning' : 'good'}
       fallbackStatusLabel={t('economic.reference_state.fallback')}
       syncedStatusLabel={t('economic.reference_state.synced')}
+      verificationHref="https://nbp.pl/podstawowe-stopy-procentowe-nbp/"
+      verificationLabel={t('economic.verify_source')}
     >
       <ChartContainer
         height={420}

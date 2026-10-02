@@ -13,11 +13,7 @@ import {
   type RateLimitPolicy,
   SharedStoreRateLimiter,
 } from './rate-limiter';
-import {
-  addRequestIdToProblem,
-  getRequestId,
-  withCorrelatedRequestId,
-} from './request-context';
+import { addRequestIdToProblem, getRequestId, withCorrelatedRequestId } from './request-context';
 
 const logger = createServerLogger('ApiHandler');
 const rateLimiter =
@@ -66,33 +62,33 @@ export function createApiHandler({
   ) {
     return async (req: NextRequest, context: TContext) => {
       const requestId = getRequestId(req);
-      const rateLimit = await configuredRateLimiter.consume(getIdentity(req), rateLimitPolicy);
-
-      if (!rateLimit.allowed) {
-        return withCorrelatedRequestId(
-          NextResponse.json(
-            {
-              type: 'https://api.obligacje.pl/errors/rate-limit-exceeded',
-              title: 'Too Many Requests',
-              status: 429,
-              detail: 'Rate limit exceeded. Please try again in a minute.',
-              code: 'RATE_LIMIT_EXCEEDED',
-            },
-            {
-              status: 429,
-              headers: {
-                'RateLimit-Limit': rateLimit.limit.toString(),
-                'RateLimit-Remaining': rateLimit.remaining.toString(),
-                'RateLimit-Reset': Math.ceil(rateLimit.resetAt / 1000).toString(),
-                'Retry-After': Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
-              },
-            },
-          ),
-          requestId,
-        );
-      }
-
       try {
+        const rateLimit = await configuredRateLimiter.consume(getIdentity(req), rateLimitPolicy);
+
+        if (!rateLimit.allowed) {
+          return withCorrelatedRequestId(
+            NextResponse.json(
+              {
+                type: 'https://api.obligacje.pl/errors/rate-limit-exceeded',
+                title: 'Too Many Requests',
+                status: 429,
+                detail: 'Rate limit exceeded. Please try again in a minute.',
+                code: 'RATE_LIMIT_EXCEEDED',
+              },
+              {
+                status: 429,
+                headers: {
+                  'RateLimit-Limit': rateLimit.limit.toString(),
+                  'RateLimit-Remaining': rateLimit.remaining.toString(),
+                  'RateLimit-Reset': Math.ceil(rateLimit.resetAt / 1000).toString(),
+                  'Retry-After': Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+                },
+              },
+            ),
+            requestId,
+          );
+        }
+
         return withCorrelatedRequestId(await handler(req, context), requestId);
       } catch (error) {
         const problem = addRequestIdToProblem(

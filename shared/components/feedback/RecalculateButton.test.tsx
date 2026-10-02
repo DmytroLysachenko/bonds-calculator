@@ -32,6 +32,7 @@ describe('RecalculateButton', () => {
     render(<RecalculateButton isDirty loading onClick={vi.fn()} />);
 
     expect(screen.getByRole('button')).toHaveProperty('disabled', true);
-    expect(screen.getByRole('status').textContent).toContain('common.calculation_in_progress');
+    expect(screen.getByText('common.calculation_in_progress')).toBeTruthy();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

@@ -1,10 +1,11 @@
+import { describe, expect, it } from 'vitest';
+
 import { BondType, TaxStrategy } from '@/features/bond-core/types';
 import { buildDefaultSharedConfig } from '@/features/comparison-engine/lib/comparison-calculator-state';
 import {
   parseComparisonUrlState,
   withComparisonUrlState,
 } from '@/features/comparison-engine/lib/comparison-deep-link';
-import { describe, expect, it } from 'vitest';
 
 describe('comparison deep links', () => {
   it('serializes an independently configured pair into a shareable setup URL', () => {
@@ -30,12 +31,20 @@ describe('comparison deep links', () => {
     });
 
     expect(url).toContain('utm_source=share');
-    expect(url).toContain('a=EDO');
-    expect(url).toContain('b=TOS');
-    expect(url).toContain('amount=25000');
-    expect(url).not.toContain('taxA=');
-    expect(url).toContain('taxB=IKZE');
-    expect(url).toContain('horizonB=36');
+    expect(url).toContain('scenario=');
+    const roundTrip = parseComparisonUrlState(
+      new URL(url, 'https://example.test').searchParams,
+      defaults,
+    );
+    expect(roundTrip).toMatchObject({
+      sharedConfig: { initialInvestment: 25_000 },
+      scenarioA: { bondType: BondType.EDO },
+      scenarioB: {
+        bondType: BondType.TOS,
+        taxStrategy: TaxStrategy.IKZE,
+        investmentHorizonMonths: 36,
+      },
+    });
   });
 
   it('restores serialized setup state without accepting invalid query values', () => {

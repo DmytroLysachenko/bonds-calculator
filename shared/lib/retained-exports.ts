@@ -1,6 +1,7 @@
 import { LotBreakdown, YearlyTimelinePoint } from '@/features/bond-core/types';
 
 import { AppLanguage } from './bond-display';
+import type { TimelineCsvMetadata } from './csv-bond';
 import {
   convertComparisonToCSV,
   convertLotsToCSV,
@@ -32,8 +33,14 @@ export function exportTimelineCsv(options: {
   headers: Record<string, string>;
   language: AppLanguage;
   fileName: string;
+  metadata?: TimelineCsvMetadata;
 }) {
-  const csv = convertTimelineToCSV(options.timeline, options.headers, options.language);
+  const csv = convertTimelineToCSV(
+    options.timeline,
+    options.headers,
+    options.language,
+    options.metadata,
+  );
   downloadFile(csv, options.fileName, 'text/csv;charset=utf-8');
 }
 

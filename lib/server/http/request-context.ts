@@ -20,7 +20,10 @@ export function withRequestId(response: NextResponse, requestId: string) {
  * payloads receive a top-level field without disclosing server-only causes.
  */
 export async function withCorrelatedRequestId(response: NextResponse, requestId: string) {
-  if (response.status === 204 || !response.headers.get('content-type')?.includes('application/json')) {
+  if (
+    response.status === 204 ||
+    !response.headers.get('content-type')?.includes('application/json')
+  ) {
     return withRequestId(response, requestId);
   }
 
@@ -46,6 +49,9 @@ export async function withCorrelatedRequestId(response: NextResponse, requestId:
   }
 }
 
-export function addRequestIdToProblem<T extends object>(problem: T, requestId: string): T & { requestId: string } {
+export function addRequestIdToProblem<T extends object>(
+  problem: T,
+  requestId: string,
+): T & { requestId: string } {
   return { ...problem, requestId };
 }

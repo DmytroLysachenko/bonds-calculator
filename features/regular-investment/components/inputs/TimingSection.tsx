@@ -7,12 +7,14 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { LazyCalendar } from '@/components/ui/lazy-calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { type RegularInvestmentInputs } from '@/features/bond-core/types';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/shared/components/forms/FormField';
 import { FormInlineNotice } from '@/shared/components/forms/FormInlineNotice';
 import { RangeField } from '@/shared/components/forms/RangeField';
 import { SegmentedControl } from '@/shared/components/forms/SegmentedControl';
 import { toDateString } from '@/shared/lib/date-timing';
+import { type FieldUpdater } from '@/shared/types/field-updater';
 
 type TimingSectionProps = {
   timingMode?: 'general' | 'exact';
@@ -20,7 +22,7 @@ type TimingSectionProps = {
   withdrawalDate: string;
   investmentHorizonYears: number;
   dateLocale: Locale;
-  onUpdate: (key: string, value: unknown) => void;
+  onUpdate: FieldUpdater<RegularInvestmentInputs>;
   t: (key: string) => string;
 };
 
@@ -55,12 +57,14 @@ export function TimingSection({
       >
         <FormField
           label={t('bonds.purchase_date')}
+          htmlFor="regular-purchase-date"
           tooltip={t('regular_form.start_date_help')}
           labelClassName="text-muted-foreground"
         >
           <Popover>
             <PopoverTrigger asChild>
               <Button
+                id="regular-purchase-date"
                 variant="outline"
                 className={cn(
                   'h-11 w-full justify-start px-3 text-left text-[15px] font-normal',
@@ -92,12 +96,14 @@ export function TimingSection({
         {timingMode === 'exact' ? (
           <FormField
             label={t('bonds.withdrawal_date')}
+            htmlFor="regular-withdrawal-date"
             tooltip={t('regular_form.withdrawal_date_help')}
             labelClassName="text-muted-foreground"
           >
             <Popover>
               <PopoverTrigger asChild>
                 <Button
+                  id="regular-withdrawal-date"
                   variant="outline"
                   className={cn(
                     'h-11 w-full justify-start px-3 text-left text-[15px] font-normal',

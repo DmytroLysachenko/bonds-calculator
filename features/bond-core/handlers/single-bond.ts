@@ -1,10 +1,14 @@
-import { getYear, parseISO } from 'date-fns';
-
-import { getHistoricalAverages, getTaxRulesForYear } from '@/lib/data/market-data';
+import { addMonths, format, getYear, parseISO } from 'date-fns';
+import { z } from 'zod';
 
 import { BondInputs, CalculationResult, TaxStrategy } from '../types';
-import { ScenarioKind, SingleBondCalculationEnvelope } from '../types/scenarios';
-import { BondInputsSchema } from '../types/schemas';
+import {
+  ScenarioKind,
+  SingleBondCalculationEnvelope,
+  SingleBondCalculationIntent,
+} from '../types/scenarios';
+import { SingleBondCalculationIntentSchema } from '../types/schemas';
+import { buildSingleBondDiagnostics } from '../utils/calculation-evidence';
 import { calculateBondInvestment } from '../utils/calculations';
 
 import { BaseHandler, HandlerContext, ScenarioHandler } from './base';
@@ -13,20 +17,22 @@ import { shouldAutoRollover } from './rollover';
 
 export class SingleBondHandler
   extends BaseHandler
-  implements ScenarioHandler<BondInputs, CalculationResult>
+  implements
+    ScenarioHandler<ScenarioKind.SINGLE_BOND, SingleBondCalculationIntent, CalculationResult>
 {
-  kind = ScenarioKind.SINGLE_BOND;
+  readonly kind: ScenarioKind.SINGLE_BOND = ScenarioKind.SINGLE_BOND;
 
   async handle(
-    payload: BondInputs,
+    payload: SingleBondCalculationIntent,
     context: HandlerContext,
   ): Promise<SingleBondCalculationEnvelope> {
-    const validatedInputs = BondInputsSchema.parse(payload);
+    const validatedInputs = SingleBondCalculationIntentSchema.parse(payload);
     const {
       definition: def,
       resolvedOffer,
       inputs: inputsWithDefaults,
     } = await resolveScenarioInputs({
+      data: this.data,
       inputs: validatedInputs,
       context,
       selectedSeriesId: validatedInputs.selectedSeriesId,
@@ -50,14 +56,66 @@ export class SingleBondHandler
         inputsToCalculate.taxStrategy === TaxStrategy.IKZE)
     ) {
       const purchaseYear = getYear(parseISO(inputsToCalculate.purchaseDate));
-      const rules = await getTaxRulesForYear(purchaseYear);
+      const rules = await this.data.getTaxRulesForYear(purchaseYear);
       const limitValue =
         inputsToCalculate.taxStrategy === TaxStrategy.IKE
           ? parseFloat(rules?.ikeLimit || '0')
           : parseFloat(rules?.ikzeLimit || '0');
 
+      if (limitValue <= 0) {
+        const result = calculateBondInvestment({
+          ...inputsToCalculate,
+          taxStrategy: TaxStrategy.STANDARD,
+          rollover: shouldAutoRollover(inputsToCalculate, def.duration),
+        } as BondInputs & { rollover: boolean });
+        const envelope = await this.createEnvelope(
+          result,
+          [
+            'No verified annual wrapper limit is available for this purchase year; standard taxation was used.',
+          ],
+          [
+            'Tax-wrapper illustration was not applied because its year-specific limit is unavailable.',
+          ],
+          context.dataFreshness,
+        );
+        return {
+          ...envelope,
+          offerTerms: resolvedOffer,
+          diagnostics: [
+            ...buildSingleBondDiagnostics(
+              inputsToCalculate,
+              resolvedOffer,
+              shouldAutoRollover(inputsToCalculate, def.duration),
+            ),
+            ...(result.noteDiagnostics ?? []),
+            { code: 'wrapper_limit_unavailable' as const, severity: 'warning' as const },
+          ],
+        };
+      }
+
       if (limitValue > 0 && inputsToCalculate.initialInvestment > limitValue) {
-        return this.calculateSplitTaxWrapper(inputsToCalculate, limitValue, context.dataFreshness);
+        const envelope = await this.calculateSplitTaxWrapper(
+          inputsToCalculate,
+          limitValue,
+          context.dataFreshness,
+        );
+        return {
+          ...envelope,
+          offerTerms: resolvedOffer,
+          diagnostics: [
+            ...buildSingleBondDiagnostics(
+              inputsToCalculate,
+              resolvedOffer,
+              shouldAutoRollover(inputsToCalculate, def.duration),
+            ),
+            ...(envelope.result.noteDiagnostics ?? []),
+            {
+              code: 'wrapper_limit_split' as const,
+              severity: 'assumption' as const,
+              params: { limit: limitValue },
+            },
+          ],
+        };
       }
     }
 
@@ -66,6 +124,15 @@ export class SingleBondHandler
     const resolvedRollover = shouldAutoRollover(inputsToCalculate, def.duration);
     if (resolvedOffer.source === 'series' && resolvedOffer.seriesCode) {
       assumptions.push(`Issued series resolved: ${resolvedOffer.seriesCode}`);
+      if (!resolvedOffer.termsAreVerified) {
+        warnings.push(
+          'The issued series rate is known, but its redemption terms are not yet evidenced; the displayed fee is an estimate.',
+        );
+      }
+    } else if (resolvedOffer.source === 'unresolved') {
+      assumptions.push(
+        'The selected issued series could not be verified; family-rule terms are shown as an unresolved-offer estimate.',
+      );
     } else {
       assumptions.push(
         'Using the current generic bond definition because no issued series was resolved.',
@@ -108,15 +175,70 @@ export class SingleBondHandler
       result.taxSavings = standardResult.totalTax - result.totalTax;
     }
 
-    const historicalAverages = await getHistoricalAverages();
+    const historicalAverages = await this.data.getHistoricalAverages();
 
-    return this.createEnvelope(
+    const envelope = await this.createEnvelope(
       result,
       warnings,
       assumptions,
       context.dataFreshness,
       historicalAverages,
     );
+    return {
+      ...envelope,
+      offerTerms: resolvedOffer,
+      diagnostics: [
+        ...buildSingleBondDiagnostics(inputsToCalculate, resolvedOffer, resolvedRollover),
+        ...(result.noteDiagnostics ?? []),
+      ],
+    };
+  }
+
+  /**
+   * Evaluates a deliberately small parameter sweep from one resolved issuer/data
+   * snapshot.  This is intentionally separate from `handle`: a sensitivity run
+   * is analysis, not a collection of independently refreshed quotations.
+   */
+  async calculateSensitivity(
+    payload: SensitivityRequest,
+    context: HandlerContext,
+  ): Promise<SensitivityResponse> {
+    const request = SensitivityRequestSchema.parse(payload);
+    const validated = SingleBondCalculationIntentSchema.parse(request.inputs);
+    const { definition, inputs: resolved } = await resolveScenarioInputs({
+      data: this.data,
+      inputs: validated,
+      context,
+      selectedSeriesId: validated.selectedSeriesId,
+    });
+    const snapshot = await this.withHistoricalData(resolved);
+    const values = createSweepValues(request.start, request.end, request.step);
+    const points: SensitivityPoint[] = values.map((value) => {
+      try {
+        const candidate = applySensitivityValue(snapshot, request.variable, value);
+        const result = calculateBondInvestment({
+          ...candidate,
+          expectedInflation: this.applyInflationScenario(
+            candidate.expectedInflation,
+            candidate.inflationScenario,
+          ),
+          rollover: shouldAutoRollover(candidate, definition.duration),
+        } as BondInputs & { rollover: boolean });
+        return { value, netPayoutValue: result.netPayoutValue, totalProfit: result.totalProfit };
+      } catch (error) {
+        return {
+          value,
+          error: error instanceof Error ? error.message : 'Unable to calculate point.',
+        };
+      }
+    });
+
+    return {
+      variable: request.variable,
+      points,
+      dataFreshness: context.dataFreshness,
+      crossings: findZeroCrossings(points),
+    };
   }
   private async calculateSplitTaxWrapper(
     inputs: BondInputs & { historicalData: import('@/features/bond-core/types').HistoricalDataMap },
@@ -168,13 +290,18 @@ export class SingleBondHandler
       isEarlyWithdrawal: wrapperPart.isEarlyWithdrawal,
       maturityDate: wrapperPart.maturityDate,
       nominalAnnualizedReturn:
-        (wrapperPart.nominalAnnualizedReturn + standardPart.nominalAnnualizedReturn) / 2,
+        (wrapperPart.nominalAnnualizedReturn * limit +
+          standardPart.nominalAnnualizedReturn * (inputs.initialInvestment - limit)) /
+        inputs.initialInvestment,
       realAnnualizedReturn:
-        (wrapperPart.realAnnualizedReturn + standardPart.realAnnualizedReturn) / 2,
+        (wrapperPart.realAnnualizedReturn * limit +
+          standardPart.realAnnualizedReturn * (inputs.initialInvestment - limit)) /
+        inputs.initialInvestment,
       calculationNotes: [
         ...(wrapperPart.calculationNotes || []),
         `Investment split: ${limit} PLN in ${inputs.taxStrategy} wrapper, ${inputs.initialInvestment - limit} PLN in Standard account due to annual limit.`,
       ],
+      noteDiagnostics: wrapperPart.noteDiagnostics,
       overflowInfo: {
         limitApplied: limit,
         amountInWrapper: limit,
@@ -193,7 +320,7 @@ export class SingleBondHandler
     const warnings = this.collectHistoricalWarnings([inputs.historicalData]);
     const assumptions = this.generateAssumptions(inputs);
 
-    const historicalAverages = await getHistoricalAverages();
+    const historicalAverages = await this.data.getHistoricalAverages();
 
     return this.createEnvelope(
       aggregatedResult,
@@ -203,4 +330,90 @@ export class SingleBondHandler
       historicalAverages,
     );
   }
+}
+
+export const SensitivityVariableSchema = z.enum(['inflation', 'nbp_rate', 'horizon_months']);
+export const SensitivityRequestSchema = z
+  .object({
+    inputs: SingleBondCalculationIntentSchema,
+    variable: SensitivityVariableSchema,
+    start: z.number().finite(),
+    end: z.number().finite(),
+    step: z.number().finite().positive(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.end < value.start) {
+      ctx.addIssue({ code: 'custom', path: ['end'], message: 'end must not precede start' });
+    }
+    if ((value.end - value.start) / value.step > 12.000001) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['step'],
+        message: 'A sweep may contain at most 13 points',
+      });
+    }
+    if (value.variable === 'horizon_months' && (value.start < 1 || value.end > 360)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['start'],
+        message: 'Horizon must be between 1 and 360 months',
+      });
+    }
+  });
+
+export type SensitivityRequest = z.infer<typeof SensitivityRequestSchema>;
+export type SensitivityVariable = z.infer<typeof SensitivityVariableSchema>;
+export interface SensitivityPoint {
+  value: number;
+  netPayoutValue?: number;
+  totalProfit?: number;
+  error?: string;
+}
+export interface SensitivityResponse {
+  variable: SensitivityVariable;
+  points: SensitivityPoint[];
+  crossings: Array<{ from: number; to: number }>;
+  dataFreshness: import('../types/scenarios').CalculationDataFreshness;
+}
+
+export function createSweepValues(start: number, end: number, step: number) {
+  const values: number[] = [];
+  for (let value = start; value <= end + step / 1_000_000; value += step) {
+    values.push(Number(value.toFixed(8)));
+  }
+  return values;
+}
+
+function applySensitivityValue(
+  inputs: BondInputs & { historicalData: BondInputs['historicalData'] },
+  variable: SensitivityVariable,
+  value: number,
+) {
+  if (variable === 'inflation') return { ...inputs, expectedInflation: value };
+  if (variable === 'nbp_rate') return { ...inputs, expectedNbpRate: value };
+  return {
+    ...inputs,
+    investmentHorizonMonths: value,
+    withdrawalDate: format(addMonths(parseISO(inputs.purchaseDate), value), 'yyyy-MM-dd'),
+  };
+}
+
+/** Reports brackets only; no monotonicity or unique-root claim is made. */
+export function findZeroCrossings(points: SensitivityPoint[]) {
+  const crossings: Array<{ from: number; to: number }> = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const current = points[index];
+    if (
+      previous.totalProfit === undefined ||
+      current.totalProfit === undefined ||
+      previous.error ||
+      current.error
+    )
+      continue;
+    if (previous.totalProfit >= 0 !== current.totalProfit >= 0) {
+      crossings.push({ from: previous.value, to: current.value });
+    }
+  }
+  return crossings;
 }

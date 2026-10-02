@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  getLadderTimelineUrl,
-  readLadderTimelineQueryState,
-} from './ladder-timeline-query';
+import { getLadderTimelineUrl, readLadderTimelineQueryState } from './ladder-timeline-query';
 
 describe('ladder timeline query state', () => {
   it('uses safe defaults for missing or malformed state', () => {
@@ -15,9 +12,7 @@ describe('ladder timeline query state', () => {
   });
 
   it('reads only supported chart, filter, and density values', () => {
-    const params = new URLSearchParams(
-      'ladderChart=monthly&ladderFilter=clustered&ladderRows=50',
-    );
+    const params = new URLSearchParams('ladderChart=monthly&ladderFilter=clustered&ladderRows=50');
 
     expect(readLadderTimelineQueryState(params)).toEqual({
       chartMode: 'monthly',

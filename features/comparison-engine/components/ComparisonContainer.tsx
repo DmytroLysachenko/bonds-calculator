@@ -1,8 +1,10 @@
 'use client';
-import { Scale } from 'lucide-react';
+import { Download, Scale, Upload } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { ChartStep } from '@/features/bond-core/types';
 import { bondQuantityFromInvestment } from '@/features/bond-core/utils/bond-quantity';
 import { useAppI18n } from '@/i18n/client';
@@ -10,17 +12,30 @@ import { RecalculateButton } from '@/shared/components/feedback/RecalculateButto
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { useHasMounted } from '@/shared/hooks/useHasMounted';
 import { useCurrencyFormatter } from '@/shared/hooks/useLocalizedFormatters';
+import { isCalculatorInputEnter } from '@/shared/lib/calculator-keyboard-submit';
+import { downloadJsonFile } from '@/shared/lib/csv-utils';
 import { formatHorizonMonths } from '@/shared/lib/format-horizon';
+import {
+  createComparisonScenarioPackage,
+  isComparisonPortableScenario,
+  parseScenarioPackage,
+  serializeScenarioPackage,
+} from '@/shared/lib/scenario-codec';
 
 import { useComparison } from '../hooks/useComparison';
+import { useComparisonPlanVisibility } from '../hooks/useComparisonPlanVisibility';
 import { useComparisonUrlState } from '../hooks/useComparisonUrlState';
 import { buildDefaultSharedConfig } from '../lib/comparison-calculator-state';
 import { buildComparisonContainerViewModel } from '../lib/comparison-container-model';
 import { parseComparisonUrlState } from '../lib/comparison-deep-link';
 
-import { ComparisonCommittedResults } from './ComparisonCommittedResults';
 import { ComparisonPlanReceipt } from './ComparisonPlanReceipt';
 import { ComparisonPlanWorkspace } from './ComparisonPlanWorkspace';
+
+const ComparisonCommittedResults = dynamic(
+  () => import('./ComparisonCommittedResults').then((module) => module.ComparisonCommittedResults),
+  { loading: () => <div className="h-[520px] animate-pulse rounded-md bg-muted" /> },
+);
 
 export const ComparisonContainer: React.FC = () => {
   const searchParams = useSearchParams();
@@ -36,6 +51,7 @@ export const ComparisonContainer: React.FC = () => {
     inputsB,
     committedInputsA,
     committedInputsB,
+    committedComparisonDraft,
     resultsA,
     resultsB,
     envelopeA,
@@ -44,6 +60,7 @@ export const ComparisonContainer: React.FC = () => {
     warningsB,
     isCalculating,
     calculate,
+    restorePortableScenario,
     updateSharedConfig,
     updateScenarioA,
     updateScenarioB,
@@ -59,10 +76,52 @@ export const ComparisonContainer: React.FC = () => {
   } = useComparison(initialUrlState);
   const { t, locale: language } = useAppI18n();
   const [chartStep, setChartStep] = useState<ChartStep>('yearly');
+  const [pendingImport, setPendingImport] = useState<{
+    sharedConfig: typeof sharedConfig;
+    scenarioA: typeof scenarioA;
+    scenarioB: typeof scenarioB;
+  } | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+  const planRef = useRef<HTMLDivElement>(null);
+  const receiptEditRef = useRef<HTMLButtonElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const focusAfterPlanChange = useRef<'plan' | 'receipt' | null>(null);
+  const planEditTarget = useRef<string | null>(null);
+  const previousIsCalculating = useRef(isCalculating);
   const hasComparisonResults = isPersistenceReady && !!resultsA && !!resultsB;
-  const [isPlanOpen, setIsPlanOpen] = useState(!hasComparisonResults);
-  const previousHasResults = useRef(hasComparisonResults);
-  const previousIsDirty = useRef(isDirty);
+  const { isPlanOpen, setIsPlanOpen } = useComparisonPlanVisibility(hasComparisonResults, isDirty);
+  const handlePlanOpenChange = (open: boolean, editTargetId?: string) => {
+    focusAfterPlanChange.current = open ? 'plan' : 'receipt';
+    planEditTarget.current = open ? (editTargetId ?? null) : null;
+    setIsPlanOpen(open);
+  };
+
+  useEffect(() => {
+    if (focusAfterPlanChange.current === 'plan' && isPlanOpen) {
+      (planEditTarget.current
+        ? planRef.current?.querySelector<HTMLElement>(`#${planEditTarget.current}`)
+        : planRef.current?.querySelector<HTMLElement>('[data-comparison-plan]')
+      )
+        ?.querySelector<HTMLElement>('input, select, textarea, button')
+        ?.focus();
+      planEditTarget.current = null;
+      focusAfterPlanChange.current = null;
+    } else if (focusAfterPlanChange.current === 'receipt' && hasComparisonResults && !isPlanOpen) {
+      receiptEditRef.current?.focus();
+      focusAfterPlanChange.current = null;
+    }
+  }, [hasComparisonResults, isPlanOpen]);
+
+  useEffect(() => {
+    if (previousIsCalculating.current && !isCalculating && hasComparisonResults && !isDirty) {
+      if (planRef.current?.contains(document.activeElement)) {
+        focusAfterPlanChange.current = 'receipt';
+      } else if (document.activeElement === document.body) {
+        resultsRef.current?.focus();
+      }
+    }
+    previousIsCalculating.current = isCalculating;
+  }, [hasComparisonResults, isCalculating, isDirty]);
   const { onBondTypeChange, onCustomHorizonChange, onScenarioChange, onSharedConfigChange } =
     useComparisonUrlState({
       sharedConfig,
@@ -93,7 +152,7 @@ export const ComparisonContainer: React.FC = () => {
     maximumFractionDigits: 2,
   });
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && (isDirty || !resultsA)) {
+    if (isCalculatorInputEnter(event) && (isDirty || !resultsA)) {
       calculate();
     }
   };
@@ -145,32 +204,129 @@ export const ComparisonContainer: React.FC = () => {
     ],
   );
   const durationMismatchText = durationMismatch ? t('comparison.auto_rollover_notice') : null;
-
-  useEffect(() => {
-    const receivedFirstResult = !previousHasResults.current && hasComparisonResults;
-    const committedEditedPlan = previousIsDirty.current && !isDirty && hasComparisonResults;
-
-    if (!hasComparisonResults) {
-      setIsPlanOpen(true);
-    } else if (receivedFirstResult || committedEditedPlan) {
-      setIsPlanOpen(false);
-    }
-
-    previousHasResults.current = hasComparisonResults;
-    previousIsDirty.current = isDirty;
-  }, [hasComparisonResults, isDirty]);
+  const receiptSharedConfig = committedComparisonDraft?.sharedConfig ?? sharedConfig;
+  const receiptScenarioA = committedComparisonDraft?.scenarioA ?? scenarioA;
+  const receiptScenarioB = committedComparisonDraft?.scenarioB ?? scenarioB;
 
   const planSummary = [
     {
       label: t('bonds.bond_quantity'),
-      value: `${bondQuantityFromInvestment(sharedConfig.initialInvestment)} ${t('bonds.units')}`,
+      value: `${bondQuantityFromInvestment(receiptSharedConfig.initialInvestment)} ${t('bonds.units')}`,
+      editTargetId: 'comparison-shared-setup',
     },
     {
       label: t('bonds.investment_horizon'),
-      value: formatHorizonMonths(sharedConfig.investmentHorizonMonths ?? 120, language),
+      value: formatHorizonMonths(receiptSharedConfig.investmentHorizonMonths ?? 120, language),
+      editTargetId: 'comparison-shared-setup',
     },
-    { label: t('comparison.scenario_a'), value: scenarioA.bondType },
-    { label: t('comparison.scenario_b'), value: scenarioB.bondType },
+    {
+      label: t('bonds.purchase_date'),
+      value: receiptSharedConfig.purchaseDate,
+      editTargetId: 'comparison-shared-setup',
+    },
+    {
+      label: t('bonds.withdrawal_date'),
+      value: receiptSharedConfig.withdrawalDate,
+      editTargetId: 'comparison-shared-setup',
+    },
+    {
+      label: t('bonds.tax_strategy'),
+      value: t(
+        receiptSharedConfig.taxStrategy === 'IKE'
+          ? 'bonds.tax_ike'
+          : receiptSharedConfig.taxStrategy === 'IKZE'
+            ? 'bonds.tax_ikze'
+            : 'bonds.tax_standard',
+      ),
+      editTargetId: 'comparison-shared-setup',
+    },
+    {
+      label: t('comparison.scenario_a'),
+      value: receiptScenarioA.bondType,
+      editTargetId: 'comparison-scenarios-setup',
+    },
+    {
+      label: t('comparison.scenario_b'),
+      value: receiptScenarioB.bondType,
+      editTargetId: 'comparison-scenarios-setup',
+    },
+    {
+      label: t('comparison.maturity_policy'),
+      value:
+        receiptSharedConfig.strategyPolicy === 'cash_after_maturity'
+          ? t('comparison.maturity_cash')
+          : receiptSharedConfig.strategyPolicy === 'hold_to_maturity'
+            ? t('comparison.maturity_hold')
+            : t('comparison.maturity_reinvest'),
+      editTargetId: 'comparison-shared-setup',
+    },
+    {
+      label: t('comparison.coupon_policy'),
+      value:
+        receiptSharedConfig.couponDisposition === 'cash'
+          ? t('comparison.coupon_cash')
+          : t('comparison.coupon_reinvest'),
+      editTargetId: 'comparison-shared-setup',
+    },
+    ...(
+      [
+        ['A', receiptScenarioA],
+        ['B', receiptScenarioB],
+      ] as const
+    ).flatMap(([label, scenario]) => [
+      ...(scenario.purchaseDate
+        ? [{ label: `${label} · ${t('bonds.purchase_date')}`, value: scenario.purchaseDate }]
+        : []),
+      ...(scenario.withdrawalDate
+        ? [{ label: `${label} · ${t('bonds.withdrawal_date')}`, value: scenario.withdrawalDate }]
+        : []),
+      ...(scenario.investmentHorizonMonths
+        ? [
+            {
+              label: `${label} · ${t('bonds.investment_horizon')}`,
+              value: formatHorizonMonths(scenario.investmentHorizonMonths, language),
+            },
+          ]
+        : []),
+      ...(scenario.strategyPolicy
+        ? [
+            {
+              label: `${label} · ${t('comparison.maturity_policy')}`,
+              value:
+                scenario.strategyPolicy === 'cash_after_maturity'
+                  ? t('comparison.maturity_cash')
+                  : scenario.strategyPolicy === 'hold_to_maturity'
+                    ? t('comparison.maturity_hold')
+                    : t('comparison.maturity_reinvest'),
+            },
+          ]
+        : []),
+      ...(scenario.couponDisposition
+        ? [
+            {
+              label: `${label} · ${t('comparison.coupon_policy')}`,
+              value:
+                scenario.couponDisposition === 'cash'
+                  ? t('comparison.coupon_cash')
+                  : t('comparison.coupon_reinvest'),
+            },
+          ]
+        : []),
+      ...(scenario.taxStrategy
+        ? [
+            {
+              label: `${label} · ${t('bonds.tax_strategy')}`,
+              value: t(
+                scenario.taxStrategy === 'IKE'
+                  ? 'bonds.tax_ike'
+                  : scenario.taxStrategy === 'IKZE'
+                    ? 'bonds.tax_ikze'
+                    : 'bonds.tax_standard',
+              ),
+            },
+          ]
+        : []),
+    ]),
   ];
   const showPlanReceipt = hasComparisonResults && !isPlanOpen;
 
@@ -185,96 +341,183 @@ export const ComparisonContainer: React.FC = () => {
       onKeyDown={handleKeyDown}
     >
       <div className="ui-page-flow">
-        {showPlanReceipt ? (
-          <ComparisonPlanReceipt
-            isOpen={false}
-            planLabel={t('common.scenario_plan')}
-            editLabel={t('common.edit_plan')}
-            closeLabel={t('common.close_plan')}
-            summary={planSummary}
-            onOpenChange={setIsPlanOpen}
+        <div className="flex flex-wrap justify-end gap-2">
+          <input
+            ref={importRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              void file
+                .text()
+                .then((text) => {
+                  const decoded = parseScenarioPackage(text);
+                  if (decoded.ok && isComparisonPortableScenario(decoded.scenario)) {
+                    const next = {
+                      sharedConfig: decoded.scenario.intent.sharedConfig,
+                      scenarioA: decoded.scenario.intent.scenarioA,
+                      scenarioB: decoded.scenario.intent.scenarioB,
+                    };
+                    if (isDirty) setPendingImport(next);
+                    else restorePortableScenario(next);
+                  }
+                })
+                .finally(() => {
+                  event.target.value = '';
+                });
+            }}
           />
-        ) : (
-          <>
-            {hasComparisonResults ? (
-              <ComparisonPlanReceipt
-                isOpen
-                planLabel={t('common.scenario_plan')}
-                editLabel={t('common.edit_plan')}
-                closeLabel={t('common.close_plan')}
-                summary={planSummary}
-                onOpenChange={setIsPlanOpen}
-              />
-            ) : null}
-            <ComparisonPlanWorkspace
-              sharedConfig={sharedConfig}
-              assumptionsBondType={assumptionsBondType}
-              durationMismatchTitle={t('comparison.auto_rollover_notice_title')}
-              durationMismatchText={durationMismatchText}
-              hasResults={!!resultsA && !!resultsB}
-              isCalculating={isCalculating}
-              onCalculate={calculate}
-              onUpdateSharedConfig={
-                onSharedConfigChange as (
-                  key: keyof typeof sharedConfig | string,
-                  value: unknown,
-                ) => void
-              }
-              scenarioA={{
-                title: t('comparison.scenario_a'),
-                colorClass: 'scenario-a',
-                scenario: scenarioA,
-                onBondTypeChange: (bondType) => {
-                  onBondTypeChange('A', bondType);
-                },
-                onTaxStrategyChange: (value) => onScenarioChange('A', 'taxStrategy', value),
-                onCustomHorizonEnabledChange: (enabled) =>
-                  onCustomHorizonChange('A', undefined, enabled),
-                onCustomHorizonMonthsChange: (value) => onCustomHorizonChange('A', value),
-              }}
-              scenarioB={{
-                title: t('comparison.scenario_b'),
-                colorClass: 'scenario-b',
-                scenario: scenarioB,
-                onBondTypeChange: (bondType) => {
-                  onBondTypeChange('B', bondType);
-                },
-                onTaxStrategyChange: (value) => onScenarioChange('B', 'taxStrategy', value),
-                onCustomHorizonEnabledChange: (enabled) =>
-                  onCustomHorizonChange('B', undefined, enabled),
-                onCustomHorizonMonthsChange: (value) => onCustomHorizonChange('B', value),
-              }}
-              sharedBaseLabel={t('comparison.shared_base')}
+          <Button size="sm" variant="outline" onClick={() => importRef.current?.click()}>
+            <Upload className="mr-1 h-4 w-4" />
+            {t('comparison.import_package')}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              downloadJsonFile(
+                JSON.parse(
+                  serializeScenarioPackage(
+                    createComparisonScenarioPackage({
+                      mode: 'independent',
+                      sharedConfig,
+                      scenarioA,
+                      scenarioB,
+                    }),
+                  ),
+                ),
+                'bond-comparison.scenario.json',
+              )
+            }
+          >
+            <Download className="mr-1 h-4 w-4" />
+            {t('comparison.export_package')}
+          </Button>
+        </div>
+        {pendingImport ? (
+          <div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-sm">
+            <p>{t('comparison.import_dirty')}</p>
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  restorePortableScenario(pendingImport);
+                  setPendingImport(null);
+                }}
+              >
+                {t('comparison.import_confirm')}
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setPendingImport(null)}>
+                {t('common.cancel')}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+        <div ref={planRef}>
+          {showPlanReceipt ? (
+            <ComparisonPlanReceipt
+              isOpen={false}
+              planLabel={t('common.scenario_plan')}
+              editLabel={t('common.edit_plan')}
+              closeLabel={t('common.close_plan')}
+              summary={planSummary}
+              onOpenChange={handlePlanOpenChange}
+              editButtonRef={receiptEditRef}
+              jumpToResultsLabel={t('common.jump_to_results')}
             />
-          </>
-        )}
+          ) : (
+            <>
+              {hasComparisonResults ? (
+                <ComparisonPlanReceipt
+                  isOpen
+                  planLabel={t('common.scenario_plan')}
+                  editLabel={t('common.edit_plan')}
+                  closeLabel={t('common.close_plan')}
+                  summary={planSummary}
+                  onOpenChange={handlePlanOpenChange}
+                />
+              ) : null}
+              <div data-comparison-plan>
+                <ComparisonPlanWorkspace
+                  sharedConfig={sharedConfig}
+                  assumptionsBondType={assumptionsBondType}
+                  durationMismatchTitle={t('comparison.auto_rollover_notice_title')}
+                  durationMismatchText={durationMismatchText}
+                  hasResults={!!resultsA && !!resultsB}
+                  isDirty={isDirty}
+                  isCalculating={isCalculating}
+                  onCalculate={calculate}
+                  onUpdateSharedConfig={onSharedConfigChange}
+                  scenarioA={{
+                    title: t('comparison.scenario_a'),
+                    colorClass: 'scenario-a',
+                    scenario: scenarioA,
+                    onBondTypeChange: (bondType) => {
+                      onBondTypeChange('A', bondType);
+                    },
+                    onTaxStrategyChange: (value) => onScenarioChange('A', 'taxStrategy', value),
+                    onStrategyPolicyChange: (value) =>
+                      onScenarioChange('A', 'strategyPolicy', value),
+                    onCouponDispositionChange: (value) =>
+                      onScenarioChange('A', 'couponDisposition', value),
+                    onCustomHorizonEnabledChange: (enabled) =>
+                      onCustomHorizonChange('A', undefined, enabled),
+                    onCustomHorizonMonthsChange: (value) => onCustomHorizonChange('A', value),
+                  }}
+                  scenarioB={{
+                    title: t('comparison.scenario_b'),
+                    colorClass: 'scenario-b',
+                    scenario: scenarioB,
+                    onBondTypeChange: (bondType) => {
+                      onBondTypeChange('B', bondType);
+                    },
+                    onTaxStrategyChange: (value) => onScenarioChange('B', 'taxStrategy', value),
+                    onStrategyPolicyChange: (value) =>
+                      onScenarioChange('B', 'strategyPolicy', value),
+                    onCouponDispositionChange: (value) =>
+                      onScenarioChange('B', 'couponDisposition', value),
+                    onCustomHorizonEnabledChange: (enabled) =>
+                      onCustomHorizonChange('B', undefined, enabled),
+                    onCustomHorizonMonthsChange: (value) => onCustomHorizonChange('B', value),
+                  }}
+                  sharedBaseLabel={t('comparison.shared_base')}
+                />
+              </div>
+            </>
+          )}
+        </div>
 
         {resultsA && resultsB ? (
-          <ComparisonCommittedResults
-            chartData={chartData}
-            chartStep={chartStep}
-            envelopeA={envelopeA}
-            envelopeB={envelopeB}
-            formatCurrency={formatCurrency}
-            hasMounted={hasMounted}
-            inputsA={resultInputsA}
-            inputsB={resultInputsB}
-            isCalculating={isCalculating}
-            isDirty={isDirty}
-            language={language}
-            onChartStepChange={setChartStep}
-            resultsA={resultsA}
-            resultsB={resultsB}
-            scenarioAColor={scenarioAColor}
-            scenarioBColor={scenarioBColor}
-            staleResultsLabel={t('comparison.stale_results')}
-            usesMixedTimelineCadence={hasMixedTimelineCadence}
-            warningsA={warningsA}
-            warningsB={warningsB}
-          />
+          <div id="comparison-results" ref={resultsRef} tabIndex={-1}>
+            <ComparisonCommittedResults
+              chartData={chartData}
+              chartStep={chartStep}
+              envelopeA={envelopeA}
+              envelopeB={envelopeB}
+              formatCurrency={formatCurrency}
+              hasMounted={hasMounted}
+              inputsA={resultInputsA}
+              inputsB={resultInputsB}
+              isCalculating={isCalculating}
+              isDirty={isDirty}
+              language={language}
+              onChartStepChange={setChartStep}
+              resultsA={resultsA}
+              resultsB={resultsB}
+              scenarioAColor={scenarioAColor}
+              scenarioBColor={scenarioBColor}
+              staleResultsLabel={t('comparison.stale_results')}
+              usesMixedTimelineCadence={hasMixedTimelineCadence}
+              warningsA={warningsA}
+              warningsB={warningsB}
+            />
+          </div>
         ) : null}
       </div>
       <RecalculateButton
+        placement="mobile-only"
         isDirty={isDirty}
         hasResults={!!resultsA && !!resultsB}
         loading={isCalculating}

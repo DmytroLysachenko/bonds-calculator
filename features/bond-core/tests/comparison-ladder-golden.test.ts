@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { calculationService } from '@/lib/server/calculation/composition';
 import {
   getHorizonMonths,
   getWithdrawalDateFromMonths,
   toDateString,
 } from '@/shared/lib/date-timing';
 
-import { calculationService } from '../application-service';
 import { BOND_DEFINITIONS } from '../constants/bond-definitions';
 import {
   BondType,
@@ -16,6 +16,7 @@ import {
   TaxStrategy,
 } from '../types';
 import { BondComparisonScenarioItem, ScenarioKind } from '../types/scenarios';
+import { BondComparisonScenarioRequestSchema } from '../types/schemas';
 import { calculationCache } from '../utils/calculation-cache';
 
 const today = new Date('2026-05-05T00:00:00.000Z');
@@ -283,6 +284,10 @@ describe('Comparison and ladder golden regressions', () => {
     expect(envelope.assumptions).toContain(
       'Maturity handling: automatic rollover to the selected shared horizon.',
     );
+    expect(envelope.diagnostics).toContainEqual({
+      code: 'maturity_auto',
+      severity: 'assumption',
+    });
     expect(envelope.assumptions.join('\n')).not.toContain('reinvest_until_horizon');
   });
 
@@ -517,38 +522,36 @@ describe('Comparison and ladder golden regressions', () => {
     },
   );
 
-  it('ignores legacy rebuy discount differences in independent comparison scenarios', async () => {
+  it('rejects the former no-op rebuy discount override', async () => {
     const purchaseDate = toDateString(today);
     const withdrawalDate = getWithdrawalDateFromMonths(purchaseDate, 240);
 
-    const envelope = await calculationService.calculate({
-      kind: ScenarioKind.BOND_COMPARISON,
-      payload: {
-        mode: 'independent',
-        sharedConfig: {
-          initialInvestment: 10000,
-          purchaseDate,
-          withdrawalDate,
-          expectedInflation: 2.5,
-          expectedNbpRate: 3.75,
-          taxStrategy: TaxStrategy.STANDARD,
-          timingMode: 'general',
-          investmentHorizonMonths: 240,
+    expect(
+      BondComparisonScenarioRequestSchema.safeParse({
+        kind: ScenarioKind.BOND_COMPARISON,
+        payload: {
+          mode: 'independent',
+          sharedConfig: {
+            initialInvestment: 10000,
+            purchaseDate,
+            withdrawalDate,
+            expectedInflation: 2.5,
+            expectedNbpRate: 3.75,
+            taxStrategy: TaxStrategy.STANDARD,
+            timingMode: 'general',
+            investmentHorizonMonths: 240,
+          },
+          scenarioA: {
+            bondType: BondType.EDO,
+            isRebought: false,
+          },
+          scenarioB: {
+            bondType: BondType.EDO,
+            isRebought: true,
+          },
         },
-        scenarioA: {
-          bondType: BondType.EDO,
-          isRebought: false,
-        },
-        scenarioB: {
-          bondType: BondType.EDO,
-          isRebought: true,
-        },
-      },
-    });
-
-    const result = envelope.result as BondComparisonScenarioItem[];
-
-    expect(result[1].result.netPayoutValue).toBeCloseTo(result[0].result.netPayoutValue, 8);
+      }).success,
+    ).toBe(false);
   });
 
   it('keeps exact-date comparison scenarios aligned to a shared 20-year withdrawal boundary', async () => {

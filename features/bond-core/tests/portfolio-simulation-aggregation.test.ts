@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { calculationService } from '../application-service';
+import { calculationService } from '@/lib/server/calculation/composition';
+
 import { BondType, TaxStrategy } from '../types';
 import { PortfolioSimulationResult, ScenarioKind } from '../types/scenarios';
 import { calculationCache } from '../utils/calculation-cache';
@@ -114,6 +115,35 @@ describe('portfolio simulation aggregation', () => {
     expect(result.items).toHaveLength(2);
   });
 
+  it('keeps a 100-lot overview bounded without losing aggregate accounting', async () => {
+    const started = performance.now();
+    const result = await calculatePortfolio({
+      investments: Array.from({ length: 100 }, () => ({
+        bondType: BondType.ROR,
+        amount: 100,
+        purchaseDate: '2024-01-01',
+        taxStrategy: TaxStrategy.STANDARD,
+        rollover: true,
+      })),
+      withdrawalDate: '2033-01-01',
+    });
+    const overview = { ...result, items: [] };
+    const detailedBytes = new TextEncoder().encode(JSON.stringify(result)).length;
+    const serializedBytes = new TextEncoder().encode(JSON.stringify(overview)).length;
+    expect(result.items).toHaveLength(100);
+    expect(result.summary.totalInvested).toBe(10_000);
+    expect(overview.aggregatedTimeline.at(-1)?.totalNetValue).toBeCloseTo(
+      result.summary.totalNetValue,
+      6,
+    );
+    expect(serializedBytes).toBeLessThan(400_000);
+    expect(detailedBytes).toBeGreaterThan(serializedBytes);
+    // Diagnostic evidence, not a CI timing threshold; recorded with workload.
+    process.stdout.write(
+      `portfolio benchmark: lots=100 months=108 wallMs=${Math.round(performance.now() - started)} detailBytes=${detailedBytes} overviewBytes=${serializedBytes}\n`,
+    );
+  }, 60_000);
+
   it('does not include future lots before their purchase date', async () => {
     const result = await calculatePortfolio();
     const beforeSecondLot = monthRow(result, '2024-06');
@@ -160,7 +190,40 @@ describe('portfolio simulation aggregation', () => {
 
     expect(final).toBeDefined();
     expect(result.summary.totalNetValue).toBe(final?.totalNetValue);
+    expect(result.summary.totalRealValue).toBe(final?.totalRealValue);
     expect(result.summary.totalProfit).toBe(final?.totalProfit);
+  });
+
+  it('includes an off-grid terminal settlement and reconciles each lot', async () => {
+    const result = await calculatePortfolio({
+      withdrawalDate: '2025-01-15',
+      investments: [
+        {
+          bondType: BondType.TOS,
+          amount: 10_000,
+          purchaseDate: '2024-01-01',
+          taxStrategy: TaxStrategy.STANDARD,
+          rollover: false,
+        },
+      ],
+    });
+    const final = result.aggregatedTimeline.at(-1);
+
+    expect(final?.date).toBe('2025-01-15');
+    expect(final?.totalNetValue).toBeCloseTo(result.items[0]?.result.netPayoutValue ?? 0, 8);
+    expect(final?.totalTax).toBeCloseTo(result.items[0]?.result.totalTax ?? 0, 8);
+    expect(final?.totalFees).toBeCloseTo(result.items[0]?.result.totalEarlyWithdrawalFee ?? 0, 8);
+  });
+
+  it('deflates the aggregate once from the portfolio anchor', async () => {
+    const result = await calculatePortfolio();
+    const final = result.aggregatedTimeline.at(-1);
+
+    expect(final?.priceIndexFactor).toBeGreaterThan(1);
+    expect(final?.totalRealValue).toBeCloseTo(
+      (final?.totalNetValue ?? 0) / (final?.priceIndexFactor ?? 1),
+      8,
+    );
   });
 
   it('keeps per-lot output traceable to original stored lots', async () => {

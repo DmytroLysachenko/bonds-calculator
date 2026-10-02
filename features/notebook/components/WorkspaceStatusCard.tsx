@@ -4,8 +4,8 @@ import { FolderKanban, LockKeyhole } from 'lucide-react';
 import React from 'react';
 
 import { useAppI18n } from '@/i18n/client';
-import { FormSelect } from '@/shared/components/forms/FormSelect';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
+import { FormSelect } from '@/shared/components/forms/FormSelect';
 import { UserPortfolio } from '@/shared/types/portfolio';
 
 interface WorkspaceStatusCardProps {

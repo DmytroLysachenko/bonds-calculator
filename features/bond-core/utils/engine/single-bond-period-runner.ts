@@ -4,7 +4,8 @@ import { Decimal } from 'decimal.js';
 import { BondInputs, BondType, HistoricalDataMap, InterestPayout, TaxStrategy } from '../../types';
 import { SimulationEvent } from '../../types/simulation';
 
-import { calculateCumulativeInflation } from './inflation';
+import { priceIndexPathForProjection } from './price-index';
+import type { RedemptionFeeCap } from './redemption';
 import { resolveSingleBondCheckpointValues } from './single-bond-accounting';
 import { createSingleBondCheckpoint } from './single-bond-checkpoint';
 import {
@@ -17,7 +18,11 @@ import {
   createWithdrawalEvent,
 } from './single-bond-events';
 import { resolveSingleBondPeriodAccrualStep } from './single-bond-period-step';
-import { calculateTaxAmount, shouldWithholdPeriodicTax } from './tax-settlement';
+import {
+  calculateTaxAmount,
+  settlementPolicyFor,
+  shouldWithholdPeriodicTax,
+} from './tax-settlement';
 import { TimelinePeriod } from './timeline-builder';
 
 interface RunSingleBondPeriodInput {
@@ -43,6 +48,7 @@ interface RunSingleBondPeriodInput {
   numberOfBonds: Decimal;
   nominalStartingValue: Decimal;
   earlyWithdrawalFee: number;
+  redemptionFeeCap?: RedemptionFeeCap;
   isCapitalized: boolean;
   payoutFrequency: InterestPayout;
   isEarlyWithdrawal: boolean;
@@ -50,6 +56,7 @@ interface RunSingleBondPeriodInput {
   taxRate: number;
   initialInvestment: number;
   leftoverCash: Decimal;
+  couponDisposition?: 'reinvest' | 'cash';
 }
 
 export function runSingleBondPeriod({
@@ -75,6 +82,7 @@ export function runSingleBondPeriod({
   numberOfBonds,
   nominalStartingValue,
   earlyWithdrawalFee,
+  redemptionFeeCap,
   isCapitalized,
   payoutFrequency,
   isEarlyWithdrawal,
@@ -82,6 +90,7 @@ export function runSingleBondPeriod({
   taxRate,
   initialInvestment,
   leftoverCash,
+  couponDisposition,
 }: RunSingleBondPeriodInput) {
   let nextCurrentNominalValue = currentNominalValue;
   let nextTotalInterestEarnedSoFar = totalInterestEarnedSoFar;
@@ -132,27 +141,34 @@ export function runSingleBondPeriod({
   let taxDeducted = new Decimal(0);
   if (shouldWithholdPeriodicTax(taxStrategy, isCapitalized)) {
     if (!period.isWithdrawal || !isEarlyWithdrawal) {
-      taxDeducted = calculateTaxAmount(interestEarned, taxStrategy, true, taxRate);
+      taxDeducted = calculateTaxAmount(
+        interestEarned,
+        taxStrategy,
+        settlementPolicyFor(taxStrategy),
+        taxRate,
+      );
       nextPeriodicTaxPaidSoFar = nextPeriodicTaxPaidSoFar.plus(taxDeducted);
-      if (taxDeducted.gt(0)) {
+      if (taxDeducted.gt(0))
         events.push(createPeriodicTaxSettlementEvent(period.endDate, taxDeducted));
-        events.push(createPayoutEvent(period.endDate, interestEarned.minus(taxDeducted)));
-      }
     }
   } else if (isCapitalized) {
     nextCurrentNominalValue = nextCurrentNominalValue.plus(interestEarned);
   }
 
+  const couponWasPaid = !isCapitalized && !(period.isWithdrawal && isEarlyWithdrawal);
+  if (couponWasPaid && interestEarned.gt(0)) {
+    events.push(createPayoutEvent(period.endDate, interestEarned.minus(taxDeducted)));
+  }
+
   const netInterest = interestEarned.minus(taxDeducted);
   nextGlobalAccumulatedNetInterest = nextGlobalAccumulatedNetInterest.plus(netInterest);
 
-  const totalMonthsSoFar = differenceInMonths(period.endDate, simulationStartDate);
-  const cumulativeInflation = calculateCumulativeInflation(
-    totalMonthsSoFar,
+  const cumulativeInflation = priceIndexPathForProjection(
+    simulationStartDate,
     expectedInflation,
     customInflation,
-    simulationStartDate,
-  );
+  ).factorBetween(simulationStartDate, period.endDate);
+  const totalMonthsSoFar = differenceInMonths(period.endDate, simulationStartDate);
 
   const checkpointValues = resolveSingleBondCheckpointValues({
     bondType,
@@ -160,8 +176,11 @@ export function runSingleBondPeriod({
     isWithdrawal: period.isWithdrawal,
     isMaturity: period.isMaturity,
     totalInterestEarnedSoFar: nextTotalInterestEarnedSoFar,
+    currentPeriodInterest: interestEarned,
     numberOfBonds,
     earlyWithdrawalFee,
+    redemptionFeeCap,
+    issuerPeriodIndex: isFirstPeriod ? 0 : 1,
     isCapitalized,
     currentNominalValue: nextCurrentNominalValue,
     nominalStartingValue,
@@ -181,10 +200,14 @@ export function runSingleBondPeriod({
 
   if (
     period.isWithdrawal &&
-    !shouldWithholdPeriodicTax(taxStrategy, isCapitalized) &&
-    checkpointValues.currentTaxAtPoint.gt(0)
+    checkpointValues.currentTaxAtPoint.minus(nextPeriodicTaxPaidSoFar).gt(0)
   ) {
-    events.push(createFinalTaxSettlementEvent(period.endDate, checkpointValues.currentTaxAtPoint));
+    events.push(
+      createFinalTaxSettlementEvent(
+        period.endDate,
+        checkpointValues.currentTaxAtPoint.minus(nextPeriodicTaxPaidSoFar),
+      ),
+    );
   }
 
   if (period.isMaturity) {
@@ -192,12 +215,18 @@ export function runSingleBondPeriod({
   }
 
   if (period.isWithdrawal) {
+    const previouslyPaidCoupons = isCapitalized
+      ? new Decimal(0)
+      : nextTotalInterestEarnedSoFar
+          .minus(couponWasPaid ? 0 : interestEarned)
+          .minus(nextPeriodicTaxPaidSoFar);
     events.push(
       createWithdrawalEvent(
         period.endDate,
         checkpointValues.currentGrossValue
           .minus(checkpointValues.currentWithdrawalFee)
-          .minus(checkpointValues.currentTaxAtPoint),
+          .minus(checkpointValues.currentTaxAtPoint)
+          .minus(previouslyPaidCoupons),
       ),
     );
   }
@@ -233,8 +262,13 @@ export function runSingleBondPeriod({
     }),
     currentNominalValue: nextCurrentNominalValue,
     totalInterestEarnedSoFar: nextTotalInterestEarnedSoFar,
+    currentPeriodInterest: interestEarned,
     periodicTaxPaidSoFar: nextPeriodicTaxPaidSoFar,
     globalAccumulatedNetInterest: nextGlobalAccumulatedNetInterest,
     dataQualityFlag: usedProjectedRate ? 'projected_rate_segment' : null,
+    couponCashAdded:
+      couponDisposition === 'cash' && !isCapitalized && !period.isWithdrawal
+        ? netInterest
+        : new Decimal(0),
   };
 }

@@ -27,6 +27,8 @@ export function sanitizeScenarioOverride(
   if (next.taxStrategy === sharedConfig.taxStrategy) {
     delete next.taxStrategy;
   }
+  if (next.strategyPolicy === sharedConfig.strategyPolicy) delete next.strategyPolicy;
+  if (next.couponDisposition === sharedConfig.couponDisposition) delete next.couponDisposition;
 
   return next;
 }

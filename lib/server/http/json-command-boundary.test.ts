@@ -45,7 +45,10 @@ describe('JSON command API boundary', () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ command: { operation: 'calculate' } });
+    await expect(response.json()).resolves.toEqual({
+      command: { operation: 'calculate' },
+      requestId: response.headers.get('x-request-id'),
+    });
     expect(response.headers.get('x-request-id')).toBeTruthy();
   });
 

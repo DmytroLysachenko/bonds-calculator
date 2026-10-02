@@ -1,27 +1,53 @@
 import { NextRequest } from 'next/server';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
-  getPortfolioRouteContext: vi.fn(),
+  auth: vi.fn(),
+  getOwnerSettings: vi.fn(),
   updateOwnerSettings: vi.fn(),
 }));
 
-vi.mock('@/lib/server/portfolio/http', () => ({
-  getPortfolioRouteContext: mocks.getPortfolioRouteContext,
-  withPortfolioOwnerResponse: (response: Response) => response,
-}));
+vi.mock('@/auth', () => ({ auth: mocks.auth }));
 vi.mock('@/lib/server/settings/service', () => ({
   updateOwnerSettings: mocks.updateOwnerSettings,
+  getOwnerSettings: mocks.getOwnerSettings,
 }));
 
-import { PATCH } from './route';
+import { GET, PATCH } from './route';
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('settings PATCH boundary', () => {
   beforeEach(() => {
-    mocks.getPortfolioRouteContext.mockReset();
+    vi.stubEnv('AUTH_SECRET', 'test-secret');
+    mocks.auth.mockReset();
+    mocks.getOwnerSettings.mockReset();
     mocks.updateOwnerSettings.mockReset();
-    mocks.getPortfolioRouteContext.mockResolvedValue({ owner: { ownerId: 'owner-1' } });
+    mocks.auth.mockResolvedValue({ user: { id: 'owner-1' } });
     mocks.updateOwnerSettings.mockResolvedValue({ theme: 'dark' });
+  });
+
+  it('rejects forged guest ownership before settings reads or writes', async () => {
+    mocks.auth.mockResolvedValue(null);
+    for (const [method, handler] of [
+      ['GET', GET],
+      ['PATCH', PATCH],
+    ] as const) {
+      const response = await handler(
+        new NextRequest('http://localhost/api/user/settings', {
+          method,
+          headers: {
+            cookie: 'guest_portfolio_owner_id=owner-1',
+            'content-type': 'application/json',
+          },
+          ...(method === 'PATCH' ? { body: JSON.stringify({ theme: 'dark' }) } : {}),
+        }),
+        { params: Promise.resolve({}) },
+      );
+      expect(response.status).toBe(401);
+    }
+    expect(mocks.getOwnerSettings).not.toHaveBeenCalled();
+    expect(mocks.updateOwnerSettings).not.toHaveBeenCalled();
   });
 
   it('accepts only supported settings values', async () => {

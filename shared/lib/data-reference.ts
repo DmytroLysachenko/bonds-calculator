@@ -18,6 +18,46 @@ export type ReferenceMetaItem = {
   label: string;
   value: string;
 };
+
+/** Shared source, coverage, as-of, and fallback contract for trusted data UI. */
+export type ReferenceProvenanceViewModel = {
+  source: string;
+  coverage: string;
+  asOf: string;
+  usesFallback: boolean;
+};
+
+export function buildReferenceProvenanceViewModel(
+  meta: DataReferenceMetaLike | undefined,
+  language: AppLanguage,
+): ReferenceProvenanceViewModel {
+  return {
+    source: getReferenceSourceLabel(meta, language),
+    coverage: getReferenceCoverageLabel(meta, language),
+    asOf: getReferenceAsOfLabel(meta, language),
+    usesFallback:
+      !meta ||
+      meta.usedFallback === true ||
+      meta.source === 'fallback' ||
+      meta.syncStatus !== 'success',
+  };
+}
+
+export function buildReferenceProvenanceItems(
+  meta: DataReferenceMetaLike | undefined,
+  language: AppLanguage,
+  labels: { source: string; coverage: string; asOf: string; usage: string },
+  isLoading = false,
+): ReferenceMetaItem[] {
+  const view = buildReferenceProvenanceViewModel(meta, language);
+  const value = (resolved: string) => (isLoading ? '...' : resolved);
+  return [
+    { label: labels.source, value: value(view.source) },
+    { label: labels.asOf, value: value(view.asOf) },
+    { label: labels.coverage, value: value(view.coverage) },
+    { label: labels.usage, value: value(getReferenceScopeLabel(meta, language)) },
+  ];
+}
 export type ReferenceStatusKind = 'synced' | 'stale' | 'partial' | 'fallback';
 
 function ref(key: string, language: AppLanguage) {

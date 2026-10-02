@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { createContext, useCallback, useContext, useMemo } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 
 import { defaultLocale, isSupportedLocale, type Language } from './config';
 
@@ -20,10 +20,18 @@ export function AppLocaleProvider({ children }: { children: React.ReactNode }) {
   const nextIntlLocale = useLocale();
   const locale = isSupportedLocale(nextIntlLocale) ? nextIntlLocale : defaultLocale;
 
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   const setLocale = useCallback(
     (nextLocale: Language) => {
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem('app-language', nextLocale);
+        try {
+          window.localStorage.setItem('app-language', nextLocale);
+        } catch {
+          /* Cookie remains authoritative. */
+        }
         document.cookie = `app-language=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
       }
 

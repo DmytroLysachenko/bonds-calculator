@@ -94,3 +94,17 @@ export function resolveSingleCalculatorReplacementInputs(nextInputs: BondInputs)
     inputs: normalizeSingleCalculatorInputs(nextInputs, nextInputs),
   };
 }
+
+/** Presentation preferences do not alter a calculation identity. */
+export function isSameSingleCalculatorCalculation(
+  draftInputs: BondInputs,
+  committedInputs: BondInputs,
+) {
+  const draft = { ...draftInputs };
+  const committed = { ...committedInputs };
+  delete draft.chartStep;
+  delete draft.showRealValue;
+  delete committed.chartStep;
+  delete committed.showRealValue;
+  return JSON.stringify(draft) === JSON.stringify(committed);
+}

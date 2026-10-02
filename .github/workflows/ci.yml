@@ -59,8 +59,23 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Contract discovery
+        run: pnpm check:test-discovery
+
+      - name: Unused code scan
+        run: pnpm scan:unused
+
       - name: Release tests
         run: pnpm test:release
+
+      - name: Node server boundary tests
+        run: pnpm test:server
+
+      - name: Trusted-core evidence
+        run: pnpm test:trusted-core
 
       - name: Measured coverage threshold
         run: pnpm test:coverage
@@ -73,7 +88,9 @@ jobs:
             echo ""
             echo "- TypeScript: \`pnpm check:types\`"
             echo "- Lint: \`pnpm lint\`"
+            echo "- Formatting: \`pnpm format:check\`"
             echo "- Release tests: \`pnpm test:release\`"
+            echo "- Trusted core: \`pnpm test:trusted-core\`"
             echo "- Coverage: \`pnpm test:coverage\` (70% per aggregate metric)"
           } >> "${GITHUB_STEP_SUMMARY}"
 
@@ -102,8 +119,11 @@ jobs:
       - name: Report route bundles
         run: pnpm analyze:bundles
 
+      - name: Enforce route bundle budgets
+        run: pnpm check:bundle-budgets
+
       - name: Retain route bundle report
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4
         with:
           name: route-bundle-report
           path: artifacts/route-bundle-report.json
@@ -120,7 +140,7 @@ jobs:
 
   database-integration:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -156,14 +176,20 @@ jobs:
         run: PGPASSWORD=obligacje psql -h 127.0.0.1 -U obligacje -d obligacje_test -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
 
       - name: Verify migrated PostgreSQL constraints and rollback
-        run: pnpm test:db --reporter=json --outputFile=test-results/database-integration.json
+        run: pnpm test:db --reporter=json --outputFile=artifacts/database-integration.json
+
+      - name: Install authenticated browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Authenticated portfolio ownership and mutation workflow
+        run: pnpm test:browser:integration --workers=1
 
       - name: Upload database integration result
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: database-integration-result
-          path: test-results/database-integration.json
+          path: artifacts/database-integration.json
           if-no-files-found: error
 
   docker-build:
@@ -199,7 +225,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan production image
-        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: obligacje-calculator:ci
           format: table
@@ -276,11 +302,32 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Browser smoke, accessibility, and web vitals
-        run: pnpm test:browser:ci && pnpm test:a11y && pnpm test:browser:visual
+      - name: Browser smoke, trusted-core journeys, accessibility, and web vitals
+        run: pnpm test:browser:ci && pnpm test:trusted-core:browser && pnpm test:a11y && pnpm test:browser:visual
+
+      - name: Populated strict-CSP calculator interaction
+        run: pnpm test:browser:strict-csp
 
       - name: Lighthouse quality gate
         run: pnpm test:lighthouse
+
+      - name: Summarize Lighthouse routes
+        if: always()
+        run: pnpm analyze:lighthouse
+
+      - name: Publish Lighthouse summary
+        if: always()
+        run: cat artifacts/lighthouse-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Lighthouse summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: lighthouse-route-summary
+          path: |
+            artifacts/lighthouse-summary.json
+            artifacts/lighthouse-summary.md
+          if-no-files-found: ignore
 
       - name: Upload browser reports
         if: failure()
@@ -291,6 +338,8 @@ jobs:
             playwright-report
             test-results
             .lighthouseci
+            artifacts/lighthouse-summary.json
+            artifacts/lighthouse-summary.md
           if-no-files-found: ignore
 
   browser-matrix:
@@ -320,6 +369,9 @@ jobs:
 
       - name: Firefox strict-CSP calculator regression
         run: pnpm test:browser:firefox-csp
+
+      - name: Populated strict-CSP calculator matrix
+        run: pnpm exec playwright test tests/browser/strict-csp-interactions.spec.ts tests/browser/issue-explorer.spec.ts --project=firefox-csp --project=webkit-csp --workers=1
 
       - name: Browser smoke summary
         if: always()

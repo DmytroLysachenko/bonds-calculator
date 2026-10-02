@@ -1,10 +1,6 @@
 export const pageLayout = {
-  shell: 'mx-auto w-full max-w-[var(--layout-wide-max)]',
-  content: 'mx-auto w-full max-w-[var(--layout-content-max)]',
   reading: 'mx-auto w-full max-w-[var(--layout-reading-max)]',
-  appCanvas: 'mx-auto w-full max-w-[var(--layout-app-max)]',
   pageGutter: 'px-4 md:px-8 xl:px-10',
-  pageCanvas: 'mx-auto w-full max-w-[var(--layout-app-max)] px-4 md:px-8 xl:px-10',
   pageFlow: 'space-y-10 pb-16 md:space-y-14',
   compactFlow: 'space-y-8 md:space-y-10',
   sectionFlow: 'space-y-5 md:space-y-7',

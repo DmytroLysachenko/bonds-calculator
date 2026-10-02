@@ -13,14 +13,15 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { CalculationResult } from '@/features/bond-core/types';
+import { BondInputs, CalculationResult } from '@/features/bond-core/types';
 import { useAppI18n } from '@/i18n/client';
 import { useCurrencyFormatter } from '@/shared/hooks/useLocalizedFormatters';
 interface MathDeepDiveProps {
   results: CalculationResult;
+  inputs?: Pick<BondInputs, 'margin' | 'isCapitalized'>;
   trigger?: React.ReactNode;
 }
-export const MathDeepDive: React.FC<MathDeepDiveProps> = ({ results, trigger }) => {
+export const MathDeepDive: React.FC<MathDeepDiveProps> = ({ results, inputs, trigger }) => {
   const { t, locale: language } = useAppI18n();
   const currencyFormatter = useCurrencyFormatter(language);
   const formatCurrency = (value: number) => {
@@ -172,6 +173,23 @@ export const MathDeepDive: React.FC<MathDeepDiveProps> = ({ results, trigger }) 
               </div>
             </div>
           </section>
+
+          {inputs ? (
+            <section className="space-y-3 border-t border-border py-4">
+              <h5 className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {t('bonds.how_interest_works')}
+              </h5>
+              <ul className="list-disc space-y-2 pl-4 text-sm leading-6 text-muted-foreground">
+                <li>
+                  {inputs.margin > 0
+                    ? t('bonds.interest_indexed_desc')
+                    : t('bonds.rate_context.fixed_narrative')}
+                </li>
+                {inputs.isCapitalized ? <li>{t('bonds.capitalization_desc')}</li> : null}
+                <li>{t('bonds.belka_desc')}</li>
+              </ul>
+            </section>
+          ) : null}
 
           {/* Rules & Education */}
           <div className="grid grid-cols-1 gap-4 pt-4">

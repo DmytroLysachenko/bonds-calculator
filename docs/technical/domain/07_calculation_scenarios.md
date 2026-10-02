@@ -1,6 +1,8 @@
 # 07. Calculation Scenarios
 
-The platform supports several high-level scenarios that reflect real-world investor behavior.
+These are product scenarios for the Polish Treasury-bond calculator. A
+scenario begins as a calculation intent and is resolved against dated offer,
+tax, and reference-data facts before projection. It is not investment advice.
 
 ## 1. Single Purchase (Buy & Hold)
 
@@ -32,9 +34,10 @@ The platform supports several high-level scenarios that reflect real-world inves
 - **Goal:** Roll it into a new EDO bond using the "Zamiana" discount.
 - **Output:** The 0.10 PLN discount per bond applied to the new purchase and its impact on the long-term yield.
 
-## 6. Comparison: Bonds vs. Alternatives
+## 6. Informational cross-asset comparison (conditional)
 
 - **Input:** 10,000 PLN.
-- **Scenario:** Bond (EDO) vs. S&P 500 (Historical Average).
-- **Goal:** Visualize the "Volatility Premium."
-- **Output:** Two lines on a chart. The Bond line is smooth; the S&P 500 line is jagged. Show "Max Drawdown" for the equity path.
+- **Scenario:** A bond and another asset's historical path under declared,
+  asset-specific assumptions.
+- **Goal:** Explain historical differences and limitations.
+- **Output:** Informational comparison only; it does not recommend an allocation.

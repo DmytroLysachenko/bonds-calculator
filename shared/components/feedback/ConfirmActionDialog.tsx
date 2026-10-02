@@ -1,7 +1,8 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
-import React from 'react';
+import { Dialog } from 'radix-ui';
+import React, { useRef } from 'react';
 
 import { Button } from '@/components/ui/button';
 
@@ -24,47 +25,54 @@ export function ConfirmActionDialog({
   onConfirm,
   onCancel,
 }: ConfirmActionDialogProps) {
-  if (!open) {
-    return null;
-  }
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/30 px-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-action-dialog-title"
-      aria-describedby="confirm-action-dialog-description"
+    <Dialog.Root
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onCancel();
+      }}
     >
-      <div className="w-full max-w-md border border-border bg-background p-6 shadow-none">
-        <div className="flex items-start gap-3">
-          <div className="border-l-2 border-warning px-3 py-2 text-warning">
-            <AlertTriangle className="h-5 w-5" />
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-foreground/30" />
+        <Dialog.Content
+          className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 border border-border bg-background p-6 shadow-none"
+          onOpenAutoFocus={() => {
+            returnFocusRef.current = document.activeElement as HTMLElement;
+          }}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            returnFocusRef.current?.focus();
+          }}
+        >
+          <div className="flex items-start gap-3">
+            <div className="border-l-2 border-warning px-3 py-2 text-warning">
+              <AlertTriangle className="h-5 w-5" />
+            </div>
+            <div className="space-y-2">
+              <Dialog.Title className="ui-card-title">{title}</Dialog.Title>
+              <Dialog.Description className="ui-body text-muted-foreground">
+                {description}
+              </Dialog.Description>
+            </div>
           </div>
-          <div className="space-y-2">
-            <h3 id="confirm-action-dialog-title" className="ui-card-title">
-              {title}
-            </h3>
-            <p id="confirm-action-dialog-description" className="ui-body text-muted-foreground">
-              {description}
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <Button variant="outline" className="rounded-md" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button
-            className="rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={() => {
-              void onConfirm();
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <Button variant="outline" className="rounded-md" onClick={onCancel}>
+              {cancelLabel}
+            </Button>
+            <Button
+              className="rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                void onConfirm();
+              }}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

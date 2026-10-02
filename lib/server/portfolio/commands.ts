@@ -10,6 +10,7 @@ import {
   deletePortfolioByOwner,
   importPortfolioAtomically,
   updateLotByOwner,
+  updatePortfolioByOwner,
   updatePortfolioVisibility,
 } from '@/lib/server/portfolio/repository';
 
@@ -27,13 +28,23 @@ export async function deleteOwnerPortfolio(ownerId: string, portfolioId: string)
   return deletedPortfolio;
 }
 
+export async function updateOwnerPortfolio(
+  ownerId: string,
+  portfolioId: string,
+  input: { name?: string; description?: string },
+) {
+  const [portfolio] = await updatePortfolioByOwner(ownerId, portfolioId, input);
+  if (!portfolio) throw new PortfolioServiceError('Portfolio not found', 404, 'NOT_FOUND');
+  return portfolio;
+}
+
 export async function createPortfolioLot(
   ownerId: string,
   input: {
     portfolioId: string;
     bondType: string;
     purchaseDate: string;
-    amount: number;
+    bondQuantity: number;
     selectedSeriesId?: string | null;
     isRebought: boolean;
     notes?: string;
@@ -57,7 +68,7 @@ export async function createPortfolioLot(
     bondTypeId: resolvedLotContext.bondTypeId,
     bondSeriesId: resolvedLotContext.bondSeriesId,
     purchaseDate: input.purchaseDate,
-    amount: input.amount.toString(),
+    amount: input.bondQuantity.toString(),
     isRebought: input.isRebought,
     notes: input.notes,
   });
@@ -71,7 +82,7 @@ export async function createPortfolioLotWithBuyTransaction(
     portfolioId: string;
     bondType: string;
     purchaseDate: string;
-    amount: string | number;
+    bondQuantity: string | number;
     isRebought?: boolean;
     notes?: string;
   },
@@ -86,7 +97,7 @@ export async function createPortfolioLotWithBuyTransaction(
     portfolioId: input.portfolioId,
     bondType: input.bondType,
     purchaseDate: input.purchaseDate,
-    amount: String(input.amount),
+    amount: String(input.bondQuantity),
     isRebought: Boolean(input.isRebought),
     notes: input.notes,
   });
@@ -99,7 +110,8 @@ export async function updateOwnerLot(
     portfolioId: string;
     bondType: string;
     purchaseDate: string;
-    amount: number;
+    bondQuantity: number;
+    selectedSeriesId: string | null;
     isRebought: boolean;
     notes?: string;
   }>,
@@ -118,10 +130,34 @@ export async function updateOwnerLot(
     }
   }
 
-  const updateData: Record<string, unknown> = { ...input };
+  const { selectedSeriesId, ...columns } = input;
+  const updateData: Parameters<typeof updateLotByOwner>[2] = {
+    ...columns,
+    amount: input.bondQuantity === undefined ? undefined : String(input.bondQuantity),
+  };
+  if (
+    input.bondType !== undefined ||
+    input.purchaseDate !== undefined ||
+    selectedSeriesId !== undefined
+  ) {
+    const resolved = await resolveStoredBondLotContext(
+      (input.bondType ?? existingLot.bondType) as BondType,
+      input.purchaseDate ?? existingLot.purchaseDate,
+      selectedSeriesId,
+    );
+    if (!resolved.bondTypeId || (selectedSeriesId && !resolved.bondSeriesId)) {
+      throw new PortfolioServiceError(
+        'Selected bond series is unavailable',
+        422,
+        'INVALID_BOND_SERIES',
+      );
+    }
+    updateData.bondTypeId = resolved.bondTypeId;
+    updateData.bondSeriesId = resolved.bondSeriesId;
+  }
 
-  if (input.amount !== undefined) {
-    updateData.amount = input.amount.toString();
+  if (input.bondQuantity !== undefined) {
+    updateData.amount = input.bondQuantity.toString();
   }
 
   const [updatedLot] = await updateLotByOwner(ownerId, lotId, updateData);
@@ -169,7 +205,9 @@ export async function importOwnerPortfolio(
     lots: Array<{
       bondType: string;
       purchaseDate: string;
-      amount: string | number;
+      bondQuantity: string | number;
+      bondSeriesId?: string | null;
+      seriesCode?: string;
       isRebought?: boolean;
       notes?: string;
     }>;
@@ -180,6 +218,8 @@ export async function importOwnerPortfolio(
       const resolvedLotContext = await resolveStoredBondLotContext(
         lot.bondType as BondType,
         lot.purchaseDate,
+        lot.bondSeriesId,
+        lot.seriesCode,
       );
 
       if (!resolvedLotContext.bondTypeId) {
@@ -191,7 +231,7 @@ export async function importOwnerPortfolio(
         bondTypeId: resolvedLotContext.bondTypeId,
         bondSeriesId: resolvedLotContext.bondSeriesId,
         purchaseDate: lot.purchaseDate,
-        amount: String(lot.amount),
+        amount: String(lot.bondQuantity),
         isRebought: lot.isRebought ?? false,
         notes: lot.notes,
       };

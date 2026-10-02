@@ -69,6 +69,31 @@ describe('web vitals endpoint', () => {
     });
   });
 
+  it('removes shared-resource identifiers before logging or aggregation', async () => {
+    shouldSampleVital.mockReturnValue(true);
+    recordVitalAggregate.mockResolvedValue({ persisted: true });
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/observability/vitals', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: 'LCP',
+          value: 100,
+          rating: 'good',
+          path: '/shared-portfolios/private-share-id',
+        }),
+      }) as never,
+      {} as never,
+    );
+
+    expect(response.status).toBe(204);
+    expect(recordVitalAggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ path: '/shared-portfolios' }),
+    );
+    expect(JSON.stringify(info.mock.calls)).not.toContain('private-share-id');
+  });
+
   it('keeps the accepted response and emits a safe fallback when persistence fails', async () => {
     shouldSampleVital.mockReturnValue(true);
     recordVitalAggregate.mockRejectedValue(

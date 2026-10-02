@@ -6,12 +6,14 @@ import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppI18n } from '@/i18n/client';
 import { cn } from '@/lib/utils';
+import { CalculatorLoadingState } from '@/shared/components/feedback/CalculatorLoadingState';
 import { RecalculateButton } from '@/shared/components/feedback/RecalculateButton';
 import { ReadingChecklist } from '@/shared/components/insights/ReadingChecklist';
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { CalculatorWorkspace } from '@/shared/components/page/CalculatorWorkspace';
 import { CalculationMetaPanel } from '@/shared/components/results/CalculationMetaPanel';
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
+import { isCalculatorInputEnter } from '@/shared/lib/calculator-keyboard-submit';
 
 import { RegularInvestmentInputsForm } from '../../regular-investment/components/RegularInvestmentInputsForm';
 import { RegularInvestmentResultsSummary } from '../../regular-investment/components/RegularInvestmentResultsSummary';
@@ -65,13 +67,6 @@ const LadderEmptyState = () => {
     </section>
   );
 };
-const LadderLoadingState = () => (
-  <div className="ui-control-stack" role="status">
-    <Skeleton className="h-28 w-full rounded-md" />
-    <Skeleton className="h-48 w-full rounded-md" />
-    <Skeleton className="h-[460px] w-full rounded-md" />
-  </div>
-);
 export const LadderContainer: React.FC = () => {
   const {
     inputs,
@@ -84,14 +79,16 @@ export const LadderContainer: React.FC = () => {
     envelope,
     isPersistenceReady,
     hasPreviousOfferResult,
+    committedInputs,
   } = useLadder();
   const { t } = useAppI18n();
+  const receiptInputs = committedInputs ?? inputs;
   const readingGuide = [
     t('ladder_page.reading_guide.check_peak_month'),
     t('ladder_page.reading_guide.check_clustering'),
   ];
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && (isDirty || !results)) {
+    if (isCalculatorInputEnter(event) && (isDirty || !results)) {
       calculate();
     }
   };
@@ -113,14 +110,55 @@ export const LadderContainer: React.FC = () => {
         isDirty={isDirty}
         isCalculating={isCalculating}
         scenarioSummary={[
-          { label: t('bonds.bond.type'), value: inputs.bondType },
           {
-            label: t('bonds.bond_quantity'),
-            value: `${inputs.contributionAmount} ${t('bonds.units')}`,
+            label: t('bonds.bond.type'),
+            value: receiptInputs.bondType,
+            editTargetId: 'regular-instrument-setup',
+          },
+          {
+            label: t('bonds.monthly_investment'),
+            value: `${receiptInputs.contributionAmount} PLN`,
+            editTargetId: 'regular-budget-setup',
+          },
+          {
+            label: t('bonds.frequency.label'),
+            value: t(`bonds.frequency.${receiptInputs.frequency.toLowerCase()}`),
+            editTargetId: 'regular-budget-setup',
+          },
+          {
+            label: t('bonds.start_date'),
+            value: receiptInputs.purchaseDate,
+            editTargetId: 'regular-timing-setup',
+          },
+          {
+            label: t('bonds.withdrawal_date'),
+            value: receiptInputs.withdrawalDate,
+            editTargetId: 'regular-timing-setup',
           },
           {
             label: t('bonds.investment_horizon'),
-            value: `${inputs.investmentHorizonMonths} ${t('common.month_compact')}`,
+            value: `${receiptInputs.investmentHorizonMonths} ${t('common.month_compact')}`,
+            editTargetId: 'regular-timing-setup',
+          },
+          {
+            label: t('bonds.tax_strategy'),
+            value: t(
+              receiptInputs.taxStrategy === 'IKE'
+                ? 'bonds.tax_ike'
+                : receiptInputs.taxStrategy === 'IKZE'
+                  ? 'bonds.tax_ikze'
+                  : 'bonds.tax_standard',
+            ),
+            editTargetId: 'regular-budget-setup',
+          },
+          {
+            label: t('bonds.receipt_cash_policy'),
+            value: t(
+              receiptInputs.rollover
+                ? 'bonds.receipt_rollover'
+                : 'bonds.receipt_hold_maturity_cash',
+            ),
+            editTargetId: 'regular-advanced-setup',
           },
         ]}
         controls={
@@ -133,7 +171,9 @@ export const LadderContainer: React.FC = () => {
         results={
           <>
             {!results && !isCalculating ? <LadderEmptyState /> : null}
-            {isCalculating && !results ? <LadderLoadingState /> : null}
+            {isCalculating && !results ? (
+              <CalculatorLoadingState metricCount={1} chartClassName="h-[460px]" />
+            ) : null}
 
             {results ? (
               <div

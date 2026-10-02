@@ -1,3 +1,5 @@
+import { toHoldingLot } from '@/shared/types/portfolio';
+
 import {
   createOwnerPortfolio,
   createPortfolioLot,
@@ -7,6 +9,7 @@ import {
   importOwnerPortfolio,
   toggleOwnerPortfolioSharing,
   updateOwnerLot,
+  updateOwnerPortfolio,
 } from './commands';
 import {
   exportOwnerPortfolio,
@@ -25,12 +28,21 @@ import { getPublicSharedPortfolioPageData } from './shared-page-service';
 export const portfolioApplication = {
   createPortfolio: createOwnerPortfolio,
   deletePortfolio: deleteOwnerPortfolio,
+  updatePortfolio: updateOwnerPortfolio,
   listPortfolios: listOwnerPortfolios,
-  createLot: createPortfolioLot,
-  createLotWithTransaction: createPortfolioLotWithBuyTransaction,
-  updateLot: updateOwnerLot,
+  async createLot(...args: Parameters<typeof createPortfolioLot>) {
+    return toHoldingLot(await createPortfolioLot(...args));
+  },
+  async createLotWithTransaction(...args: Parameters<typeof createPortfolioLotWithBuyTransaction>) {
+    return toHoldingLot(await createPortfolioLotWithBuyTransaction(...args));
+  },
+  async updateLot(...args: Parameters<typeof updateOwnerLot>) {
+    return toHoldingLot(await updateOwnerLot(...args));
+  },
   deleteLot: deleteOwnerLot,
-  listLots: listPortfolioLots,
+  async listLots(...args: Parameters<typeof listPortfolioLots>) {
+    return (await listPortfolioLots(...args)).map(toHoldingLot);
+  },
   importPortfolio: importOwnerPortfolio,
   setPortfolioVisibility: toggleOwnerPortfolioSharing,
   simulatePortfolio: simulateOwnerPortfolio,

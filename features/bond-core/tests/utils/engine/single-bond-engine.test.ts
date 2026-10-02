@@ -36,6 +36,58 @@ function eventTypes(result: ReturnType<typeof calculateBondInvestment>) {
 }
 
 describe('single bond cycle engine', () => {
+  it('applies the ROR first/later issuer fee rule and reconciles paid coupons with redemption cash', () => {
+    // ROR1225 issuer explanation: first-period fee is limited to accrued
+    // interest, while later-period 0.50 PLN may be taken from principal.
+    // https://www.obligacjeskarbowe.pl/oferta-obligacji/obligacje-roczne-ror/ror1225/
+    const base = singlePayload({
+      bondType: BondType.ROR,
+      initialInvestment: 100,
+      firstYearRate: 5.25,
+      expectedNbpRate: 5.25,
+      margin: 0,
+      duration: 1,
+      earlyWithdrawalFee: 0.5,
+      redemptionFeeCap: 'first-interest-then-principal',
+      isCapitalized: false,
+      payoutFrequency: BOND_DEFINITIONS[BondType.ROR].payoutFrequency,
+      purchaseDate: '2026-06-01',
+      investmentHorizonMonths: 1,
+    });
+
+    const first = calculateBondInvestment({ ...base, withdrawalDate: '2026-06-14' });
+    expect(first.totalEarlyWithdrawalFee).toBeCloseTo((100 * 0.0525 * 13) / 365, 8);
+    expect(first.totalTax).toBe(0);
+    expect(first.netPayoutValue).toBeCloseTo(100, 8);
+
+    const later = calculateBondInvestment({ ...base, withdrawalDate: '2026-07-14' });
+    const firstCouponGross = (100 * 0.0525) / 12;
+    const firstCouponTax = 0.09; // 0.44 PLN rounded taxable base × 19%, rounded up.
+    const secondPeriodGross = (100 * 0.0525 * 13) / 365;
+    const expectedTotal = 100 + firstCouponGross - firstCouponTax + secondPeriodGross - 0.5;
+    expect(later.totalEarlyWithdrawalFee).toBe(0.5);
+    expect(later.totalTax).toBe(firstCouponTax);
+    expect(later.netPayoutValue).toBeCloseTo(expectedTotal, 8);
+    const cashEvents = later.timeline.flatMap((point) => point.events ?? []);
+    const coupons = cashEvents.filter((event) => event.type === SimulationEventType.PAYOUT);
+    const withdrawal = cashEvents.find((event) => event.type === SimulationEventType.WITHDRAWAL);
+    expect(coupons).toHaveLength(1);
+    expect(coupons[0].value).toBeCloseTo(firstCouponGross - firstCouponTax, 8);
+    expect(withdrawal?.value).toBeCloseTo(100 + secondPeriodGross - 0.5, 8);
+    expect((coupons[0].value ?? 0) + (withdrawal?.value ?? 0)).toBeCloseTo(later.netPayoutValue, 8);
+
+    const exempt = calculateBondInvestment({
+      ...base,
+      taxStrategy: TaxStrategy.IKE,
+      withdrawalDate: '2026-07-14',
+    });
+    expect(
+      exempt.timeline
+        .flatMap((point) => point.events ?? [])
+        .some((event) => event.type === SimulationEventType.PAYOUT),
+    ).toBe(true);
+  });
+
   it('keeps the terminal point as a withdrawal checkpoint', () => {
     const result = calculateBondInvestment(singlePayload());
     const finalPoint = result.timeline.at(-1);
@@ -46,6 +98,10 @@ describe('single bond cycle engine', () => {
     );
     expect(result.netPayoutValue).toBeGreaterThan(10000);
     expect(result.finalRealValue).toBeGreaterThan(0);
+    expect(result.noteDiagnostics).toContainEqual({
+      code: 'rollover_disabled',
+      severity: 'assumption',
+    });
   });
 
   it('records rollover purchases across multiple short bond cycles', () => {
@@ -70,6 +126,11 @@ describe('single bond cycle engine', () => {
     expect(eventTypes(result)).toContain(SimulationEventType.ROLLOVER_PURCHASE);
     expect(result.timeline.some((point) => point.cycleIndex === 2)).toBe(true);
     expect(result.calculationNotes?.join(' ')).toContain('2 bond cycles');
+    expect(result.noteDiagnostics).toContainEqual({
+      code: 'rollover_cycles',
+      severity: 'assumption',
+      params: { count: 2 },
+    });
   });
 
   it('keeps leftover cash outside whole-bond purchase events', () => {
@@ -142,6 +203,22 @@ describe('single bond cycle engine', () => {
     expect(eventTypes(result)).toContain(SimulationEventType.EARLY_REDEMPTION_FEE);
     expect(result.totalEarlyWithdrawalFee).toBeGreaterThan(0);
     expect(result.calculationNotes?.join(' ')).toContain('Early redemption fee');
+    expect(result.noteDiagnostics).toContainEqual({
+      code: 'early_redemption_applied',
+      severity: 'assumption',
+    });
+  });
+
+  it('carries IKZE relief as parameterized evidence alongside legacy notes', () => {
+    const result = calculateBondInvestment(
+      singlePayload({ taxStrategy: TaxStrategy.IKZE, ikzeTaxBracket: 0.12 }),
+    );
+    expect(result.noteDiagnostics).toContainEqual({
+      code: 'ikze_tax_relief',
+      severity: 'assumption',
+      params: { refund: '1200.00', bracket: 12 },
+    });
+    expect(result.calculationNotes?.[0]).toContain('IKZE Tax Relief applied');
   });
 
   it('marks custom CPI reset segments as projected rate data', () => {

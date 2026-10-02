@@ -16,7 +16,21 @@ export function getCanonicalBaseUrl(env: NodeJS.ProcessEnv = process.env) {
   const fallbackUrl =
     env.NODE_ENV === 'production' ? DEFAULT_PRODUCTION_URL : DEFAULT_DEVELOPMENT_URL;
 
-  return (configuredUrl || fallbackUrl).replace(/\/+$/, '');
+  try {
+    const parsed = new URL(configuredUrl || fallbackUrl);
+    if (
+      !['http:', 'https:'].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error('Invalid canonical URL');
+    }
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return fallbackUrl;
+  }
 }
 
 export function getCanonicalUrl(path = '', env: NodeJS.ProcessEnv = process.env) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { Target } from 'lucide-react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { useAppI18n } from '@/i18n/client';
@@ -10,6 +10,7 @@ import { RecalculateButton } from '@/shared/components/feedback/RecalculateButto
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { CalculatorWorkspace } from '@/shared/components/page/CalculatorWorkspace';
 import { usePortfolioAccess } from '@/shared/hooks/usePortfolioAccess';
+import { buildSingleBondReportProvenance } from '@/shared/lib/report-provenance';
 
 import { useBondCalculator } from '../hooks/useBondCalculator';
 import {
@@ -19,15 +20,16 @@ import {
 } from '../lib/input-guardrails';
 import { createSingleCalculatorActions } from '../lib/single-calculator-actions';
 import { buildSingleCalculatorReadingGuide } from '../lib/single-calculator-container-model';
-import { parseBondType } from '../lib/single-calculator-state';
 
 import { BondCalculatorDetailsPanel, BondCalculatorResultsPanel } from './BondCalculatorPanels';
 import { BondInputsForm } from './BondInputsForm';
+import { SavedScenarioLibrary } from './SavedScenarioLibrary';
 import { ScenarioDraftStatus } from './ScenarioDraftStatus';
 import { SharedScenarioNotice } from './SharedScenarioNotice';
 
 interface BondCalculatorContainerProps {
   initialInputs?: import('@/features/bond-core/types').BondInputs;
+  initialBondType?: import('@/features/bond-core/types').BondType | null;
   sharedScenarioTitle?: string;
 }
 
@@ -35,12 +37,11 @@ const SINGLE_CALCULATOR_FORM_ID = 'single-calculator-inputs';
 
 export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = ({
   initialInputs,
+  initialBondType = null,
   sharedScenarioTitle,
 }) => {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const bondFromUrl = parseBondType(searchParams.get('bond'));
-  const shouldSyncBondToUrl = useRef(Boolean(bondFromUrl));
+  const shouldSyncBondToUrl = useRef(Boolean(initialBondType));
   const {
     inputs,
     results,
@@ -56,8 +57,11 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
     selectedSeriesId,
     lastCommittedInputs,
     isPersistenceReady,
-  } = useBondCalculator(initialInputs, bondFromUrl);
+  } = useBondCalculator(initialInputs, initialBondType);
   const { t, locale: language } = useAppI18n();
+  const committedCashPolicy = lastCommittedInputs
+    ? buildSingleBondReportProvenance(lastCommittedInputs, envelope).cashPolicy
+    : undefined;
   const { canManageWorkspace } = usePortfolioAccess();
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusTone, setStatusTone] = useState<'success' | 'error'>('success');
@@ -69,19 +73,22 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
       !isPersistenceReady ||
       !shouldSyncBondToUrl.current ||
       typeof window === 'undefined' ||
-      searchParams.get('bond') === inputs.bondType
+      new URLSearchParams(window.location.search).get('bond') === inputs.bondType
     ) {
       return;
     }
 
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(window.location.search);
     params.set('bond', inputs.bondType);
     window.history.replaceState(null, '', `${pathname}?${params.toString()}`);
-  }, [initialInputs, inputs.bondType, isPersistenceReady, pathname, searchParams]);
+  }, [initialInputs, inputs.bondType, isPersistenceReady, pathname]);
 
-  const handleBondTypeChange = (type: import('@/features/bond-core/types').BondType) => {
+  const handleBondTypeChange = (
+    type: import('@/features/bond-core/types').BondType,
+    horizonChoice: 'preserve' | 'native',
+  ) => {
     shouldSyncBondToUrl.current = true;
-    setBondType(type);
+    setBondType(type, horizonChoice);
   };
   const translate = useMemo(
     () => (key: string, params?: Record<string, string | number>) => t(key, params),
@@ -109,10 +116,10 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
   const actions = useMemo(
     () =>
       createSingleCalculatorActions({
-        inputs,
         results,
+        envelope,
         lastCommittedInputs,
-        selectedSeriesId,
+        selectedSeriesId: lastCommittedInputs?.selectedSeriesId ?? selectedSeriesId,
         language,
         canManageWorkspace,
         t,
@@ -121,8 +128,9 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
           setStatusMessage(message);
         },
       }),
-    [canManageWorkspace, inputs, language, lastCommittedInputs, results, selectedSeriesId, t],
+    [canManageWorkspace, envelope, language, lastCommittedInputs, results, selectedSeriesId, t],
   );
+  const committedInputs = lastCommittedInputs ?? inputs;
 
   const handleApplyGuardrailFix = (issue: InputGuardrailIssue) => {
     replaceInputs(applyGuardrailFix(issue, inputs));
@@ -149,7 +157,15 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
           />
         ) : null}
 
-        <ScenarioDraftStatus inputs={inputs} isDirty={isDirty} onRestore={replaceInputs} />
+        <div className="space-y-2">
+          <ScenarioDraftStatus inputs={inputs} isDirty={isDirty} onRestore={replaceInputs} />
+          <a
+            href="#saved-scenarios-title"
+            className="ui-focus-ring inline-flex min-h-9 items-center text-sm font-semibold text-foreground underline underline-offset-4"
+          >
+            {t('bonds.saved_library.title')}
+          </a>
+        </div>
 
         <CalculatorWorkspace
           className="gap-8 xl:gap-10"
@@ -160,14 +176,59 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
           isDirty={isDirty}
           isCalculating={isCalculating}
           scenarioSummary={[
-            { label: t('bonds.bond.type'), value: inputs.bondType },
             {
-              label: t('bonds.bond_quantity'),
-              value: `${Math.floor(inputs.initialInvestment / 100)} ${t('bonds.units')}`,
+              label: t('bonds.bond.type'),
+              value: committedInputs.bondType,
+              editTargetId: 'single-core-setup',
+            },
+            {
+              label: t('bonds.bond.series'),
+              value:
+                availableSeries.find((series) => series.id === committedInputs.selectedSeriesId)
+                  ?.seriesCode ?? t('bonds.offer.current'),
+              editTargetId: 'single-core-setup',
+            },
+            {
+              label: t('bonds.initial_investment'),
+              value: `${committedInputs.initialInvestment} PLN`,
+              editTargetId: 'single-core-setup',
+            },
+            {
+              label: t('bonds.purchase_date'),
+              value: committedInputs.purchaseDate,
+              editTargetId: 'single-timing-setup',
+            },
+            {
+              label: t('bonds.withdrawal_date'),
+              value: committedInputs.withdrawalDate,
+              editTargetId: 'single-timing-setup',
             },
             {
               label: t('bonds.investment_horizon'),
-              value: `${inputs.investmentHorizonMonths ?? Math.round(inputs.duration * 12)} ${t('common.month_compact')}`,
+              value: `${committedInputs.investmentHorizonMonths ?? Math.round(committedInputs.duration * 12)} ${t('common.month_compact')}`,
+              editTargetId: 'single-timing-setup',
+            },
+            {
+              label: t('bonds.tax_strategy'),
+              value: t(
+                committedInputs.taxStrategy === 'IKE'
+                  ? 'bonds.tax_ike'
+                  : committedInputs.taxStrategy === 'IKZE'
+                    ? 'bonds.tax_ikze'
+                    : 'bonds.tax_standard',
+              ),
+              editTargetId: 'single-timing-setup',
+            },
+            {
+              label: t('bonds.receipt_cash_policy'),
+              value: committedCashPolicy
+                ? t(
+                    committedCashPolicy === 'rollover'
+                      ? 'bonds.receipt_rollover'
+                      : 'bonds.receipt_no_rollover',
+                  )
+                : t('common.not_available'),
+              editTargetId: 'single-timing-setup',
             },
           ]}
           controls={
@@ -182,12 +243,22 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
               guardrails={guardrails}
               guardrailSummaryRef={guardrailSummaryRef}
               onApplyGuardrailFix={handleApplyGuardrailFix}
+              action={
+                <RecalculateButton
+                  placement="inline-desktop"
+                  isDirty={isDirty}
+                  hasResults={!!results}
+                  loading={isCalculating}
+                  formId={SINGLE_CALCULATOR_FORM_ID}
+                  onClick={() => calculate()}
+                />
+              }
             />
           }
           results={
             <BondCalculatorResultsPanel
               results={results}
-              inputs={inputs}
+              inputs={committedInputs}
               envelope={envelope}
               isCalculating={isCalculating}
               isDirty={isDirty}
@@ -196,28 +267,21 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
               onSaveScenario={actions.saveScenario}
               onAddToNotebook={actions.addToNotebook}
               onExportPDF={actions.exportPdf}
+              onPrepareSensitivityDraft={replaceInputs}
             />
           }
           details={
             <BondCalculatorDetailsPanel
               results={results}
-              inputs={inputs}
+              inputs={committedInputs}
               envelope={envelope}
               isCalculating={isCalculating}
               readingGuide={readingGuide}
             />
           }
         />
+        <SavedScenarioLibrary isDirty={isDirty} onRestore={replaceInputs} t={t} />
       </div>
-
-      <RecalculateButton
-        isDirty={isDirty}
-        hasResults={!!results}
-        loading={isCalculating}
-        disabled={blockingGuardrails.length > 0}
-        formId={SINGLE_CALCULATOR_FORM_ID}
-        onClick={() => calculate()}
-      />
 
       <AppToast
         message={statusMessage}

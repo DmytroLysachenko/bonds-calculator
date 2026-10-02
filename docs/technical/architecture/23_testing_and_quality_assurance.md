@@ -112,7 +112,7 @@ when a financial boundary changes.
   and accepts `LHCI_CHROME_PATH` for a controlled browser override. Its profile
   is always under `/tmp`; it never relies on a Windows Chrome profile when run
   from WSL.
-- `pnpm test:web-vitals` installs its LCP observer before navigation and fails if LCP is absent. It currently covers home and single-calculator routes, guarding blank/error pages, slow navigation, oversized script payloads, and late LCP. Extend the route set and ratchet budgets only from captured baselines.
+- `pnpm test:web-vitals` runs the CI Chromium and mobile-Chromium projects, installs its LCP observer before navigation, and fails if LCP is absent. It enforces route budgets on home and single-calculator and attaches privacy-safe LCP attribution (element, response time, request count, transferred script bytes, and long-task time) for all Lighthouse routes: home, single calculator, economic data, comparison, and regular investment. Ratchet route budgets only from captured baselines.
 - Stress-test the chart rendering with 30 years of daily data points.
 
 ## 4. Manual QA

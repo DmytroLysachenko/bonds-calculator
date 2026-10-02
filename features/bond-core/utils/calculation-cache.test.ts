@@ -20,8 +20,14 @@ describe('CalculationCache expiry and invalidation', () => {
   });
 
   it('maintains stable keys despite object key order', () => {
-    const left = calculationCache.generateKey({ offer: 'a', payload: { date: '2026-01-01', amount: 100 } });
-    const right = calculationCache.generateKey({ payload: { amount: 100, date: '2026-01-01' }, offer: 'a' });
+    const left = calculationCache.generateKey({
+      offer: 'a',
+      payload: { date: '2026-01-01', amount: 100 },
+    });
+    const right = calculationCache.generateKey({
+      payload: { amount: 100, date: '2026-01-01' },
+      offer: 'a',
+    });
     expect(left).toBe(right);
   });
 });

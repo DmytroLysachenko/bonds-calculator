@@ -1,104 +1,72 @@
 'use client';
 import { BookOpen } from 'lucide-react';
-import React, { useEffect } from 'react';
+import React from 'react';
 
-import { useNotebookContainerWorkspace } from '@/features/notebook/hooks/useNotebookContainerWorkspace';
-import { useNotebookWorkspaceActions } from '@/features/notebook/hooks/useNotebookWorkspaceActions';
+import { useNotebookWorkspaceController } from '@/features/notebook/hooks/useNotebookWorkspaceController';
 import {
   buildNotebookFeedbackLabels,
   buildNotebookPortfolioListLabels,
-  buildNotebookWorkspaceActionLabels,
 } from '@/features/notebook/lib/notebook-container-labels';
-import { buildNotebookWorkspaceViewModel } from '@/features/notebook/lib/notebook-workspace-model';
 import { useAppI18n } from '@/i18n/client';
 import { Notice } from '@/shared/components/feedback/Notice';
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { SectionBlock } from '@/shared/components/page/SectionBlock';
 import { MetricStrip } from '@/shared/components/results/MetricStrip';
 import { useDateFormatter } from '@/shared/hooks/useLocalizedFormatters';
-import { usePortfolioAccess } from '@/shared/hooks/usePortfolioAccess';
-import { useWorkspacePortfolios } from '@/shared/hooks/useWorkspacePortfolios';
 
+import { PortfolioDetails } from './portfolio-details/PortfolioDetails';
 import { NotebookPortfolioListSection, NotebookScopeNote } from './NotebookContainerPanels';
 import { EmptyPortfolioState, NotebookLoadingState } from './NotebookStates';
 import { NotebookErrorNotice, NotebookWorkspaceFeedback } from './NotebookWorkspaceFeedback';
-import { PortfolioDetails } from './PortfolioDetails';
 import { WorkspaceActionStrip } from './WorkspaceActionStrip';
 import { WorkspaceStatusCard } from './WorkspaceStatusCard';
 export const NotebookContainer: React.FC = () => {
   const { t, locale: language } = useAppI18n();
-  const { canManageWorkspace, isGuestWorkspace } = usePortfolioAccess();
   const dateFormatter = useDateFormatter(language);
   const {
-    portfolios,
-    selectedPortfolio,
-    isLoading,
-    requestError,
-    refetch: fetchPortfolios,
-    setSelectedPortfolioId,
-    upsertPortfolio: mergePortfolioIntoState,
-    removePortfolio: removePortfolioFromState,
-  } = useWorkspacePortfolios();
-  const {
-    portfolioPendingDelete,
-    setPortfolioPendingDelete,
-    detailPortfolioId,
-    importRef,
-    clearDetailPortfolio,
-    handleImportClick,
-    handleOpenPortfolio,
-    handleClosePortfolioDetails,
-  } = useNotebookContainerWorkspace({
-    fetchPortfolios,
-    setSelectedPortfolioId,
-  });
-  const {
-    error,
-    setError,
-    statusMessage,
-    setStatusMessage,
-    isMutating,
-    resolvePortfolioError,
-    handleCreateDefault,
-    handleCreateDemo,
-    handleImportFile,
-    handleDeletePortfolio,
-  } = useNotebookWorkspaceActions({
-    labels: buildNotebookWorkspaceActionLabels(t),
-    fetchPortfolios,
-    mergePortfolioIntoState,
-    removePortfolioFromState,
-    setSelectedPortfolioId,
-    clearDetailPortfolio,
-  });
-  useEffect(() => {
-    if (requestError) {
-      setError(
-        resolvePortfolioError(
-          requestError as {
-            error?: string;
-            code?: string;
-          },
-        ),
-      );
-      return;
-    }
-    setError(null);
-  }, [requestError, resolvePortfolioError, setError]);
-  const { detailPortfolio, emptyStateSteps, notebookIntro, notebookStats } =
-    buildNotebookWorkspaceViewModel({
-      portfolios,
+    view: {
+      detailPortfolio,
       detailPortfolioId,
-      t,
-    });
+      emptyStateSteps,
+      error,
+      canManageWorkspace,
+      isGuestWorkspace,
+      isLoading,
+      isMutating,
+      notebookIntro,
+      notebookStats,
+      portfolios,
+      portfolioPendingDelete,
+      selectedPortfolio,
+      statusMessage,
+    },
+    actions: {
+      cancelPendingDelete,
+      closePortfolio,
+      confirmPendingDelete,
+      createDefault,
+      createDemo,
+      deletePortfolio,
+      importFile,
+      mergePortfolio,
+      openPortfolio,
+      refresh,
+      requestDelete,
+      selectPortfolio,
+      startImport,
+      dismissStatus,
+    },
+    importRef,
+  } = useNotebookWorkspaceController(t);
 
   if (detailPortfolioId && canManageWorkspace) {
     return detailPortfolio ? (
       <PortfolioDetails
         portfolio={detailPortfolio}
-        onDelete={handleDeletePortfolio}
-        onPortfolioUpdate={mergePortfolioIntoState}
-        onBack={handleClosePortfolioDetails}
+        onDelete={deletePortfolio}
+        onPortfolioUpdate={mergePortfolio}
+        onBack={closePortfolio}
+        portfolios={portfolios}
       />
     ) : (
       <NotebookLoadingState />
@@ -118,10 +86,10 @@ export const NotebookContainer: React.FC = () => {
         type="file"
         accept="application/json"
         className="hidden"
-        onChange={handleImportFile}
+        onChange={importFile}
       />
 
-      <NotebookErrorNotice error={error} retryLabel={t('common.retry')} onRetry={fetchPortfolios} />
+      <NotebookErrorNotice error={error} retryLabel={t('common.retry')} onRetry={refresh} />
 
       <SectionBlock title={t('notebook.workspace_scope_title')} description={notebookIntro}>
         <div className="space-y-4">
@@ -138,15 +106,15 @@ export const NotebookContainer: React.FC = () => {
                 canManageWorkspace={canManageWorkspace}
                 selectedPortfolio={selectedPortfolio}
                 portfolios={portfolios}
-                onActivePortfolioChange={setSelectedPortfolioId}
+                onActivePortfolioChange={selectPortfolio}
               />
 
               <WorkspaceActionStrip
                 canManageWorkspace={canManageWorkspace}
-                onImport={handleImportClick}
-                onCreateDemo={handleCreateDemo}
-                onRefresh={fetchPortfolios}
-                onCreatePortfolio={handleCreateDefault}
+                onImport={startImport}
+                onCreateDemo={createDemo}
+                onRefresh={refresh}
+                onCreatePortfolio={createDefault}
               />
 
               <MetricStrip items={notebookStats} columns="grid-cols-1 md:grid-cols-3" />
@@ -159,9 +127,9 @@ export const NotebookContainer: React.FC = () => {
         <NotebookLoadingState />
       ) : portfolios.length === 0 ? (
         <EmptyPortfolioState
-          onCreate={canManageWorkspace ? handleCreateDefault : () => {}}
-          onCreateDemo={canManageWorkspace ? handleCreateDemo : () => {}}
-          onImport={canManageWorkspace ? handleImportClick : () => {}}
+          onCreate={canManageWorkspace ? createDefault : () => {}}
+          onCreateDemo={canManageWorkspace ? createDemo : () => {}}
+          onImport={canManageWorkspace ? startImport : () => {}}
           badgeLabel={t('notebook.empty_badge')}
           title={t('notebook.empty_title')}
           description={
@@ -183,8 +151,8 @@ export const NotebookContainer: React.FC = () => {
             canManageWorkspace={canManageWorkspace}
             formatDate={(date) => dateFormatter.format(date)}
             labels={buildNotebookPortfolioListLabels(t)}
-            onOpenPortfolio={handleOpenPortfolio}
-            onRequestDelete={setPortfolioPendingDelete}
+            onOpenPortfolio={openPortfolio}
+            onRequestDelete={requestDelete}
           />
 
           <NotebookScopeNote
@@ -198,12 +166,9 @@ export const NotebookContainer: React.FC = () => {
         portfolioPendingDelete={portfolioPendingDelete}
         statusMessage={statusMessage}
         labels={buildNotebookFeedbackLabels(t)}
-        onCancelDelete={() => setPortfolioPendingDelete(null)}
-        onConfirmDelete={async (portfolio) => {
-          setPortfolioPendingDelete(null);
-          await handleDeletePortfolio(portfolio);
-        }}
-        onDismissToast={() => setStatusMessage(null)}
+        onCancelDelete={cancelPendingDelete}
+        onConfirmDelete={confirmPendingDelete}
+        onDismissToast={dismissStatus}
       />
     </CalculatorPageShell>
   );

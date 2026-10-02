@@ -36,5 +36,7 @@ export function getCalculationEvidence(bondType: BondType): CalculationEvidence 
 }
 
 export function getTrustedCalculationEvidence(): readonly CalculationEvidence[] {
-  return ALL_BOND_TYPES.map(getCalculationEvidence).filter(({ releaseEligible }) => releaseEligible);
+  return ALL_BOND_TYPES.map(getCalculationEvidence).filter(
+    ({ releaseEligible }) => releaseEligible,
+  );
 }

@@ -1,3 +1,5 @@
+import type { CalculationDiagnostic } from '../../types/scenarios';
+
 export function shouldStopSingleBondSimulation({
   rollover,
   isEarlyWithdrawal,
@@ -36,4 +38,23 @@ export function buildSingleBondTerminalNotes({
   }
 
   return notes;
+}
+
+export function buildSingleBondTerminalDiagnostics({
+  rollover,
+  cycleIndex,
+  isEarlyWithdrawal,
+}: {
+  rollover: boolean;
+  cycleIndex: number;
+  isEarlyWithdrawal: boolean;
+}): CalculationDiagnostic[] {
+  return [
+    rollover
+      ? { code: 'rollover_cycles', severity: 'assumption', params: { count: cycleIndex } }
+      : { code: 'rollover_disabled', severity: 'assumption' },
+    ...(isEarlyWithdrawal
+      ? [{ code: 'early_redemption_applied' as const, severity: 'assumption' as const }]
+      : []),
+  ];
 }

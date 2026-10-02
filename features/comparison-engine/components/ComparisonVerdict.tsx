@@ -160,7 +160,7 @@ export const ComparisonVerdict: React.FC<ComparisonVerdictProps> = ({
             )}
 
             {expectedInflation > 5 ? (
-              <span className="inline-flex items-center gap-2 border-l-2 border-warning pl-3 text-xs font-semibold text-warning">
+              <span className="inline-flex items-center gap-2 border-l-2 border-warning pl-3 text-base font-semibold leading-6 text-warning">
                 <Zap className="h-3 w-3" aria-hidden="true" />
                 {t('comparison.verdict_high_inflation_badge')}
               </span>

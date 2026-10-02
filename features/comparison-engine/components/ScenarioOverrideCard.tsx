@@ -4,6 +4,7 @@ import React from 'react';
 import { Switch } from '@/components/ui/switch';
 import { isFamilyBondType } from '@/features/bond-core/support-matrix';
 import { BondType, TaxStrategy } from '@/features/bond-core/types';
+import type { IndependentBondComparisonPayload } from '@/features/bond-core/types/scenarios';
 import { useAppI18n } from '@/i18n/client';
 import { CommittedSliderInput } from '@/shared/components/CommittedSliderInput';
 import { Notice } from '@/shared/components/feedback/Notice';
@@ -21,6 +22,14 @@ interface ScenarioOverrideCardProps {
   onBondTypeChange: (value: BondType) => void;
   taxStrategy?: TaxStrategy;
   onTaxStrategyChange: (value: TaxStrategy | undefined) => void;
+  strategyPolicy?: IndependentBondComparisonPayload['scenarioA']['strategyPolicy'];
+  onStrategyPolicyChange: (
+    value: IndependentBondComparisonPayload['scenarioA']['strategyPolicy'],
+  ) => void;
+  couponDisposition?: IndependentBondComparisonPayload['scenarioA']['couponDisposition'];
+  onCouponDispositionChange: (
+    value: IndependentBondComparisonPayload['scenarioA']['couponDisposition'],
+  ) => void;
   customHorizonEnabled: boolean;
   onCustomHorizonEnabledChange: (value: boolean) => void;
   customHorizonMonths?: number;
@@ -33,6 +42,10 @@ export const ScenarioOverrideCard: React.FC<ScenarioOverrideCardProps> = ({
   onBondTypeChange,
   taxStrategy,
   onTaxStrategyChange,
+  strategyPolicy,
+  onStrategyPolicyChange,
+  couponDisposition,
+  onCouponDispositionChange,
   customHorizonEnabled,
   onCustomHorizonEnabledChange,
   customHorizonMonths,
@@ -94,7 +107,6 @@ export const ScenarioOverrideCard: React.FC<ScenarioOverrideCardProps> = ({
   return (
     <ScenarioSetupCard
       title={title}
-      description={t('comparison.scenario_card_desc')}
       tone={colorClass}
       meta={<span className="ui-kicker text-muted-foreground">{formatBondLabel(bondType)}</span>}
     >
@@ -135,6 +147,39 @@ export const ScenarioOverrideCard: React.FC<ScenarioOverrideCardProps> = ({
             }
             options={taxOptions}
             description={t('comparison.tax_override_desc')}
+          />
+          <FormSelect
+            label={t('comparison.maturity_policy')}
+            value={strategyPolicy ?? 'shared'}
+            onValueChange={(value) =>
+              onStrategyPolicyChange(
+                value === 'shared'
+                  ? undefined
+                  : (value as IndependentBondComparisonPayload['scenarioA']['strategyPolicy']),
+              )
+            }
+            options={[
+              { value: 'shared', label: t('comparison.use_shared_policy') },
+              { value: 'reinvest_until_horizon', label: t('comparison.maturity_reinvest') },
+              { value: 'cash_after_maturity', label: t('comparison.maturity_cash') },
+              { value: 'hold_to_maturity', label: t('comparison.maturity_hold') },
+            ]}
+          />
+          <FormSelect
+            label={t('comparison.coupon_policy')}
+            value={couponDisposition ?? 'shared'}
+            onValueChange={(value) =>
+              onCouponDispositionChange(
+                value === 'shared'
+                  ? undefined
+                  : (value as IndependentBondComparisonPayload['scenarioA']['couponDisposition']),
+              )
+            }
+            options={[
+              { value: 'shared', label: t('comparison.use_shared_policy') },
+              { value: 'reinvest', label: t('comparison.coupon_reinvest') },
+              { value: 'cash', label: t('comparison.coupon_cash') },
+            ]}
           />
 
           <div className="ui-status-note justify-between gap-4">

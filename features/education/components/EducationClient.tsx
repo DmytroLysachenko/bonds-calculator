@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CalculationDataFreshness } from '@/features/bond-core/types/scenarios';
 import { BondEducationCard } from '@/features/education/components/BondEducationCard';
+import { BondIssueExplorer } from '@/features/education/components/BondIssueExplorer';
 import { EducationDecisionRail } from '@/features/education/components/EducationDecisionRail';
 import { EducationOfferComparison } from '@/features/education/components/EducationOfferComparison';
 import {
@@ -30,6 +31,7 @@ import {
 } from '@/features/education/constants/education-content';
 import { useAppI18n } from '@/i18n/client';
 import { OfferProvenance } from '@/shared/components/data/OfferProvenance';
+import { PageHeader } from '@/shared/components/page/PageHeader';
 import { PageTransition } from '@/shared/components/page/PageTransition';
 import { SectionBlock } from '@/shared/components/page/SectionBlock';
 import { useBondDefinitions } from '@/shared/context/BondDefinitionsContext';
@@ -61,30 +63,26 @@ export default function EducationClient({
 
   return (
     <PageTransition>
-      <div className="ui-page-flow mx-auto max-w-[var(--layout-content-max)]">
-        <header className="ui-page-header max-w-4xl space-y-5">
-          <p className="inline-flex items-center gap-2 border-l-2 border-border px-3 py-1 ui-eyebrow">
-            <BookOpen className="size-3.5 text-foreground" aria-hidden="true" />
-            {t('nav.education')}
-          </p>
-          <div className="space-y-3">
-            <h1 className="ui-page-title max-w-3xl xl:text-[46px]">{t('education.hero_title')}</h1>
-            <p className="ui-body ui-pretty max-w-3xl text-muted-foreground md:text-base md:leading-8">
-              {t('education.subtitle')}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="#choose-a-path">
-                {t('education.hero_primary_cta')}
-                <ArrowDown className="size-4" aria-hidden="true" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="lg">
-              <Link href="#current-offers">{t('education.hero_secondary_cta')}</Link>
-            </Button>
-          </div>
-        </header>
+      <div className="ui-page-flow">
+        <PageHeader
+          icon={<BookOpen className="size-5" />}
+          eyebrow={t('nav.education')}
+          title={t('education.hero_title')}
+          description={t('education.subtitle')}
+          action={
+            <div className="ui-action-row">
+              <Button asChild size="lg">
+                <Link href="#choose-a-path">
+                  {t('education.hero_primary_cta')}
+                  <ArrowDown className="size-4" aria-hidden="true" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="lg">
+                <Link href="#current-offers">{t('education.hero_secondary_cta')}</Link>
+              </Button>
+            </div>
+          }
+        />
 
         <section
           id="choose-a-path"
@@ -102,6 +100,30 @@ export default function EducationClient({
           <EducationDecisionRail />
         </section>
 
+        <nav aria-label={t('education.section_index')} className="border-y border-border py-3">
+          <p className="ui-kicker mb-2">{t('education.section_index')}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+            <a href="#choose-a-path" className="ui-focus-ring underline underline-offset-4">
+              {t('education.decision_title')}
+            </a>
+            <a href="#current-offers" className="ui-focus-ring underline underline-offset-4">
+              {t('education.bond_types')}
+            </a>
+            {educationOfferGroups.map((group) => (
+              <a
+                key={group.key}
+                href={`#offers-${group.key}`}
+                className="ui-focus-ring underline underline-offset-4"
+              >
+                {t(`education.groups.${group.key}.title`)}
+              </a>
+            ))}
+            <a href="#education-compare" className="ui-focus-ring underline underline-offset-4">
+              {t('education.comparison.compare_selected')}
+            </a>
+          </div>
+        </nav>
+
         <SectionBlock
           id="current-offers"
           className="scroll-mt-6 md:scroll-mt-10"
@@ -110,6 +132,7 @@ export default function EducationClient({
           description={t('education.bond_types_subtitle')}
         >
           <OfferProvenance dataFreshness={dataFreshness} />
+          <BondIssueExplorer />
           <div className="space-y-12">
             {educationOfferGroups.map((group) => {
               const bonds = group.bondTypes.map((type) => definitions[type]).filter(Boolean);
@@ -130,14 +153,26 @@ export default function EducationClient({
                   </div>
                   <div className="mt-5 grid gap-x-8 md:grid-cols-2">
                     {bonds.map((bond) => (
-                      <BondEducationCard key={bond.type} bond={bond} />
+                      <BondEducationCard
+                        key={bond.type}
+                        bond={bond}
+                        dataFreshness={dataFreshness}
+                      />
                     ))}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                    <a href="#choose-a-path" className="ui-focus-ring underline underline-offset-4">
+                      {t('education.back_to_choices')}
+                    </a>
+                    <Link href="/compare" className="ui-focus-ring underline underline-offset-4">
+                      {t('education.compare_in_calculator')}
+                    </Link>
                   </div>
                 </section>
               );
             })}
           </div>
-          <details className="border-t border-border pt-5">
+          <details id="education-compare" className="scroll-mt-10 border-t border-border pt-5">
             <summary className="ui-focus-ring cursor-pointer text-sm font-semibold text-foreground">
               {t('education.comparison.compare_selected')}
             </summary>

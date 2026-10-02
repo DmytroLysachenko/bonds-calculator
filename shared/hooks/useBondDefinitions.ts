@@ -1,25 +1,35 @@
 'use client';
 
-import { useCallback } from 'react';
+import useSWR from 'swr';
 
-import { BondDefinition } from '@/features/bond-core/constants/bond-definitions';
+import { BOND_DEFINITIONS, BondDefinition } from '@/features/bond-core/constants/bond-definitions';
 import { BondType } from '@/features/bond-core/types';
 import { apiGet } from '@/shared/lib/api-client';
-import { ClientResource } from '@/shared/lib/client-resource';
 
-import { useClientResource } from './useClientResource';
-
-const definitionsResource = new ClientResource<Record<BondType, BondDefinition>>({
-  maxAgeMs: 15 * 60_000,
-  staleAfterMs: 5 * 60_000,
-});
-
-export function useBondDefinitions() {
-  const fetchDefinitions = useCallback(
-    () => apiGet<Record<BondType, BondDefinition>>('/api/bond-definitions'),
-    [],
+export function useBondDefinitions(initialDefinitions?: Record<BondType, BondDefinition>) {
+  const resource = useSWR<Record<BondType, BondDefinition>>(
+    '/api/bond-definitions',
+    apiGet<Record<BondType, BondDefinition>>,
+    {
+      dedupingInterval: 15 * 60_000,
+      focusThrottleInterval: 15 * 60_000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      keepPreviousData: true,
+      // Render a complete, safe baseline immediately; the API still refreshes
+      // it with the current offer without blocking the calculator's first paint.
+      fallbackData: initialDefinitions ?? BOND_DEFINITIONS,
+    },
   );
-  const resource = useClientResource(definitionsResource, fetchDefinitions);
 
-  return { definitions: resource.data, ...resource };
+  return {
+    definitions: resource.data ?? null,
+    // A request-scoped server snapshot is already authoritative for first paint.
+    // SWR may still revalidate it, but should not hide the form while doing so.
+    isLoading: resource.isLoading && !initialDefinitions,
+    isRefreshing: resource.isValidating && resource.data !== undefined,
+    error: resource.error ?? null,
+    refresh: () => resource.mutate(),
+    invalidate: () => resource.mutate(undefined, { revalidate: false }),
+  };
 }

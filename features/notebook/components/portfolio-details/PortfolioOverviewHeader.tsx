@@ -1,6 +1,15 @@
 'use client';
 
-import { ArrowLeft, Check, Download, Loader2, Share2, ShieldCheck, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  Download,
+  Loader2,
+  Pencil,
+  Share2,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 import React from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -40,6 +49,7 @@ type PortfolioOverviewHeaderProps = {
   onCopyLink: () => void;
   onDeleteRequest: () => void;
   canDelete: boolean;
+  onUpdatePortfolio: (input: { name: string; description: string }) => Promise<void>;
   t: (key: string, values?: Record<string, string>) => string;
 };
 
@@ -59,6 +69,7 @@ export function PortfolioOverviewHeader({
   onCopyLink,
   onDeleteRequest,
   canDelete,
+  onUpdatePortfolio,
   t,
 }: PortfolioOverviewHeaderProps) {
   return (
@@ -121,7 +132,18 @@ export function PortfolioOverviewHeader({
             <ArrowLeft aria-hidden="true" className="h-5 w-5" />
           </Button>
           <div>
-            <h2 className="ui-section-title">{portfolio.name}</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="ui-section-title">{portfolio.name}</h2>
+              <details>
+                <summary
+                  className="cursor-pointer list-none rounded p-1"
+                  aria-label={t('common.edit')}
+                >
+                  <Pencil className="h-4 w-4" />
+                </summary>
+                <PortfolioMetadataEditor portfolio={portfolio} onUpdate={onUpdatePortfolio} t={t} />
+              </details>
+            </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {portfolio.description || t('notebook.portfolio_details')}
             </p>
@@ -173,5 +195,52 @@ export function PortfolioOverviewHeader({
         </div>
       </div>
     </>
+  );
+}
+
+function PortfolioMetadataEditor({
+  portfolio,
+  onUpdate,
+  t,
+}: {
+  portfolio: UserPortfolio;
+  onUpdate: (input: { name: string; description: string }) => Promise<void>;
+  t: PortfolioOverviewHeaderProps['t'];
+}) {
+  const [name, setName] = React.useState(portfolio.name);
+  const [description, setDescription] = React.useState(portfolio.description ?? '');
+  const [saving, setSaving] = React.useState(false);
+  return (
+    <form
+      className="absolute z-20 mt-2 w-72 space-y-2 rounded border border-border bg-background p-3 shadow-lg"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setSaving(true);
+        void onUpdate({ name: name.trim(), description: description.trim() }).finally(() =>
+          setSaving(false),
+        );
+      }}
+    >
+      <label className="block text-xs">
+        {t('notebook.portfolio_name')}
+        <input
+          required
+          className="mt-1 h-8 w-full rounded border border-input bg-background px-2"
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+        />
+      </label>
+      <label className="block text-xs">
+        {t('notebook.description')}
+        <input
+          className="mt-1 h-8 w-full rounded border border-input bg-background px-2"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+        />
+      </label>
+      <Button size="sm" type="submit" disabled={saving}>
+        {t('common.save')}
+      </Button>
+    </form>
   );
 }

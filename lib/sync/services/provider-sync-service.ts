@@ -143,26 +143,19 @@ export class ProviderSyncService {
       return result;
     }
 
-    const slugToId: Record<string, string> = {
-      [provider.seriesSlug]: series.id,
-    };
+    const recordSlugs = [...new Set(data.map((record) => record.seriesSlug))];
+    const seriesBySlug = await this.repository.findSeriesBySlugs(recordSlugs);
+    seriesBySlug.set(provider.seriesSlug, series);
 
-    const recordsToInsert = [];
+    const recordsToInsert: Array<{ seriesId: string; date: string; value: string }> = [];
     for (const record of data) {
-      if (!slugToId[record.seriesSlug]) {
-        const matchingSeries = await this.repository.findSeriesBySlug(record.seriesSlug);
-        if (matchingSeries) {
-          slugToId[record.seriesSlug] = matchingSeries.id;
-        }
-      }
-
-      const seriesId = slugToId[record.seriesSlug];
-      if (!seriesId) {
+      const matchingSeries = seriesBySlug.get(record.seriesSlug);
+      if (!matchingSeries) {
         continue;
       }
 
       recordsToInsert.push({
-        seriesId,
+        seriesId: matchingSeries.id,
         date: record.date,
         value: record.value.toString(),
       });

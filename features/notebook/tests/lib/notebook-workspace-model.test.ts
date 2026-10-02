@@ -25,9 +25,9 @@ describe('notebook workspace model', () => {
 
   it('keeps demo lot payloads stable', () => {
     expect(NOTEBOOK_DEMO_LOTS).toEqual([
-      { bondType: 'EDO', amount: 50, purchaseDate: '2023-01-01' },
-      { bondType: 'COI', amount: 100, purchaseDate: '2023-06-15' },
-      { bondType: 'TOS', amount: 200, purchaseDate: '2024-01-10' },
+      { bondType: 'EDO', bondQuantity: 50, purchaseDate: '2023-01-01' },
+      { bondType: 'COI', bondQuantity: 100, purchaseDate: '2023-06-15' },
+      { bondType: 'TOS', bondQuantity: 200, purchaseDate: '2024-01-10' },
     ]);
   });
 

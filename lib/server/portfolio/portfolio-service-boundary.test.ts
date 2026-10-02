@@ -31,10 +31,10 @@ describe('portfolio service boundary', () => {
     expect(access).toContain("from '@/lib/server/portfolio/repository'");
     expect(access).toContain('findPortfolioByOwner(ownerId, portfolioId)');
     expect(access).toContain('findOwnedLotByOwner(ownerId, lotId)');
-    expect(access).toContain('ensureGuestPortfolioOwner(ownerId)');
+    expect(access).not.toContain('guest_portfolio_owner_id');
     expect(repository).toContain('export function findPortfolioByOwner');
     expect(repository).toContain('export async function findOwnedLotByOwner');
-    expect(repository).toContain('export function ensureGuestPortfolioOwner');
+    expect(repository).not.toContain('ensureGuestPortfolioOwner');
     expect(repository).toContain('innerJoin(userPortfolios');
   });
 
@@ -49,15 +49,5 @@ describe('portfolio service boundary', () => {
     expect(commands).toContain('deleteLotByOwner(ownerId, lotId)');
   });
 
-  it('uses one transaction for an imported portfolio and its complete lot set', () => {
-    const repository = read('lib/server/portfolio/repository.ts');
-    const commands = read('lib/server/portfolio/commands.ts');
-
-    expect(repository).toContain('export async function importPortfolioAtomically');
-    expect(repository).toContain('return db.transaction(async (tx) =>');
-    expect(repository).toContain('tx.insert(userPortfolios)');
-    expect(repository).toContain('tx.insert(userInvestmentLots)');
-    expect(commands).toContain('return importPortfolioAtomically(ownerId');
-    expect(commands).not.toContain('Promise.all(importedLots.map((lot) => createLot(lot)))');
-  });
+  // Actual transaction/rollback behavior is covered by db/portfolio-repository.integration.test.ts.
 });

@@ -6,6 +6,7 @@ import { BondType } from '@/features/bond-core/types';
 import {
   buildSingleCalculatorPersistenceSnapshot,
   getInitialSingleCalculatorClientState,
+  isSameSingleCalculatorCalculation,
   resolveSingleCalculatorFieldUpdate,
   resolveSingleCalculatorReplacementInputs,
   resolveSingleCalculatorSelectedSeriesUpdate,
@@ -120,5 +121,22 @@ describe('single calculator client state', () => {
       lastCommittedInputs: inputs,
       isDirty: false,
     });
+  });
+
+  it('keeps display-only changes out of report identity but detects draft edits', () => {
+    const committed = buildFallbackInputs(new Date('2026-06-16T00:00:00.000Z'));
+
+    expect(
+      isSameSingleCalculatorCalculation(
+        { ...committed, chartStep: 'yearly', showRealValue: true },
+        committed,
+      ),
+    ).toBe(true);
+    expect(
+      isSameSingleCalculatorCalculation({ ...committed, bondType: BondType.COI }, committed),
+    ).toBe(false);
+    expect(
+      isSameSingleCalculatorCalculation({ ...committed, initialInvestment: 20_000 }, committed),
+    ).toBe(false);
   });
 });

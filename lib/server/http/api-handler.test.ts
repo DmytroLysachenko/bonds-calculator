@@ -77,6 +77,31 @@ describe('apiHandler endpoint policy boundary', () => {
     expect(JSON.stringify(payload)).not.toContain('password=not-for-clients');
   });
 
+  it.each(['identity', 'limiter'] as const)(
+    'correlates %s failures before running the handler',
+    async (failure) => {
+      const handler = vi.fn(() => NextResponse.json({ ok: true }));
+      const limiter = createLimiter();
+      if (failure === 'limiter')
+        vi.mocked(limiter.consume).mockRejectedValue(new Error('store unavailable'));
+      const GET = createApiHandler({
+        rateLimiter: limiter,
+        getIdentity: () => {
+          if (failure === 'identity') throw new Error('identity unavailable');
+          return 'test-client';
+        },
+      })(handler);
+      const response = await GET(request(), context);
+      expect(response.status).toBe(500);
+      expect(response.headers.get('x-request-id')).toBe('request-test-0001');
+      await expect(response.json()).resolves.toMatchObject({
+        code: 'INTERNAL_SERVER_ERROR',
+        requestId: 'request-test-0001',
+      });
+      expect(handler).not.toHaveBeenCalled();
+    },
+  );
+
   it('returns standard 429 headers before invoking a costly endpoint', async () => {
     const handler = vi.fn(async () => NextResponse.json({ ok: true }));
     const resetAt = Date.now() + 20_000;

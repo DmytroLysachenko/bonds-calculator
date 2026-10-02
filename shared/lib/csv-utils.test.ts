@@ -12,6 +12,51 @@ import {
 } from './export-headers';
 
 describe('csv-utils', () => {
+  it('appends committed report provenance without changing timeline numeric columns', () => {
+    const headers = buildTimelineExportHeaders((key) => translateMessage('en', key));
+    const timeline = [
+      {
+        periodLabel: 'Sep 2026',
+        cycleIndex: 1,
+        cycleStartDate: '2026-09-01',
+        cycleEndDate: '2026-09-01',
+        interestRate: 5.35,
+        rateSource: 'initial_principal',
+        nominalValueBeforeInterest: 1000,
+        interestEarned: 0,
+        taxDeducted: 0,
+        netInterest: 0,
+        nominalValueAfterInterest: 1000,
+        accumulatedNetInterest: 0,
+        totalValue: 990,
+        realValue: 950,
+        netProfit: -10,
+        earlyWithdrawalValue: 990,
+        isMaturity: false,
+        isWithdrawal: true,
+        cumulativeInflation: 1,
+      },
+    ] as unknown as YearlyTimelinePoint[];
+    const plain = convertTimelineToCSV(timeline, headers, 'en').split('\r\n');
+    const withMetadata = convertTimelineToCSV(timeline, headers, 'en', {
+      calculationVersion: 'historical-model-v7',
+      offerSeries: 'EDO0936',
+      offerRevision: 'terms-2026-09',
+      taxStrategy: 'STANDARD',
+      cashPolicy: 'single_cycle',
+      dataSource: 'gov.pl',
+      coverageAsOf: '2026-09-01',
+    }).split('\r\n');
+
+    expect(withMetadata[0]?.startsWith(`${plain[0]};`)).toBe(true);
+    expect(withMetadata[1]?.startsWith(`${plain[1]};`)).toBe(true);
+    expect(withMetadata[1]).toContain('-10.00');
+    expect(withMetadata[1]).toContain('"historical-model-v7"');
+    expect(withMetadata[1]).toContain('"terms-2026-09"');
+    expect(withMetadata[1]).toContain('"gov.pl"');
+    expect(withMetadata[1]).toContain('"2026-09-01"');
+  });
+
   it('builds a normalized timeline csv with localized helper columns', () => {
     const headers = buildTimelineExportHeaders((key) => translateMessage('pl', key));
     const timeline = [

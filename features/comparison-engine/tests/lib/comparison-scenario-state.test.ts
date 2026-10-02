@@ -40,7 +40,7 @@ describe('comparison scenario state', () => {
       sharedConfig,
       {
         bondType: BondType.ROR,
-        isRebought: true,
+        isRebought: false,
       },
       24,
     );

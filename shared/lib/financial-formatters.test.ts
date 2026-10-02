@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatCompactNumber, formatCurrency, formatIsoDate, formatPercent } from './financial-formatters';
+import {
+  formatCompactNumber,
+  formatCurrency,
+  formatIsoDate,
+  formatPercent,
+} from './financial-formatters';
 
 describe('financial formatters', () => {
   it('formats currency through the selected locale', () => {
@@ -34,7 +39,10 @@ describe('financial formatters', () => {
     expect(formatCompactNumber(999, 'pl')).toContain('999');
   });
 
-  it.each(['2026-02-30', '30.07.2026', '', '2026-7-3'])('returns malformed input unchanged: %s', (value) => {
-    expect(formatIsoDate(value, 'pl')).toBe(value);
-  });
+  it.each(['2026-02-30', '30.07.2026', '', '2026-7-3'])(
+    'returns malformed input unchanged: %s',
+    (value) => {
+      expect(formatIsoDate(value, 'pl')).toBe(value);
+    },
+  );
 });

@@ -33,7 +33,10 @@ export function MultiAssetGrowthTooltip({
             .map((entry, index) => (
               <div key={index} className="ui-chart-tooltip-row">
                 <span className="ui-chart-tooltip-label">
-                  <span className={`ui-chart-tooltip-dot ${chartColorClass(entry.color)}`} aria-hidden="true" />
+                  <span
+                    className={`ui-chart-tooltip-dot ${chartColorClass(entry.color)}`}
+                    aria-hidden="true"
+                  />
                   {entry.name}:
                 </span>
                 <span className="ui-chart-tooltip-value">

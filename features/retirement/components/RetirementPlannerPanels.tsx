@@ -10,6 +10,7 @@ import { ScenarioReadyPanel } from '@/shared/components/feedback/ScenarioReadyPa
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
 import { formatHorizonMonths } from '@/shared/lib/format-horizon';
 
+import { RetirementMonthlyTable } from './RetirementMonthlyTable';
 import { RetirementSection, RetirementSummaryMetric } from './RetirementSummarySections';
 import { RetirementSupportList } from './RetirementSupportList';
 
@@ -38,6 +39,7 @@ interface RetirementResultsPanelProps {
   scenarioCoverage: string | null;
   language: 'pl' | 'en';
   inputsHorizonYears: number;
+  assumptions: string[];
   taxStrategyLabel: string;
   formatCurrency: (value: number) => string;
 }
@@ -50,6 +52,7 @@ export function RetirementResultsPanel({
   scenarioCoverage,
   language,
   inputsHorizonYears,
+  assumptions,
   taxStrategyLabel,
   formatCurrency,
 }: RetirementResultsPanelProps) {
@@ -103,6 +106,16 @@ export function RetirementResultsPanel({
         formatCurrency={formatCurrency}
       />
 
+      <RetirementMonthlyTable
+        timeline={results.result.timeline}
+        title={labels.monthlyTable}
+        description={labels.monthlyTableDesc}
+        dateLabel={labels.date}
+        balanceLabel={labels.balance}
+        withdrawalLabel={labels.withdrawal}
+        formatCurrency={formatCurrency}
+      />
+
       <SecondaryInsightAccordion
         title={labels.assumptionsAndWarnings}
         description={labels.assumptionsAndWarningsDesc}
@@ -111,7 +124,7 @@ export function RetirementResultsPanel({
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
           <RetirementSupportList
             title={labels.assumptions}
-            items={results.assumptions}
+            items={assumptions}
             emptyLabel={labels.noExtraAssumptions}
           />
           <RetirementSupportList

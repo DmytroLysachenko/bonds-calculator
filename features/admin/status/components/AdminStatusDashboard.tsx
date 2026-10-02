@@ -94,7 +94,7 @@ export function AdminStatusDashboard({
 
   return (
     <>
-      <div className="container mx-auto max-w-7xl space-y-8 py-10">
+      <div className="space-y-8 py-10">
         <AdminStatusHeader
           copy={copy}
           loading={loading}

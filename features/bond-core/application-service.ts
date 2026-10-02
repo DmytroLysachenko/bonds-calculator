@@ -1,47 +1,52 @@
-import {
-  getBondDefinitionsMap,
-  getGlobalDataFreshness,
-  getTaxRulesRevision,
-} from '@/lib/data/market-data';
-import { createServerLogger } from '@/lib/server/logging';
-
 import { BondDefinition } from './constants/bond-definitions';
+import type { HandlerContext } from './handlers/base';
 import {
   CalculationDataFreshness,
   CalculationEnvelopeForKind,
   CalculationScenarioRequest,
+  normalizeCalculationScenarioRequest,
   ScenarioKind,
 } from './types/scenarios';
 import { parseCalculationScenarioRequest } from './types/schemas';
 import { calculationCache } from './utils/calculation-cache';
-import { sanitizeInputs } from './utils/engine-guards';
 import { CalculationCachePolicy } from './calculation-cache-policy';
 import { CalculationContextProvider } from './calculation-context';
-import { HandlerFactory, MODEL_VERSION, ScenarioHandler } from './handlers';
+import type { HandlerFactory } from './handlers';
+import { MODEL_VERSION } from './model-version';
 import { BondType } from './types';
-
-const logger = createServerLogger('CalculationService');
 
 export interface CalculationServiceDependencies {
   cache: Pick<typeof calculationCache, 'generateKey' | 'get' | 'set' | 'invalidateNamespace'>;
   getDataFreshness: () => Promise<CalculationDataFreshness>;
   getTaxRulesRevision: () => Promise<string>;
   getDefinitions: () => Promise<Record<BondType, BondDefinition>>;
-  getHandler: (kind: ScenarioKind) => ScenarioHandler<unknown, unknown>;
+  getHandler: HandlerFactory['getHandler'];
+  onFailure?: (kind: ScenarioKind, error: unknown) => void;
 }
 
-const defaultDependencies: CalculationServiceDependencies = {
-  cache: calculationCache,
-  getDataFreshness: getGlobalDataFreshness,
-  getTaxRulesRevision,
-  getDefinitions: getBondDefinitionsMap,
-  getHandler: (kind) => HandlerFactory.getHandler(kind),
-};
-
 export class CalculationApplicationService {
-  constructor(
-    private readonly dependencies: CalculationServiceDependencies = defaultDependencies,
-  ) {}
+  constructor(private readonly dependencies: CalculationServiceDependencies) {}
+
+  private handleResolvedRequest(request: CalculationScenarioRequest, context: HandlerContext) {
+    switch (request.kind) {
+      case ScenarioKind.SINGLE_BOND:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      case ScenarioKind.REGULAR_INVESTMENT:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      case ScenarioKind.BOND_COMPARISON:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      case ScenarioKind.PORTFOLIO_SIMULATION:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      case ScenarioKind.BOND_OPTIMIZER:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      case ScenarioKind.RETIREMENT_PLANNER:
+        return this.dependencies.getHandler(request.kind).handle(request.payload, context);
+      default: {
+        const exhaustive: never = request;
+        throw new Error(`Unregistered calculation kind: ${String(exhaustive)}`);
+      }
+    }
+  }
 
   /**
    * Main entry point for all calculation requests.
@@ -51,14 +56,9 @@ export class CalculationApplicationService {
   ): Promise<CalculationEnvelopeForKind<TRequest['kind']>> {
     // 1. Validate before any normalization so invalid scenarios are rejected,
     // not silently clamped into a different calculation.
-    const validatedRequest = parseCalculationScenarioRequest(request) as CalculationScenarioRequest;
-    const sanitizedPayload = sanitizeInputs(
-      validatedRequest.payload as unknown as Record<string, unknown>,
+    const validatedRequest = normalizeCalculationScenarioRequest(
+      parseCalculationScenarioRequest(request) as CalculationScenarioRequest,
     );
-    const sanitizedRequest = {
-      ...validatedRequest,
-      payload: sanitizedPayload,
-    } as unknown as CalculationScenarioRequest;
 
     try {
       // Context revisions are part of financial correctness: an identical request
@@ -73,18 +73,18 @@ export class CalculationApplicationService {
         modelVersion: MODEL_VERSION,
       });
       return (await cachePolicy.getOrCalculate({
-        request: sanitizedRequest,
+        request: validatedRequest,
         dataRevision: context.cacheRevision,
         calculate: async () => {
-          const handler = this.dependencies.getHandler(sanitizedRequest.kind);
-          return handler.handle(sanitizedRequest.payload, {
+          const envelope = await this.handleResolvedRequest(validatedRequest, {
             dataFreshness: context.dataFreshness,
             dbDefinitions: context.dbDefinitions,
           });
+          return { ...envelope, taxRulesRevision: context.taxRulesRevision };
         },
       })) as CalculationEnvelopeForKind<TRequest['kind']>;
     } catch (error) {
-      logger.error(`FAILED v=${MODEL_VERSION} kind=${request.kind}`, error);
+      this.dependencies.onFailure?.(request.kind, error);
       throw error;
     }
   }
@@ -96,5 +96,3 @@ export class CalculationApplicationService {
     }).invalidate(namespace);
   }
 }
-
-export const calculationService = new CalculationApplicationService();

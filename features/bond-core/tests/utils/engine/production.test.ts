@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BondType, InterestPayout, TaxStrategy } from '../../../types';
 import { calculatePeriodAccrual } from '../../../utils/engine/accrual';
-import { calculateTaxAmount } from '../../../utils/engine/tax-settlement';
+import { calculateTaxAmount, settlementPolicyFor } from '../../../utils/engine/tax-settlement';
 
 describe('Bond Engine - Production Accuracy', () => {
   describe('Interest Accrual', () => {
@@ -54,23 +54,46 @@ describe('Bond Engine - Production Accuracy', () => {
   });
 
   describe('Tax Settlement (Official Rounding)', () => {
-    it('should round Belka tax base and amount to full PLN (Tax Ordinance Rules)', () => {
-      // Base: 10.49 PLN -> 10 PLN base -> 1.90 tax -> 2 PLN tax
-      // Base: 10.51 PLN -> 11 PLN base -> 2.09 tax -> 2 PLN tax
+    it('rounds standard interest tax upward to grosze', () => {
+      // Article 63 § 1a exception: standard interest income does not use
+      // whole-zloty rounding.
 
-      const tax1 = calculateTaxAmount(new Decimal(10.49), TaxStrategy.STANDARD, true);
-      expect(tax1.toNumber()).toBe(2); // 10 * 0.19 = 1.9 -> 2
+      const tax1 = calculateTaxAmount(
+        new Decimal(10.49),
+        TaxStrategy.STANDARD,
+        settlementPolicyFor(TaxStrategy.STANDARD),
+      );
+      expect(tax1.toNumber()).toBe(2); // 10.49 * 19% = 1.9931 -> 2.00
 
-      const tax2 = calculateTaxAmount(new Decimal(10.51), TaxStrategy.STANDARD, true);
-      expect(tax2.toNumber()).toBe(2); // 11 * 0.19 = 2.09 -> 2
+      const tax2 = calculateTaxAmount(
+        new Decimal(10.51),
+        TaxStrategy.STANDARD,
+        settlementPolicyFor(TaxStrategy.STANDARD),
+      );
+      expect(tax2.toNumber()).toBe(2); // 10.51 * 19% = 1.9969 -> 2.00
 
-      const tax3 = calculateTaxAmount(new Decimal(15.0), TaxStrategy.STANDARD, true);
-      expect(tax3.toNumber()).toBe(3); // 15 * 0.19 = 2.85 -> 3
+      const tax3 = calculateTaxAmount(
+        new Decimal(15.0),
+        TaxStrategy.STANDARD,
+        settlementPolicyFor(TaxStrategy.STANDARD),
+      );
+      expect(tax3.toNumber()).toBe(2.85);
+
+      const smallTax = calculateTaxAmount(
+        new Decimal(0.33),
+        TaxStrategy.STANDARD,
+        settlementPolicyFor(TaxStrategy.STANDARD),
+      );
+      expect(smallTax.toNumber()).toBe(0.07);
     });
 
     it('should calculate IKZE 10% flat tax on whole amount with official rounding', () => {
       // 1000 PLN payout -> 100 PLN tax (10%)
-      const tax = calculateTaxAmount(new Decimal(1000), TaxStrategy.IKZE, true);
+      const tax = calculateTaxAmount(
+        new Decimal(1000),
+        TaxStrategy.IKZE,
+        settlementPolicyFor(TaxStrategy.IKZE),
+      );
       expect(tax.toNumber()).toBe(100);
     });
   });

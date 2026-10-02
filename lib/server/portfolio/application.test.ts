@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   importOwnerPortfolio: vi.fn(),
   toggleOwnerPortfolioSharing: vi.fn(),
   updateOwnerLot: vi.fn(),
+  updateOwnerPortfolio: vi.fn(),
   exportOwnerPortfolio: vi.fn(),
   listOwnerPortfolios: vi.fn(),
   listPortfolioLots: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('./commands', () => ({
   importOwnerPortfolio: mocks.importOwnerPortfolio,
   toggleOwnerPortfolioSharing: mocks.toggleOwnerPortfolioSharing,
   updateOwnerLot: mocks.updateOwnerLot,
+  updateOwnerPortfolio: mocks.updateOwnerPortfolio,
 }));
 vi.mock('./queries', () => ({
   exportOwnerPortfolio: mocks.exportOwnerPortfolio,
@@ -42,6 +44,7 @@ describe('portfolio application interface', () => {
   it.each([
     ['createPortfolio', 'createOwnerPortfolio', ['owner-1', { name: 'Taxable' }]],
     ['deletePortfolio', 'deleteOwnerPortfolio', ['owner-1', 'portfolio-1']],
+    ['updatePortfolio', 'updateOwnerPortfolio', ['owner-1', 'portfolio-1', { name: 'Edited' }]],
     ['listPortfolios', 'listOwnerPortfolios', ['owner-1']],
     [
       'createLot',
@@ -52,7 +55,7 @@ describe('portfolio application interface', () => {
           portfolioId: 'portfolio-1',
           bondType: 'EDO',
           purchaseDate: '2026-01-01',
-          amount: 100,
+          bondQuantity: 100,
           isRebought: false,
         },
       ],
@@ -66,11 +69,11 @@ describe('portfolio application interface', () => {
           portfolioId: 'portfolio-1',
           bondType: 'EDO',
           purchaseDate: '2026-01-01',
-          amount: 100,
+          bondQuantity: 100,
         },
       ],
     ],
-    ['updateLot', 'updateOwnerLot', ['owner-1', 'lot-1', { amount: 200 }]],
+    ['updateLot', 'updateOwnerLot', ['owner-1', 'lot-1', { bondQuantity: 200 }]],
     ['deleteLot', 'deleteOwnerLot', ['owner-1', 'lot-1']],
     ['listLots', 'listPortfolioLots', ['owner-1', 'portfolio-1']],
     ['importPortfolio', 'importOwnerPortfolio', ['owner-1', { name: 'Imported', lots: [] }]],
@@ -84,12 +87,36 @@ describe('portfolio application interface', () => {
     ['summarizePortfolios', 'summarizeOwnerPortfolios', ['owner-1']],
   ] as const)('%s delegates complete owner context to %s', async (operation, dependency, args) => {
     const expected = { operation };
-    mocks[dependency].mockResolvedValue(expected);
+    const storedLot = {
+      ...expected,
+      id: 'lot-1',
+      portfolioId: 'portfolio-1',
+      bondType: 'EDO',
+      bondTypeId: null,
+      bondSeriesId: null,
+      purchaseDate: '2026-01-01',
+      amount: '100',
+      isRebought: false,
+      notes: null,
+      createdAt: null,
+    };
+    const mapsHolding =
+      operation === 'createLot' ||
+      operation === 'createLotWithTransaction' ||
+      operation === 'updateLot' ||
+      operation === 'listLots';
+    mocks[dependency].mockResolvedValue(operation === 'listLots' ? [storedLot] : storedLot);
     const invoke = portfolioApplication[operation] as (...input: unknown[]) => Promise<unknown>;
 
     const result = await invoke(...args);
 
-    expect(result).toBe(expected);
+    expect(result).toEqual(
+      mapsHolding
+        ? operation === 'listLots'
+          ? [expect.objectContaining({ bondQuantity: '100' })]
+          : expect.objectContaining({ bondQuantity: '100' })
+        : storedLot,
+    );
     expect(mocks[dependency]).toHaveBeenCalledWith(...args);
   });
 

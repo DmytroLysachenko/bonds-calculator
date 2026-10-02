@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getTaxRulesForYear } from '@/lib/data/market-data';
+import { calculationService } from '@/lib/server/calculation/composition';
 import { getWithdrawalDateFromMonths } from '@/shared/lib/date-timing';
 
-import { calculationService } from '../application-service';
 import { BOND_DEFINITIONS } from '../constants/bond-definitions';
 import { MonthlyReturn } from '../constants/historical-data';
 import {
@@ -206,6 +207,7 @@ function multiAssetHistory(months: number): MonthlyReturn[] {
       gold: index % 4 === 0 ? 1.4 : 0.3,
       savings: 0.35,
       inflation: 0.25,
+      inflationKind: 'month_on_month',
       nbpRate: 5,
     };
   });
@@ -215,6 +217,62 @@ describe('calculator truth QA scenarios', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     calculationCache.clear();
+  });
+
+  it('weights a limited IKE split by invested principal and falls back when the year has no limit', async () => {
+    const wrapperPrincipal = 3000;
+    const standardPrincipal = 7000;
+    const taxRule = {
+      id: '00000000-0000-4000-8000-000000000001',
+      year: 2024,
+      ikeLimit: String(wrapperPrincipal),
+      ikzeLimit: String(wrapperPrincipal),
+      standardTaxRate: '19.00',
+      ikzePayoutTaxRate: '10.00',
+      updatedAt: null,
+    };
+    vi.mocked(getTaxRulesForYear).mockResolvedValueOnce({
+      ...taxRule,
+    });
+    const split = await calculateSingle(BondType.EDO, 12, {
+      initialInvestment: wrapperPrincipal + standardPrincipal,
+      taxStrategy: TaxStrategy.IKE,
+      useTaxWrapperLimit: true,
+    });
+    const wrapper = await calculateSingle(BondType.EDO, 12, {
+      initialInvestment: wrapperPrincipal,
+      taxStrategy: TaxStrategy.IKE,
+    });
+    const standard = await calculateSingle(BondType.EDO, 12, {
+      initialInvestment: standardPrincipal,
+      taxStrategy: TaxStrategy.STANDARD,
+    });
+    expect(split.overflowInfo).toMatchObject({
+      amountInWrapper: wrapperPrincipal,
+      amountInStandard: standardPrincipal,
+    });
+    expect(split.netPayoutValue).toBeCloseTo(wrapper.netPayoutValue + standard.netPayoutValue, 8);
+    expect(split.totalTax).toBeCloseTo(standard.totalTax, 8);
+    expect(split.nominalAnnualizedReturn).toBeCloseTo(
+      (wrapper.nominalAnnualizedReturn * wrapperPrincipal +
+        standard.nominalAnnualizedReturn * standardPrincipal) /
+        (wrapperPrincipal + standardPrincipal),
+      8,
+    );
+
+    calculationCache.clear();
+    vi.mocked(getTaxRulesForYear).mockResolvedValueOnce({
+      ...taxRule,
+      ikeLimit: '0',
+      ikzeLimit: '0',
+    });
+    const unavailable = await calculateSingle(BondType.EDO, 12, {
+      taxStrategy: TaxStrategy.IKE,
+      useTaxWrapperLimit: true,
+    });
+    const allStandard = await calculateSingle(BondType.EDO, 12);
+    expect(unavailable.netPayoutValue).toBeCloseTo(allStandard.netPayoutValue, 8);
+    expect(unavailable.totalTax).toBeCloseTo(allStandard.totalTax, 8);
   });
 
   it('locks EDO 10y full-cycle capitalization against accidental early-exit behavior', async () => {
@@ -307,8 +365,9 @@ describe('calculator truth QA scenarios', () => {
     expect(result.totalInvested).toBe(48000);
     expect(result.lots).toHaveLength(48);
     expect(result.timeline).toHaveLength(49);
-    expect(result.totalProfit).toBeGreaterThan(3600);
-    expect(result.totalTax).toBeGreaterThan(700);
+    expect(result.totalProfit).toBeGreaterThan(2800);
+    // Issuer-month settlements replace the old per-calendar-month estimate.
+    expect(result.totalTax).toBeGreaterThan(650);
     expect(result.totalEarlyWithdrawalFees).toBeGreaterThan(0);
   });
 

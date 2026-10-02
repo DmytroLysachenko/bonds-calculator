@@ -22,7 +22,8 @@ describe('shared hook API client boundary', () => {
     const source = read('shared/hooks/useBondDefinitions.ts');
 
     expect(source).toContain("from '@/shared/lib/api-client'");
-    expect(source).toContain("apiGet<Record<BondType, BondDefinition>>('/api/bond-definitions')");
+    expect(source).toContain("'/api/bond-definitions'");
+    expect(source).toContain('apiGet<Record<BondType, BondDefinition>>');
     expect(source).not.toContain('fetch(');
   });
 });

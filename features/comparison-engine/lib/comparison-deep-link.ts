@@ -1,10 +1,16 @@
 import { BondType, TaxStrategy } from '@/features/bond-core/types';
 import { isIsoCalendarDate } from '@/features/bond-core/types/iso-calendar-date';
+import { BondComparisonScenarioPayloadSchema } from '@/features/bond-core/types/schemas';
 import type {
   ScenarioOverride,
   SharedComparisonConfig,
 } from '@/features/comparison-engine/lib/comparison-calculator-state';
-import { getWithdrawalDateFromMonths } from '@/shared/lib/date-timing';
+import { getHorizonMonths, getWithdrawalDateFromMonths } from '@/shared/lib/date-timing';
+import {
+  createComparisonScenarioPackage,
+  decodeScenarioFromUrl,
+  encodeScenarioForUrl,
+} from '@/shared/lib/scenario-codec';
 
 type SearchParams = Pick<URLSearchParams, 'get'>;
 
@@ -31,51 +37,98 @@ const URL_KEYS = [
   'taxB',
   'horizonA',
   'horizonB',
+  'scenario',
 ] as const;
+
+export class ComparisonScenarioUrlTooLongError extends Error {}
 
 export function parseComparisonBondPair(searchParams: SearchParams): ComparisonBondPair | null {
   const a = parseBondType(searchParams.get('a'));
   const b = parseBondType(searchParams.get('b'));
 
-  return a && b && a !== b ? [a, b] : null;
+  return a && b ? [a, b] : null;
 }
 
 export function parseComparisonUrlState(
   searchParams: SearchParams,
   defaults: SharedComparisonConfig,
 ): ComparisonUrlState | null {
+  const encodedScenario = searchParams.get('scenario');
+  const portable = decodeScenarioFromUrl(encodedScenario);
+  if (portable.ok && portable.scenario.kind === 'bond-comparison') {
+    const intent = portable.scenario.intent;
+    return {
+      sharedConfig: intent.sharedConfig,
+      scenarioA: intent.scenarioA,
+      scenarioB: intent.scenarioB,
+    };
+  }
+  if (encodedScenario !== null) return null;
   const pair = parseComparisonBondPair(searchParams);
   if (!pair) return null;
 
+  const legacyFields = [
+    ['purchase', parseDate],
+    ['withdrawal', parseDate],
+    ['horizon', (value: string | null) => parseInteger(value, 1, 360)],
+    ['horizonA', (value: string | null) => parseInteger(value, 1, 360)],
+    ['horizonB', (value: string | null) => parseInteger(value, 1, 360)],
+    ['amount', (value: string | null) => parseNumber(value, 100, 100_000_000_000)],
+    ['inflation', (value: string | null) => parseNumber(value, -20, 100)],
+    ['nbp', (value: string | null) => parseNumber(value, -10, 100)],
+    ['tax', parseTaxStrategy],
+    ['taxA', parseTaxStrategy],
+    ['taxB', parseTaxStrategy],
+  ] as const;
+  if (
+    legacyFields.some(
+      ([key, parse]) => searchParams.get(key) !== null && parse(searchParams.get(key)) === null,
+    )
+  )
+    return null;
+  const timing = searchParams.get('timing');
+  if (timing !== null && timing !== 'exact' && timing !== 'general') return null;
+  if (timing === 'general' && searchParams.get('withdrawal') !== null) return null;
+
   const purchaseDate = parseDate(searchParams.get('purchase')) ?? defaults.purchaseDate;
-  const timingMode = searchParams.get('timing') === 'exact' ? 'exact' : 'general';
+  const timingMode =
+    timing === 'exact' || (timing === null && searchParams.get('withdrawal') !== null)
+      ? 'exact'
+      : 'general';
+  const exactWithdrawal = parseDate(searchParams.get('withdrawal'));
   const horizon =
-    parseNumber(searchParams.get('horizon'), 1, 600) ?? defaults.investmentHorizonMonths ?? 120;
+    parseInteger(searchParams.get('horizon'), 1, 360) ??
+    (exactWithdrawal ? getHorizonMonths(purchaseDate, exactWithdrawal) : undefined) ??
+    defaults.investmentHorizonMonths ??
+    120;
   const withdrawalDate =
     timingMode === 'exact'
-      ? (parseDate(searchParams.get('withdrawal')) ?? defaults.withdrawalDate)
+      ? (exactWithdrawal ?? getWithdrawalDateFromMonths(purchaseDate, horizon))
       : getWithdrawalDateFromMonths(purchaseDate, horizon);
   const taxStrategy =
     parseTaxStrategy(searchParams.get('tax')) ?? defaults.taxStrategy ?? TaxStrategy.STANDARD;
   const sharedConfig: SharedComparisonConfig = {
     ...defaults,
     initialInvestment:
-      parseNumber(searchParams.get('amount'), 100, 10_000_000) ?? defaults.initialInvestment,
+      parseNumber(searchParams.get('amount'), 100, 100_000_000_000) ?? defaults.initialInvestment,
     purchaseDate,
     withdrawalDate,
     investmentHorizonMonths: horizon,
     timingMode,
     taxStrategy,
     expectedInflation:
-      parseNumber(searchParams.get('inflation'), -20, 50) ?? defaults.expectedInflation,
-    expectedNbpRate: parseNumber(searchParams.get('nbp'), -5, 50) ?? defaults.expectedNbpRate,
+      parseNumber(searchParams.get('inflation'), -20, 100) ?? defaults.expectedInflation,
+    expectedNbpRate: parseNumber(searchParams.get('nbp'), -10, 100) ?? defaults.expectedNbpRate,
   };
 
-  return {
+  const state = {
     sharedConfig,
     scenarioA: buildScenario(pair[0], searchParams.get('taxA'), searchParams.get('horizonA')),
     scenarioB: buildScenario(pair[1], searchParams.get('taxB'), searchParams.get('horizonB')),
   };
+  return BondComparisonScenarioPayloadSchema.safeParse({ mode: 'independent', ...state }).success
+    ? state
+    : null;
 }
 
 export function withComparisonUrlState(
@@ -86,20 +139,16 @@ export function withComparisonUrlState(
   const searchParams = new URLSearchParams(currentSearchParams);
   URL_KEYS.forEach((key) => searchParams.delete(key));
 
-  searchParams.set('a', state.scenarioA.bondType);
-  searchParams.set('b', state.scenarioB.bondType);
-  searchParams.set('amount', String(state.sharedConfig.initialInvestment));
-  searchParams.set('timing', state.sharedConfig.timingMode ?? 'general');
-  searchParams.set('purchase', state.sharedConfig.purchaseDate);
-  searchParams.set('withdrawal', state.sharedConfig.withdrawalDate);
-  searchParams.set('horizon', String(state.sharedConfig.investmentHorizonMonths ?? 120));
-  searchParams.set('tax', state.sharedConfig.taxStrategy ?? TaxStrategy.STANDARD);
-  searchParams.set('inflation', String(state.sharedConfig.expectedInflation));
-  if (state.sharedConfig.expectedNbpRate !== undefined) {
-    searchParams.set('nbp', String(state.sharedConfig.expectedNbpRate));
-  }
-  setScenarioParams(searchParams, 'A', state.scenarioA);
-  setScenarioParams(searchParams, 'B', state.scenarioB);
+  const encoded = encodeScenarioForUrl(
+    createComparisonScenarioPackage({
+      mode: 'independent',
+      sharedConfig: state.sharedConfig,
+      scenarioA: state.scenarioA,
+      scenarioB: state.scenarioB,
+    }),
+  );
+  if (!encoded) throw new ComparisonScenarioUrlTooLongError('Scenario requires a local package.');
+  searchParams.set('scenario', encoded);
   return `${pathname}?${searchParams.toString()}`;
 }
 
@@ -116,24 +165,13 @@ export function withComparisonBondPair(
 
 function buildScenario(bondType: BondType, taxValue: string | null, horizonValue: string | null) {
   const taxStrategy = parseTaxStrategy(taxValue);
-  const investmentHorizonMonths = parseNumber(horizonValue, 1, 600);
+  const investmentHorizonMonths = parseInteger(horizonValue, 1, 360);
   return {
     bondType,
     isRebought: false,
     ...(taxStrategy ? { taxStrategy } : {}),
     ...(investmentHorizonMonths ? { investmentHorizonMonths } : {}),
   } satisfies ScenarioOverride;
-}
-
-function setScenarioParams(
-  searchParams: URLSearchParams,
-  suffix: 'A' | 'B',
-  scenario: ScenarioOverride,
-) {
-  if (scenario.taxStrategy) searchParams.set(`tax${suffix}`, scenario.taxStrategy);
-  if (scenario.investmentHorizonMonths !== undefined) {
-    searchParams.set(`horizon${suffix}`, String(scenario.investmentHorizonMonths));
-  }
 }
 
 function parseBondType(value: string | null) {
@@ -150,6 +188,11 @@ function parseNumber(value: string | null, min: number, max: number) {
   if (!value || !/^-?\d+(?:\.\d+)?$/.test(value)) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= min && parsed <= max ? parsed : null;
+}
+
+function parseInteger(value: string | null, min: number, max: number) {
+  const parsed = parseNumber(value, min, max);
+  return parsed !== null && Number.isInteger(parsed) ? parsed : null;
 }
 
 function parseDate(value: string | null) {

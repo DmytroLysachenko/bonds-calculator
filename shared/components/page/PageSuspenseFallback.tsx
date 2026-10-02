@@ -4,7 +4,11 @@ import { pageLayout } from './layout-system';
 
 export function PageSuspenseFallback({ showSidebar = true }: { showSidebar?: boolean }) {
   return (
-    <div className="grid grid-cols-1 gap-8 xl:grid-cols-12 xl:gap-10" role="status" aria-live="polite">
+    <div
+      className="grid grid-cols-1 gap-8 xl:grid-cols-12 xl:gap-10"
+      role="status"
+      aria-live="polite"
+    >
       <span className="sr-only">Loading page…</span>
       {showSidebar ? (
         <div className="space-y-6 xl:col-span-4">

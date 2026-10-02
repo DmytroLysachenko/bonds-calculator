@@ -18,6 +18,16 @@ describe('server logging', () => {
     expect(JSON.stringify(error.mock.calls)).not.toContain(attackerValue);
   });
 
+  it('redacts credentials and email addresses embedded in unstructured strings', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    createServerLogger('Test').warn('failed https://user:password@host/path?token=abc', {
+      detail: 'person@example.com password=hunter2 Bearer abcdef',
+    });
+    const output = JSON.stringify(warn.mock.calls);
+    for (const secret of ['user:password', 'token=abc', 'person@example.com', 'hunter2', 'abcdef'])
+      expect(output).not.toContain(secret);
+  });
+
   it('redacts sensitive fields and caps ordinary string details', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 

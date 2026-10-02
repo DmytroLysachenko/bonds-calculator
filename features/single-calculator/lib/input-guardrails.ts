@@ -52,6 +52,22 @@ export function getInputGuardrails(
     });
   }
 
+  if (inputs.initialInvestment >= 100 && inputs.initialInvestment % 100 !== 0) {
+    issues.push({
+      id: 'whole-bond-quantity',
+      severity: 'blocking',
+      field: 'initialInvestment',
+      title: 'Purchase amount is not a whole number of bonds',
+      description:
+        'Polish retail bonds have a 100 PLN nominal value, so the purchase amount must be divisible by 100.',
+      autoFixLabel: 'Round down to whole bonds',
+      applyAutoFix: (current) => ({
+        ...current,
+        initialInvestment: Math.floor(current.initialInvestment / 100) * 100,
+      }),
+    });
+  }
+
   if (withdrawal.getTime() < purchase.getTime()) {
     issues.push({
       id: 'date-order',

@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import {
-  isTrustedMutationOrigin,
-  requiresOriginCheck,
-} from '@/lib/server/http/mutation-origin';
+import { isTrustedMutationOrigin, requiresOriginCheck } from '@/lib/server/http/mutation-origin';
 import { createDomainErrorResponse, createUnauthorizedResponse } from '@/lib/server/http/responses';
 
-import {
-  applyPortfolioOwnerCookie,
-  type PortfolioOwnerContext,
-  resolvePortfolioOwner,
-} from './access';
+import { type PortfolioOwnerContext, resolvePortfolioOwner } from './access';
 import { PortfolioServiceError } from './errors';
 
 export interface PortfolioRouteContext {
@@ -41,11 +34,17 @@ async function getAuthenticatedPortfolioRouteContext(): Promise<
   };
 }
 
-export function withPortfolioOwnerResponse(response: NextResponse, owner: PortfolioOwnerContext) {
-  return applyPortfolioOwnerCookie(response, owner);
+/** Private reads only receive verified authenticated ownership. */
+export async function withPortfolioRead(
+  handler: (owner: PortfolioOwnerContext) => Promise<NextResponse> | NextResponse,
+  onGuest: () => NextResponse = createUnauthorizedResponse,
+) {
+  const { owner } = await getPortfolioRouteContext();
+  if (owner.isGuest || owner.authMode !== 'authenticated') return onGuest();
+  return handler(owner);
 }
 
-export async function withAuthenticatedPortfolioOwner(
+async function withAuthenticatedPortfolioOwner(
   request: NextRequest,
   handler: (owner: PortfolioOwnerContext) => Promise<NextResponse> | NextResponse,
 ) {
@@ -58,14 +57,20 @@ export async function withAuthenticatedPortfolioOwner(
   const { owner } = authContext.context;
   const response = await handler(owner);
 
-  return withPortfolioOwnerResponse(response, owner);
+  return response;
 }
 
-export function portfolioDomainErrorResponse(error: unknown, owner?: PortfolioOwnerContext) {
+/**
+ * Command routes share mutation-origin enforcement, authenticated ownership,
+ * without trusting guest cookies. Keep schemas and domain errors in each route.
+ */
+export const withPortfolioCommand = withAuthenticatedPortfolioOwner;
+
+export function portfolioDomainErrorResponse(error: unknown) {
   if (!(error instanceof PortfolioServiceError)) {
     return null;
   }
 
   const response = createDomainErrorResponse(error);
-  return owner ? withPortfolioOwnerResponse(response, owner) : response;
+  return response;
 }

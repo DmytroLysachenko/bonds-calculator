@@ -68,6 +68,12 @@ user-facing performance budgets.
 - CSP/header tests run with each rendering change.
 - Bundle report compares critical route JS.
 - Three Lighthouse runs establish a median route budget.
+- `pnpm test:lighthouse` enforces per-route median regression ceilings from
+  `scripts/check-lighthouse-route-budgets.ts`; the 2.5-second LCP warning
+  remains the desired user-experience target, not a claim that these initial
+  regression ceilings meet it.
+- The summary reads only reports listed in the latest Lighthouse manifest,
+  never older local artifacts left in `.lighthouseci`.
 - Web Vitals test fails when required LCP is absent.
 - Browser diagnostics retain failed request and console evidence.
 - Repeat navigation checks bfcache eligibility where supported.
@@ -80,6 +86,29 @@ user-facing performance budgets.
 - Load-test saturation and database connection evidence.
 
 No repository-only change can substitute for these external measurements.
+
+## 1 October 2026 local baseline and first-paint tranche
+
+Three mobile Lighthouse runs per route on production builds, before and after
+server-seeding current bond definitions for the single, comparison, regular,
+and education setup routes, produced these median LCP values. These are local lab results,
+not field Core Web Vitals or deployed-preview evidence.
+
+| Route                 |   Before |    After |
+| --------------------- | -------: | -------: |
+| `/`                   | 2,865 ms | 2,660 ms |
+| `/education`          | 4,669 ms | 3,266 ms |
+| `/single-calculator`  | 4,907 ms | 3,574 ms |
+| `/economic-data`      | 3,257 ms | 3,374 ms |
+| `/compare`            | 3,712 ms | 3,808 ms |
+| `/regular-investment` | 4,862 ms | 3,279 ms |
+
+The calculator and education routes now paint setup from a request-scoped server offer snapshot
+while SWR revalidates on the client. No static September reference is silently
+promoted to a current offer. The economic-data and comparison changes are within
+lab variation; they were not optimization targets in this tranche. Initial median ceilings
+have headroom for runner variance and are not release-admission targets. The
+2.5-second target and deployed field evidence remain open.
 
 ## Budget ownership
 

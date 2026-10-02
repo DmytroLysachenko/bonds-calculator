@@ -30,10 +30,10 @@ describe('comparison update actions', () => {
   });
 
   it('applies simple scenario overrides without changing unrelated fields', () => {
-    expect(applyScenarioOverrideUpdate(DEFAULT_SCENARIO_A, 'rollover', true)).toMatchObject({
+    expect(applyScenarioOverrideUpdate(DEFAULT_SCENARIO_A, 'rollover', false)).toMatchObject({
       bondType: BondType.EDO,
       isRebought: false,
-      rollover: true,
+      rollover: false,
     });
   });
 

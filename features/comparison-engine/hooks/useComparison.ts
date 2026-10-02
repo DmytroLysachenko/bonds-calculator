@@ -11,7 +11,7 @@ import { applyUntouchedMacroDefaults } from '@/shared/lib/calculator-session-per
 import { logClientError } from '@/shared/lib/client-logger';
 
 import { BOND_DEFINITIONS } from '../../bond-core/constants/bond-definitions';
-import { MODEL_VERSION } from '../../bond-core/handlers';
+import { MODEL_VERSION } from '../../bond-core/model-version';
 import { BondType } from '../../bond-core/types';
 import type { BondComparisonCalculationEnvelope } from '../../bond-core/types/scenarios';
 import { ScenarioKind } from '../../bond-core/types/scenarios';
@@ -35,7 +35,6 @@ import {
   applyScenarioCustomHorizonMonths,
   applyScenarioOverrideUpdate,
   applySharedComparisonConfigUpdate,
-  type ComparisonUpdateValue,
   isSharedComparisonMacroUpdate,
 } from '../lib/comparison-update-actions';
 
@@ -163,19 +162,33 @@ export function useComparison(initialUrlState?: ComparisonUrlState | null) {
     }
   }, [session]);
 
-  const updateSharedConfig = (key: keyof SharedComparisonConfig, value: ComparisonUpdateValue) => {
+  const restorePortableScenario = useCallback(
+    (next: ComparisonUrlState) => {
+      session.setDraftInputs({
+        sharedConfig: next.sharedConfig,
+        scenarioA: next.scenarioA,
+        scenarioB: next.scenarioB,
+      });
+    },
+    [session],
+  );
+
+  const updateSharedConfig = <K extends keyof SharedComparisonConfig>(
+    key: K,
+    value: SharedComparisonConfig[K],
+  ) => {
     if (isSharedComparisonMacroUpdate(key)) hasTouchedMacroAssumptions.current = true;
     updateDraft((previous) => ({
       ...previous,
       sharedConfig: applySharedComparisonConfigUpdate(previous.sharedConfig, key, value),
     }));
   };
-  const updateScenarioA = (key: keyof ScenarioOverride, value: ComparisonUpdateValue) =>
+  const updateScenarioA = <K extends keyof ScenarioOverride>(key: K, value: ScenarioOverride[K]) =>
     updateDraft((previous) => ({
       ...previous,
       scenarioA: applyScenarioOverrideUpdate(previous.scenarioA, key, value),
     }));
-  const updateScenarioB = (key: keyof ScenarioOverride, value: ComparisonUpdateValue) =>
+  const updateScenarioB = <K extends keyof ScenarioOverride>(key: K, value: ScenarioOverride[K]) =>
     updateDraft((previous) => ({
       ...previous,
       scenarioB: applyScenarioOverrideUpdate(previous.scenarioB, key, value),
@@ -238,6 +251,7 @@ export function useComparison(initialUrlState?: ComparisonUrlState | null) {
     inputsB,
     committedInputsA,
     committedInputsB,
+    committedComparisonDraft: session.committedInputs,
     resultsA,
     resultsB,
     envelopeA,
@@ -249,6 +263,7 @@ export function useComparison(initialUrlState?: ComparisonUrlState | null) {
     isCalculating: session.isCalculating,
     isDirty,
     calculate,
+    restorePortableScenario,
     updateSharedConfig,
     updateScenarioA,
     updateScenarioB,

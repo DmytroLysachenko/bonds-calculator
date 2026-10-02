@@ -6,10 +6,7 @@ import { seedSeriesMetadata } from '@/lib/sync/seed-series-runner';
 import { syncMarketHistory } from '@/lib/sync/sync-market-history';
 
 export type SyncMode =
-  | 'full-sync'
-  | 'market-history-seed'
-  | 'market-history-sync'
-  | 'metadata-seed';
+  'full-sync' | 'market-history-seed' | 'market-history-sync' | 'metadata-seed';
 
 const ADMIN_SYNC_MODES = [
   'full-sync',

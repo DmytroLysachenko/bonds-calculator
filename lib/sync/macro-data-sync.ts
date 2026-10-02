@@ -38,14 +38,17 @@ export async function syncMacroData() {
     // These providers have independent freshness contracts. Do not let a
     // temporary GUS outage prevent a usable NBP reference-rate refresh (and
     // vice versa).
-    const [cpiFetch, nbpFetch] = await Promise.allSettled([
+    const [cpiFetch, nbpFetch, monthlyCpiFetch] = await Promise.allSettled([
       retry(() => gusCpiClient.fetchHistoricalData()),
       retry(() => nbpClient.fetchReferenceRateHistory()),
+      retry(() => gusCpiClient.fetchMonthlyHistoricalData()),
     ]);
     const cpiIndicators = cpiFetch.status === 'fulfilled' ? cpiFetch.value : [];
     const nbpIndicators = nbpFetch.status === 'fulfilled' ? nbpFetch.value : [];
     const latestCpiRate = cpiIndicators.at(-1);
     const latestNbpRate = nbpIndicators.at(-1);
+    const monthlyCpiIndicators =
+      monthlyCpiFetch.status === 'fulfilled' ? monthlyCpiFetch.value : [];
     const nbpUsesFallback = nbpIndicators.some(
       (indicator) => indicator.metadata?.source === 'fallback',
     );
@@ -66,6 +69,26 @@ export async function syncMacroData() {
           dataSource: 'GUS official CPI monthly archive CSV',
           freshnessPolicy: 'check-daily',
           lastSyncStatus: 'success',
+        })
+        .returning();
+    }
+
+    let monthlyCpiSeries = await db.query.dataSeries.findFirst({
+      where: eq(dataSeries.slug, 'pl-cpi-mom'),
+    });
+    if (!monthlyCpiSeries) {
+      [monthlyCpiSeries] = await db
+        .insert(dataSeries)
+        .values({
+          slug: 'pl-cpi-mom',
+          name: 'Poland CPI month-on-month change',
+          description: 'Consumer Price Index change relative to the preceding month in Poland.',
+          category: 'macro',
+          unit: '%',
+          frequency: 'monthly',
+          dataSource: 'GUS official CPI monthly archive CSV, previous month = 100 presentation',
+          freshnessPolicy: 'check-daily',
+          lastSyncStatus: 'unknown',
         })
         .returning();
     }
@@ -226,6 +249,69 @@ export async function syncMacroData() {
         mode: 'macro-sync',
         status: 'failed',
         error: String(cpiFetch.reason),
+        startedAt,
+        finishedAt: new Date(),
+      });
+    }
+
+    if (monthlyCpiSeries && monthlyCpiIndicators.length > 0) {
+      await db
+        .insert(dataPoints)
+        .values(
+          monthlyCpiIndicators.map((indicator) => ({
+            seriesId: monthlyCpiSeries.id,
+            date: indicator.date,
+            value: indicator.value.toString(),
+            qualityFlag: 'verified',
+            sourceMetadata: GusCpiApiClient.archivePageUrl,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [dataPoints.seriesId, dataPoints.date],
+          set: {
+            value: sql`EXCLUDED.value`,
+            qualityFlag: 'verified',
+            sourceMetadata: GusCpiApiClient.archivePageUrl,
+          },
+        });
+      await db
+        .update(dataSeries)
+        .set({
+          lastDataPointDate: monthlyCpiIndicators.at(-1)?.date,
+          lastSyncStatus: 'success',
+          lastSyncError: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(dataSeries.id, monthlyCpiSeries.id));
+      await recordSyncRun({
+        scope: 'macro-sync',
+        provider: 'GUS CPI archive (previous month = 100)',
+        seriesSlug: 'pl-cpi-mom',
+        mode: 'macro-sync',
+        status: 'success',
+        inserted: monthlyCpiIndicators.length,
+        updated: monthlyCpiIndicators.length,
+        latestDataPointDate: monthlyCpiIndicators.at(-1)?.date,
+        message: 'GUS month-on-month CPI archive synchronized.',
+        startedAt,
+        finishedAt: new Date(),
+      });
+    } else if (monthlyCpiSeries) {
+      const error =
+        monthlyCpiFetch.status === 'rejected'
+          ? String(monthlyCpiFetch.reason)
+          : 'Official archive contained no previous-month CPI observations.';
+      await db
+        .update(dataSeries)
+        .set({ lastSyncStatus: 'failed', lastSyncError: error, updatedAt: new Date() })
+        .where(eq(dataSeries.id, monthlyCpiSeries.id));
+      await recordSyncRun({
+        scope: 'macro-sync',
+        provider: 'GUS CPI archive (previous month = 100)',
+        seriesSlug: 'pl-cpi-mom',
+        mode: 'macro-sync',
+        status: 'failed',
+        error,
         startedAt,
         finishedAt: new Date(),
       });

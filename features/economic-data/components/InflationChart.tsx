@@ -11,16 +11,14 @@ import {
   YAxis,
 } from 'recharts';
 
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppI18n } from '@/i18n/client';
 import { ChartContainer } from '@/shared/components/charts/ChartContainer';
 import { ReferenceChartFrame } from '@/shared/components/charts/ReferenceChartFrame';
 import { useChartData } from '@/shared/hooks/useChartData';
-import {
-  computeReadableRateDomain,
-  sampleSeriesPoints,
-  sliceSeriesByPeriod,
-} from '@/shared/lib/chart-series';
+import { useDateFormatter, useNumberFormatter } from '@/shared/hooks/useLocalizedFormatters';
+import { sliceSeriesByPeriod } from '@/shared/lib/chart-series';
 import { getReferenceMetaItems } from '@/shared/lib/data-reference';
 
 import {
@@ -28,37 +26,50 @@ import {
   EconomicSeriesPoint,
   PeriodValue,
 } from '../lib/economic-dashboard-model';
+import { buildInflationChartModel, type InflationPlotPoint } from '../lib/inflation-chart-model';
 
 import { EconomicChartTooltip } from './EconomicChartTooltip';
+
+const peakDateOptions: Intl.DateTimeFormatOptions = { month: 'long', year: 'numeric' };
+const peakNumberOptions: Intl.NumberFormatOptions = { maximumFractionDigits: 1 };
 
 export const InflationChart = ({
   period = 'ALL',
   scaleMode = 'readable',
+  onShowFullScale,
 }: {
   period?: PeriodValue;
   scaleMode?: 'readable' | 'full';
+  onShowFullScale?: () => void;
 }) => {
   const { t, locale: language } = useAppI18n();
+  const dates = useDateFormatter(language, peakDateOptions);
+  const numbers = useNumberFormatter(language, peakNumberOptions);
   const {
     data: response,
     isLoading,
     isError,
   } = useChartData<ChartSeriesEnvelope<EconomicSeriesPoint>>('/api/charts/inflation');
-  const chartData = React.useMemo(() => {
+  const model = React.useMemo(() => {
     const rawData = response?.data ?? [];
-    return sampleSeriesPoints(sliceSeriesByPeriod(rawData, period), 160);
-  }, [period, response?.data]);
-  const maxRate = Math.max(...chartData.map((point) => point.rate), 0);
-  const readableDomain = computeReadableRateDomain(chartData.map((point) => point.rate));
-  const clippedMax = readableDomain[1];
-  const yDomain: [number, number] | undefined =
-    scaleMode === 'full' ? undefined : [readableDomain[0], Math.min(maxRate, clippedMax)];
+    return buildInflationChartModel(sliceSeriesByPeriod(rawData, period), scaleMode);
+  }, [period, response?.data, scaleMode]);
+  const peakLabel = model.peak
+    ? t('economic.inflation_peak', {
+        max: numbers.format(model.peak.rate),
+        date: dates.format(new Date(model.peak.date)),
+      })
+    : undefined;
   if (isLoading) {
     return <Skeleton className="h-[470px] w-full rounded-lg" />;
   }
-  if (isError) {
+  if (isError && !response) {
     return (
-      <div className="flex h-[400px] w-full items-center justify-center text-destructive">
+      <div
+        className="flex h-[400px] w-full items-center justify-center text-destructive"
+        role="status"
+        aria-live="polite"
+      >
         {t('economic.failed_to_load')}
       </div>
     );
@@ -68,9 +79,16 @@ export const InflationChart = ({
       sourceLabel={t('economic.compact_source_header')}
       metaItems={getReferenceMetaItems(response, language)}
       notice={
-        scaleMode === 'readable' && maxRate > clippedMax
-          ? t('economic.inflation_scale_notice', { max: maxRate.toFixed(1) })
+        model.isClipped
+          ? t('economic.inflation_scale_notice', { cap: numbers.format(model.cap) })
           : undefined
+      }
+      noticeAction={
+        model.isClipped && onShowFullScale ? (
+          <Button type="button" size="sm" variant="outline" onClick={onShowFullScale}>
+            {t('economic.full_scale')}
+          </Button>
+        ) : undefined
       }
       noticeTone="warning"
       fallbackNotice={
@@ -81,14 +99,25 @@ export const InflationChart = ({
       fallbackTone={response?.usedFallback ? 'warning' : 'good'}
       fallbackStatusLabel={t('economic.reference_state.fallback')}
       syncedStatusLabel={t('economic.reference_state.synced')}
+      verificationHref="https://stat.gov.pl/obszary-tematyczne/ceny-handel/wskazniki-cen/"
+      verificationLabel={t('economic.verify_source')}
     >
+      {peakLabel ? (
+        <p className="text-sm font-semibold text-foreground" data-testid="inflation-peak">
+          {peakLabel}
+        </p>
+      ) : null}
       <ChartContainer
         height={420}
         ariaLabel={t('bonds.inflation.rate')}
-        summary={t('economic.inflation_scale_notice', { max: maxRate.toFixed(1) })}
+        summary={
+          model.isClipped
+            ? `${peakLabel}. ${t('economic.inflation_scale_notice', { cap: numbers.format(model.cap) })}`
+            : peakLabel
+        }
       >
         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
-          <LineChart data={chartData}>
+          <LineChart data={model.chartData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
             <XAxis dataKey="date" fontSize={12} tickLine={false} axisLine={false} minTickGap={24} />
             <YAxis
@@ -96,8 +125,8 @@ export const InflationChart = ({
               tickFormatter={(value: number) => `${value}%`}
               tickLine={false}
               axisLine={false}
-              domain={yDomain}
-              allowDataOverflow={scaleMode === 'readable'}
+              domain={model.domain}
+              allowDataOverflow={model.isClipped}
             />
             <Tooltip
               content={
@@ -121,14 +150,10 @@ export const InflationChart = ({
             />
             <Line
               type="monotone"
-              dataKey="rate"
+              dataKey="plotRate"
               stroke="var(--chart-series-primary)"
               strokeWidth={2}
-              dot={
-                chartData.length <= 24
-                  ? { r: 4, fill: 'var(--chart-series-primary)', strokeWidth: 2, stroke: '#fff' }
-                  : false
-              }
+              dot={<InflationPointMarker showAll={model.chartData.length <= 24} />}
               activeDot={{ r: 6, strokeWidth: 0 }}
             />
           </LineChart>
@@ -137,3 +162,38 @@ export const InflationChart = ({
     </ReferenceChartFrame>
   );
 };
+
+function InflationPointMarker({
+  cx,
+  cy,
+  payload,
+  showAll = false,
+}: {
+  cx?: number;
+  cy?: number;
+  payload?: InflationPlotPoint;
+  showAll?: boolean;
+}) {
+  if (cx === undefined || cy === undefined || !payload) return <g />;
+  if (payload.clippedMarker) {
+    return (
+      <g data-testid="inflation-clipped-marker" aria-hidden="true">
+        <circle
+          cx={cx}
+          cy={cy + 9}
+          r={7}
+          fill="var(--color-warning)"
+          stroke="var(--color-card)"
+          strokeWidth={2}
+        />
+        <path
+          d={`M ${cx - 3} ${cy + 11} L ${cx} ${cy + 6} L ${cx + 3} ${cy + 11}`}
+          fill="none"
+          stroke="var(--color-warning-foreground)"
+          strokeWidth={2}
+        />
+      </g>
+    );
+  }
+  return showAll ? <circle cx={cx} cy={cy} r={3} fill="var(--chart-series-primary)" /> : <g />;
+}

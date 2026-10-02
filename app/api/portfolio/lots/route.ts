@@ -6,34 +6,34 @@ import { readJsonBody } from '@/lib/server/http/read-json-body';
 import { createValidationErrorResponse, okJson } from '@/lib/server/http/responses';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
 import {
-  getPortfolioRouteContext,
   portfolioDomainErrorResponse,
-  withAuthenticatedPortfolioOwner,
-  withPortfolioOwnerResponse,
+  withPortfolioCommand,
+  withPortfolioRead,
 } from '@/lib/server/portfolio/http';
 
 export const GET = apiHandler(async (req: NextRequest) => {
-  const { owner } = await getPortfolioRouteContext();
-  const url = new URL(req.url);
-  const portfolioId = url.searchParams.get('portfolioId');
+  return withPortfolioRead(async (owner) => {
+    const url = new URL(req.url);
+    const portfolioId = url.searchParams.get('portfolioId');
 
-  if (!portfolioId) {
-    return createValidationErrorResponse('Portfolio ID is required', 'MISSING_PARAM');
-  }
+    if (!portfolioId) {
+      return createValidationErrorResponse('Portfolio ID is required', 'MISSING_PARAM');
+    }
 
-  try {
-    const lots = await portfolioApplication.listLots(owner.ownerId, portfolioId);
-    return withPortfolioOwnerResponse(okJson(lots), owner);
-  } catch (error) {
-    const response = portfolioDomainErrorResponse(error);
-    if (response) return response;
+    try {
+      const lots = await portfolioApplication.listLots(owner.ownerId, portfolioId);
+      return okJson(lots);
+    } catch (error) {
+      const response = portfolioDomainErrorResponse(error);
+      if (response) return response;
 
-    throw error;
-  }
+      throw error;
+    }
+  });
 });
 
 export const POST = apiHandler(async (req: NextRequest) => {
-  return withAuthenticatedPortfolioOwner(req, async (owner) => {
+  return withPortfolioCommand(req, async (owner) => {
     const validated = await readJsonBody(req, InvestmentLotSchema);
 
     try {
@@ -49,7 +49,7 @@ export const POST = apiHandler(async (req: NextRequest) => {
 });
 
 export const DELETE = apiHandler(async (req: NextRequest) => {
-  return withAuthenticatedPortfolioOwner(req, async (owner) => {
+  return withPortfolioCommand(req, async (owner) => {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
 

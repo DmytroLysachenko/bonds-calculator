@@ -1,5 +1,5 @@
 {
-  "modelVersion": "2.9.0-issuer-terms-authoritative",
+  "modelVersion": "3.2.1-annual-macro-fallback",
   "rounding": "Exact IEEE-754 engine outputs are asserted; presentation rounding is not part of this fixture.",
   "scenarios": [
     {
@@ -20,11 +20,11 @@
         "rollover": false
       },
       "expected": {
-        "totalProfit": "4417.025154047603",
-        "totalTax": "1036",
-        "netPayoutValue": "14417.025154047602",
+        "totalProfit": "4416.945154047603",
+        "totalTax": "1036.08",
+        "netPayoutValue": "14416.945154047602",
         "finalNominalValue": "15453.025154047602",
-        "finalRealValue": "10684.396933289374",
+        "finalRealValue": "10727.561160526651",
         "maturityCalendarDate": "2034-01-01",
         "isEarlyWithdrawal": false,
         "timelineLength": 11
@@ -48,11 +48,11 @@
         "rollover": false
       },
       "expected": {
-        "totalProfit": "1315",
-        "totalTax": "310",
-        "netPayoutValue": "11315",
+        "totalProfit": "1316.25",
+        "totalTax": "308.75",
+        "netPayoutValue": "11316.25",
         "finalNominalValue": "11625",
-        "finalRealValue": "10239.301203201117",
+        "finalRealValue": "10251.963984215226",
         "maturityCalendarDate": "2028-01-01",
         "isEarlyWithdrawal": false,
         "timelineLength": 5
@@ -76,11 +76,11 @@
         "rollover": false
       },
       "expected": {
-        "totalProfit": "61",
-        "totalTax": "14",
-        "netPayoutValue": "10061",
+        "totalProfit": "60.75",
+        "totalTax": "14.25",
+        "netPayoutValue": "10060.75",
         "finalNominalValue": "10075",
-        "finalRealValue": "10011.135329117405",
+        "finalRealValue": "10011.336596348589",
         "maturityCalendarDate": "2024-04-01",
         "isEarlyWithdrawal": false,
         "timelineLength": 2

@@ -1,10 +1,11 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { dataPoints, dataSeries } from '@/db/schema';
 
 export interface ProviderSyncRepository {
   findSeriesBySlug(seriesSlug: string): Promise<{ id: string } | null>;
+  findSeriesBySlugs(seriesSlugs: readonly string[]): Promise<Map<string, { id: string }>>;
   findLatestPointForSeries(seriesId: string): Promise<{ date: string } | null>;
   upsertDataPoints(
     records: Array<{
@@ -31,6 +32,16 @@ export function createDefaultProviderSyncRepository(): ProviderSyncRepository {
           where: eq(dataSeries.slug, seriesSlug),
         })) ?? null
       );
+    },
+    async findSeriesBySlugs(seriesSlugs) {
+      if (seriesSlugs.length === 0) {
+        return new Map();
+      }
+
+      const series = await db.query.dataSeries.findMany({
+        where: inArray(dataSeries.slug, [...seriesSlugs]),
+      });
+      return new Map(series.map((item) => [item.slug, { id: item.id }]));
     },
     async findLatestPointForSeries(seriesId) {
       return (

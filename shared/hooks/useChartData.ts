@@ -7,7 +7,7 @@ interface ErrorWithContext extends Error {
   details?: unknown;
 }
 
-export function useChartData<T>(endpoint: string) {
+export function useChartData<T>(endpoint: string | null) {
   const { data, error, isLoading } = useSWR<T>(endpoint, apiGet<T>, {
     dedupingInterval: 60_000,
     revalidateOnFocus: false,

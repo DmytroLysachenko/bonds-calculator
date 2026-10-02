@@ -1,17 +1,7 @@
-import { cookies } from 'next/headers';
-import { NextResponse } from 'next/server';
-
 import { auth } from '@/auth';
-import { isDatabaseConfigured } from '@/db';
 import { createServerLogger } from '@/lib/server/logging';
-import {
-  ensureGuestPortfolioOwner,
-  findOwnedLotByOwner,
-  findPortfolioByOwner,
-} from '@/lib/server/portfolio/repository';
+import { findOwnedLotByOwner, findPortfolioByOwner } from '@/lib/server/portfolio/repository';
 
-const GUEST_PORTFOLIO_COOKIE = 'guest_portfolio_owner_id';
-const GUEST_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const logger = createServerLogger('PortfolioAccess');
 
 export interface PortfolioOwnerContext {
@@ -73,62 +63,17 @@ async function resolveAuthenticatedOwner() {
   }
 }
 
-async function ensureGuestOwner(ownerId: string) {
-  if (!isDatabaseConfigured || process.env.PLAYWRIGHT_SMOKE === '1') {
-    return;
-  }
-
-  try {
-    await ensureGuestPortfolioOwner(ownerId);
-  } catch (error) {
-    if (isMissingAuthTableError(error)) {
-      logger.warn('Auth user table missing, using detached guest notebook owner');
-      return;
-    }
-
-    throw error;
-  }
-}
-
+/** Guest preview is not a persistence principal; legacy cookies confer no access. */
 export async function resolvePortfolioOwner(): Promise<PortfolioOwnerContext> {
   const authenticatedOwner = await resolveAuthenticatedOwner();
-  if (authenticatedOwner) {
-    return authenticatedOwner;
-  }
-
-  const cookieStore = await cookies();
-  let guestOwnerId = cookieStore.get(GUEST_PORTFOLIO_COOKIE)?.value;
-  let shouldPersistGuestCookie = false;
-
-  if (!guestOwnerId) {
-    guestOwnerId = crypto.randomUUID();
-    shouldPersistGuestCookie = true;
-  }
-
-  await ensureGuestOwner(guestOwnerId);
-
-  return {
-    ownerId: guestOwnerId,
-    isGuest: true,
-    shouldPersistGuestCookie,
-    authMode: isAuthConfigured() ? 'guest' : 'auth_unavailable_guest_fallback',
-  };
-}
-
-export function applyPortfolioOwnerCookie(response: NextResponse, owner: PortfolioOwnerContext) {
-  if (!owner.isGuest || !owner.shouldPersistGuestCookie) {
-    return response;
-  }
-
-  response.cookies.set(GUEST_PORTFOLIO_COOKIE, owner.ownerId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    path: '/',
-    maxAge: GUEST_COOKIE_MAX_AGE,
-  });
-
-  return response;
+  return (
+    authenticatedOwner ?? {
+      ownerId: 'guest',
+      isGuest: true,
+      shouldPersistGuestCookie: false,
+      authMode: isAuthConfigured() ? 'guest' : 'auth_unavailable_guest_fallback',
+    }
+  );
 }
 
 export async function getOwnedPortfolio(ownerId: string, portfolioId: string) {

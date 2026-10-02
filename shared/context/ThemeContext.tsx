@@ -2,9 +2,9 @@
 
 import React from 'react';
 
-export type AppTheme = 'light' | 'dark' | 'system';
+import { THEME_STORAGE_KEY } from '@/shared/lib/theme-preferences';
 
-const STORAGE_KEY = 'bonds-calculator-theme';
+export type AppTheme = 'light' | 'dark' | 'system';
 
 type ThemeContextValue = {
   theme: AppTheme;
@@ -26,29 +26,46 @@ function applyTheme(theme: AppTheme) {
   return resolvedTheme;
 }
 
+function readStoredTheme(): AppTheme {
+  if (typeof window === 'undefined') return 'system';
+  let storedTheme: string | null = null;
+  try {
+    storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+  } catch {
+    /* Storage is optional. */
+  }
+  return storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
+    ? storedTheme
+    : 'system';
+}
+
+function readAppliedTheme(): Exclude<AppTheme, 'system'> {
+  if (typeof document === 'undefined') return 'light';
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<AppTheme>('system');
-  const [resolvedTheme, setResolvedTheme] = React.useState<Exclude<AppTheme, 'system'>>('light');
+  const [theme, setThemeState] = React.useState<AppTheme>(readStoredTheme);
+  const [resolvedTheme, setResolvedTheme] =
+    React.useState<Exclude<AppTheme, 'system'>>(readAppliedTheme);
 
   React.useEffect(() => {
-    const storedTheme = window.localStorage.getItem(STORAGE_KEY);
-    const initialTheme: AppTheme =
-      storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system'
-        ? storedTheme
-        : 'system';
-    setThemeState(initialTheme);
-    setResolvedTheme(applyTheme(initialTheme));
+    setResolvedTheme(applyTheme(theme));
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onChange = () => {
-      if (initialTheme === 'system') setResolvedTheme(applyTheme('system'));
+      if (theme === 'system') setResolvedTheme(applyTheme('system'));
     };
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
-  }, []);
+  }, [theme]);
 
   const setTheme = React.useCallback((nextTheme: AppTheme) => {
-    window.localStorage.setItem(STORAGE_KEY, nextTheme);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      /* Apply preferences even when storage is unavailable. */
+    }
     setThemeState(nextTheme);
     setResolvedTheme(applyTheme(nextTheme));
   }, []);

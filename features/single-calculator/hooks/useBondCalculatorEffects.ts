@@ -11,10 +11,12 @@ import {
   savePersistedCalculatorState,
 } from '@/shared/lib/calculator-persistence';
 import { logClientError } from '@/shared/lib/client-logger';
-import { getWithdrawalDateFromMonths } from '@/shared/lib/date-timing';
 
 import { fetchBondSeriesForSymbol } from '../lib/single-calculator-actions';
-import { buildSingleCalculatorPersistenceSnapshot } from '../lib/single-calculator-client-state';
+import {
+  buildSingleCalculatorPersistenceSnapshot,
+  isSameSingleCalculatorCalculation,
+} from '../lib/single-calculator-client-state';
 import {
   applySingleCalculatorMacroDefaults,
   type MacroDefaults,
@@ -22,13 +24,13 @@ import {
   resolveDefinitionSyncedInputs,
 } from '../lib/single-calculator-effect-state';
 import {
-  PersistedSingleCalculatorState,
-  restoreSingleCalculatorState,
+  type PersistedSingleCalculatorState,
+  resolveAvailableSelectedSeriesId,
   SINGLE_CALCULATOR_STORAGE_KEY,
 } from '../lib/single-calculator-persistence';
-import { resolveBondTypeInputUpdate } from '../lib/single-calculator-state';
+import { resolveSingleCalculatorRestoration } from '../lib/single-calculator-restoration';
 
-interface UseBondCalculatorEffectsInput {
+interface SingleCalculatorSessionState {
   inputs: BondInputs;
   envelope: SingleBondCalculationEnvelope | null;
   selectedSeriesId: string | null;
@@ -36,6 +38,21 @@ interface UseBondCalculatorEffectsInput {
   isDirty: boolean;
   isCalculating: boolean;
   isPersistenceReady: boolean;
+}
+
+interface SingleCalculatorSessionActions {
+  setInputs: React.Dispatch<React.SetStateAction<BondInputs>>;
+  setEnvelope: React.Dispatch<React.SetStateAction<SingleBondCalculationEnvelope | null>>;
+  setSelectedSeriesId: React.Dispatch<React.SetStateAction<string | null>>;
+  setLastCommittedInputs: React.Dispatch<React.SetStateAction<BondInputs | null>>;
+  setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsPersistenceReady: React.Dispatch<React.SetStateAction<boolean>>;
+  setAvailableSeries: React.Dispatch<React.SetStateAction<BondSeriesMetadata[]>>;
+}
+
+interface UseBondCalculatorEffectsInput {
+  session: SingleCalculatorSessionState;
+  actions: SingleCalculatorSessionActions;
   initialInputs: BondInputs | undefined;
   bondFromUrl?: BondType | null;
   fallbackInputs: BondInputs;
@@ -46,23 +63,27 @@ interface UseBondCalculatorEffectsInput {
   hasAutoCalculatedSharedScenarioRef: React.MutableRefObject<boolean>;
   restoredFromPersistenceRef: React.MutableRefObject<boolean>;
   hasTouchedMacroAssumptionsRef: React.MutableRefObject<boolean>;
-  setInputs: React.Dispatch<React.SetStateAction<BondInputs>>;
-  setEnvelope: React.Dispatch<React.SetStateAction<SingleBondCalculationEnvelope | null>>;
-  setSelectedSeriesId: React.Dispatch<React.SetStateAction<string | null>>;
-  setLastCommittedInputs: React.Dispatch<React.SetStateAction<BondInputs | null>>;
-  setIsDirty: React.Dispatch<React.SetStateAction<boolean>>;
-  setIsPersistenceReady: React.Dispatch<React.SetStateAction<boolean>>;
-  setAvailableSeries: React.Dispatch<React.SetStateAction<BondSeriesMetadata[]>>;
 }
 
 export function useBondCalculatorEffects({
-  inputs,
-  envelope,
-  selectedSeriesId,
-  lastCommittedInputs,
-  isDirty,
-  isCalculating,
-  isPersistenceReady,
+  session: {
+    inputs,
+    envelope,
+    selectedSeriesId,
+    lastCommittedInputs,
+    isDirty,
+    isCalculating,
+    isPersistenceReady,
+  },
+  actions: {
+    setInputs,
+    setEnvelope,
+    setSelectedSeriesId,
+    setLastCommittedInputs,
+    setIsDirty,
+    setIsPersistenceReady,
+    setAvailableSeries,
+  },
   initialInputs,
   bondFromUrl,
   fallbackInputs,
@@ -73,23 +94,24 @@ export function useBondCalculatorEffects({
   hasAutoCalculatedSharedScenarioRef,
   restoredFromPersistenceRef,
   hasTouchedMacroAssumptionsRef,
-  setInputs,
-  setEnvelope,
-  setSelectedSeriesId,
-  setLastCommittedInputs,
-  setIsDirty,
-  setIsPersistenceReady,
-  setAvailableSeries,
 }: UseBondCalculatorEffectsInput) {
   const applyMacroDefaults = useEffectEvent((defaults: MacroDefaults) => {
     setInputs((previous) => {
-      return applySingleCalculatorMacroDefaults(previous, defaults);
+      const next = applySingleCalculatorMacroDefaults(previous, defaults);
+      if (lastCommittedInputs && !isSameSingleCalculatorCalculation(next, lastCommittedInputs)) {
+        setIsDirty(true);
+      }
+      return next;
     });
   });
 
   const reconcilePersistedMacroDefaults = useEffectEvent((defaults: MacroDefaults) => {
     setInputs((previous) => {
-      return reconcilePersistedSingleCalculatorMacroDefaults(previous, defaults);
+      const next = reconcilePersistedSingleCalculatorMacroDefaults(previous, defaults);
+      if (lastCommittedInputs && !isSameSingleCalculatorCalculation(next, lastCommittedInputs)) {
+        setIsDirty(true);
+      }
+      return next;
     });
   });
 
@@ -100,16 +122,20 @@ export function useBondCalculatorEffects({
 
     const timer = window.setTimeout(() => {
       setInputs((previous) => {
-        return resolveDefinitionSyncedInputs({
+        const next = resolveDefinitionSyncedInputs({
           previous,
           definitions,
           selectedSeriesId,
         });
+        if (lastCommittedInputs && !isSameSingleCalculatorCalculation(next, lastCommittedInputs)) {
+          setIsDirty(true);
+        }
+        return next;
       });
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [definitions, inputs.bondType, selectedSeriesId, setInputs]);
+  }, [definitions, inputs.bondType, lastCommittedInputs, selectedSeriesId, setInputs, setIsDirty]);
 
   useEffect(() => {
     if (initialInputs || hasRestoredStateRef.current || !definitions) {
@@ -119,32 +145,15 @@ export function useBondCalculatorEffects({
     const timer = window.setTimeout(() => {
       hasRestoredStateRef.current = true;
 
-      if (bondFromUrl) {
-        const selectedInputs = resolveBondTypeInputUpdate(
-          fallbackInputs,
-          bondFromUrl,
-          definitions[bondFromUrl],
-        );
-        const horizonMonths = Math.round(definitions[bondFromUrl].duration * 12);
-        selectedInputs.investmentHorizonMonths = horizonMonths;
-        selectedInputs.withdrawalDate = getWithdrawalDateFromMonths(
-          selectedInputs.purchaseDate,
-          horizonMonths,
-        );
-        setInputs(selectedInputs);
-        setEnvelope(null);
-        setSelectedSeriesId('current');
-        setLastCommittedInputs(null);
-        setIsDirty(true);
-        setIsPersistenceReady(true);
-        return;
-      }
-
       const restoredState = loadPersistedCalculatorState<PersistedSingleCalculatorState>(
         SINGLE_CALCULATOR_STORAGE_KEY,
       );
-
-      const restored = restoreSingleCalculatorState(restoredState, fallbackInputs);
+      const restored = resolveSingleCalculatorRestoration({
+        bondFromUrl,
+        fallbackInputs,
+        persistedState: restoredState,
+        definitions,
+      });
       if (restored) {
         restoredFromPersistenceRef.current = restored.restoredFromPersistence;
         setInputs(restored.inputs);
@@ -200,11 +209,40 @@ export function useBondCalculatorEffects({
   ]);
 
   useEffect(() => {
+    let obsolete = false;
     const timer = setTimeout(() => {
-      void fetchSeries(inputs.bondType, setAvailableSeries);
+      void fetchSeries(inputs.bondType, () => obsolete).then((series) => {
+        if (obsolete || !series) {
+          return;
+        }
+        setAvailableSeries(series);
+        const resolvedSeriesId = resolveAvailableSelectedSeriesId(selectedSeriesId, series);
+        if (resolvedSeriesId !== selectedSeriesId) {
+          setSelectedSeriesId(resolvedSeriesId);
+          setInputs((previous) =>
+            resolveDefinitionSyncedInputs({
+              previous,
+              definitions: definitions ?? BOND_DEFINITIONS,
+              selectedSeriesId: resolvedSeriesId,
+            }),
+          );
+          setIsDirty(true);
+        }
+      });
     }, 0);
-    return () => clearTimeout(timer);
-  }, [inputs.bondType, setAvailableSeries]);
+    return () => {
+      obsolete = true;
+      clearTimeout(timer);
+    };
+  }, [
+    definitions,
+    inputs.bondType,
+    selectedSeriesId,
+    setAvailableSeries,
+    setInputs,
+    setIsDirty,
+    setSelectedSeriesId,
+  ]);
 
   useEffect(() => {
     if (!initialInputs || hasAutoCalculatedSharedScenarioRef.current || isCalculating) {
@@ -247,12 +285,15 @@ export function useBondCalculatorEffects({
 
 async function fetchSeries(
   symbol: BondType,
-  setAvailableSeries: React.Dispatch<React.SetStateAction<BondSeriesMetadata[]>>,
-) {
+  isObsolete: () => boolean,
+): Promise<BondSeriesMetadata[] | null> {
   try {
     await Promise.resolve();
-    setAvailableSeries(await fetchBondSeriesForSymbol(symbol));
+    return await fetchBondSeriesForSymbol(symbol);
   } catch (error) {
-    logClientError('Failed to fetch series:', error);
+    if (!isObsolete()) {
+      logClientError('Failed to fetch series:', error);
+    }
+    return null;
   }
 }

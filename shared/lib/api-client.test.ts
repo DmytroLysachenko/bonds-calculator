@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { apiGet, apiGetWithResponse, apiPost } from './api-client';
+import { apiGet, apiGetRaw, apiGetWithResponse, apiPost } from './api-client';
 
 describe('api client', () => {
   it('unwraps typed success payloads', async () => {
@@ -60,5 +60,15 @@ describe('api client', () => {
     });
 
     fetchMock.mockRestore();
+  });
+
+  it('decodes an explicitly raw endpoint only when requested', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ status: 'ok' }), { status: 200 }),
+    );
+
+    await expect(apiGetRaw<{ status: string }>('/api/health')).resolves.toEqual({ status: 'ok' });
+
+    vi.restoreAllMocks();
   });
 });

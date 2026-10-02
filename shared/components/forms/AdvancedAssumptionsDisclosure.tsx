@@ -14,15 +14,23 @@ interface AdvancedAssumptionsDisclosureProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
 export function AdvancedAssumptionsDisclosure({
   title,
   description,
   children,
+  onOpenChange,
 }: AdvancedAssumptionsDisclosureProps) {
   return (
-    <Accordion type="single" collapsible defaultValue="" className="ui-control-group">
+    <Accordion
+      type="single"
+      collapsible
+      defaultValue=""
+      className="ui-control-group"
+      onValueChange={(value) => onOpenChange?.(value === 'advanced-assumptions')}
+    >
       <AccordionItem value="advanced-assumptions" className="border-0">
         <AccordionTrigger className="ui-interactive-surface border-0 border-b border-border px-0 py-4 hover:no-underline">
           <span className="flex items-start gap-3 text-left">

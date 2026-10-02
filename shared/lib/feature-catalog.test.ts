@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { isNavigationRoute } from '@/lib/route-policy';
+
 import {
   getFeaturesForNavigation,
   getFeaturesForPlacement,
@@ -23,5 +25,14 @@ describe('feature catalog', () => {
       '/notebook',
     ]);
     expect(getFeaturesForNavigation('conditional')).toHaveLength(4);
+  });
+
+  it('only exposes routes admitted by the shared route policy', () => {
+    for (const section of ['core', 'conditional'] as const) {
+      for (const feature of getFeaturesForNavigation(section)) {
+        expect(isNavigationRoute(feature.route)).toBe(true);
+      }
+    }
+    expect(isNavigationRoute('/retirement')).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 
 interface ScenarioFieldsetProps {
+  id?: string;
   title: string;
   description?: string;
   children: React.ReactNode;
@@ -14,6 +15,7 @@ interface ScenarioFieldsetProps {
 }
 
 export function ScenarioFieldset({
+  id,
   title,
   description,
   children,
@@ -22,6 +24,7 @@ export function ScenarioFieldset({
 }: ScenarioFieldsetProps) {
   return (
     <section
+      id={id}
       className={cn('ui-control-stack', divided && 'border-t border-border pt-6', className)}
     >
       <div className="ui-section-intro">

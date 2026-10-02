@@ -7,6 +7,7 @@ import {
 import { BOND_DEFINITIONS, type BondDefinition } from '../constants/bond-definitions';
 import { BondType, InterestPayout, TaxStrategy } from '../types';
 import { CalculationDataFreshness, CalculationEnvelope, ScenarioKind } from '../types/scenarios';
+import { SingleBondCalculationIntentSchema } from '../types/schemas';
 
 const basePayload = {
   bondType: BondType.EDO,
@@ -53,7 +54,7 @@ describe('CalculationApplicationService dependencies', () => {
       getDataFreshness: vi.fn(async () => freshness),
       getTaxRulesRevision: vi.fn(async () => '2026:revision'),
       getDefinitions: vi.fn(async () => BOND_DEFINITIONS),
-      getHandler: vi.fn(() => handler),
+      getHandler: vi.fn(() => handler) as unknown as CalculationServiceDependencies['getHandler'],
     };
 
     const service = new CalculationApplicationService(dependencies);
@@ -62,13 +63,20 @@ describe('CalculationApplicationService dependencies', () => {
       payload: basePayload,
     });
 
-    expect(result).toBe(envelope);
+    expect(result).toEqual({ ...envelope, taxRulesRevision: '2026:revision' });
     expect(dependencies.getHandler).toHaveBeenCalledWith(ScenarioKind.SINGLE_BOND);
-    expect(handler.handle).toHaveBeenCalledWith(basePayload, {
-      dataFreshness: freshness,
-      dbDefinitions: BOND_DEFINITIONS,
-    });
-    expect(dependencies.cache.set).toHaveBeenCalledWith('cache-key', envelope, 5 * 60_000);
+    expect(handler.handle).toHaveBeenCalledWith(
+      SingleBondCalculationIntentSchema.parse(basePayload),
+      {
+        dataFreshness: freshness,
+        dbDefinitions: BOND_DEFINITIONS,
+      },
+    );
+    expect(dependencies.cache.set).toHaveBeenCalledWith(
+      'cache-key',
+      { ...envelope, taxRulesRevision: '2026:revision' },
+      5 * 60_000,
+    );
   });
 
   it('uses the authoritative freshness revision as part of the cache identity', async () => {
@@ -98,7 +106,7 @@ describe('CalculationApplicationService dependencies', () => {
       getDataFreshness: vi.fn(async () => freshness),
       getTaxRulesRevision: vi.fn(async () => '2026:revision'),
       getDefinitions: vi.fn(async () => BOND_DEFINITIONS),
-      getHandler: vi.fn(() => handler),
+      getHandler: vi.fn(() => handler) as unknown as CalculationServiceDependencies['getHandler'],
     };
 
     await new CalculationApplicationService(dependencies).calculate({
@@ -106,14 +114,15 @@ describe('CalculationApplicationService dependencies', () => {
       payload: basePayload,
     });
 
-    expect(dependencies.cache.generateKey).toHaveBeenCalledWith(
-      expect.objectContaining({
-        dataRevision: JSON.stringify({
-          dataFreshness: freshness,
-          taxRulesRevision: '2026:revision',
-        }),
-      }),
-    );
+    const cacheInput = vi.mocked(dependencies.cache.generateKey).mock.calls[0][0] as {
+      dataRevision: string;
+    };
+    const dataRevision = JSON.parse(cacheInput.dataRevision) as Record<string, unknown>;
+    expect(dataRevision).toMatchObject({
+      dataFreshness: freshness,
+      taxRulesRevision: '2026:revision',
+    });
+    expect(dataRevision.definitions).toEqual(expect.any(String));
     expect(handler.handle).not.toHaveBeenCalled();
     expect(dependencies.cache.set).not.toHaveBeenCalled();
   });
@@ -149,7 +158,7 @@ describe('CalculationApplicationService dependencies', () => {
       getHandler: vi.fn(() => ({
         kind: ScenarioKind.SINGLE_BOND,
         handle: vi.fn(async () => envelope),
-      })),
+      })) as unknown as CalculationServiceDependencies['getHandler'],
     };
     const calculation = new CalculationApplicationService(dependencies).calculate({
       kind: ScenarioKind.SINGLE_BOND,

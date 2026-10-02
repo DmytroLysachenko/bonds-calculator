@@ -18,7 +18,7 @@ function persistedState(): PersistedComparisonState {
   return {
     sharedConfig: buildDefaultSharedConfig(),
     scenarioA: { bondType: BondType.OTS, isRebought: false },
-    scenarioB: { bondType: BondType.EDO, isRebought: true },
+    scenarioB: { bondType: BondType.EDO, isRebought: false },
     comparisonEnvelope: {} as PersistedComparisonState['comparisonEnvelope'],
     committedInputsA: {} as PersistedComparisonState['committedInputsA'],
     committedInputsB: {} as PersistedComparisonState['committedInputsB'],
@@ -27,12 +27,15 @@ function persistedState(): PersistedComparisonState {
 }
 
 describe('comparison deep-link state', () => {
-  it('accepts only a pair of supported, distinct bond types', () => {
+  it('accepts supported bond pairs, including two strategies for one family', () => {
     expect(parseComparisonBondPair(new URLSearchParams('a=COI&b=EDO'))).toEqual([
       BondType.COI,
       BondType.EDO,
     ]);
-    expect(parseComparisonBondPair(new URLSearchParams('a=COI&b=COI'))).toBeNull();
+    expect(parseComparisonBondPair(new URLSearchParams('a=COI&b=COI'))).toEqual([
+      BondType.COI,
+      BondType.COI,
+    ]);
     expect(parseComparisonBondPair(new URLSearchParams('a=COI&b=NOPE'))).toBeNull();
     expect(parseComparisonBondPair(new URLSearchParams('a=COI'))).toBeNull();
   });
@@ -85,21 +88,46 @@ describe('comparison deep-link state', () => {
 
     const url = withComparisonUrlState('/compare', new URLSearchParams('panel=chart'), state!);
     expect(url).toContain('panel=chart');
-    expect(url).toContain('a=ROR');
-    expect(url).toContain('taxB=IKZE');
+    expect(url).toContain('scenario=');
     expect(url).not.toContain('chartStep');
   });
 
-  it('falls back safely when URL fields are malformed or outside the supported range', () => {
+  it('round-trips per-side cash and maturity policies for the same family', () => {
     const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
-    const state = parseComparisonUrlState(
-      new URLSearchParams(
-        'a=ROR&b=EDO&amount=oops&purchase=not-a-date&horizon=9999&tax=nope&inflation=500&nbp=NaN&horizonA=-1',
-      ),
+    const state = {
+      sharedConfig: defaults,
+      scenarioA: {
+        bondType: BondType.ROR,
+        strategyPolicy: 'hold_to_maturity' as const,
+        couponDisposition: 'cash' as const,
+      },
+      scenarioB: {
+        bondType: BondType.ROR,
+        strategyPolicy: 'reinvest_until_horizon' as const,
+        couponDisposition: 'reinvest' as const,
+      },
+    };
+    const url = withComparisonUrlState('/compare', new URLSearchParams(), state);
+    const decoded = parseComparisonUrlState(
+      new URL(url, 'https://example.test').searchParams,
       defaults,
     );
 
-    expect(state).toMatchObject({
+    expect(decoded?.scenarioA).toMatchObject(state.scenarioA);
+    expect(decoded?.scenarioB).toMatchObject(state.scenarioB);
+  });
+
+  it('rejects malformed supplied fields while retaining defaults for absent legacy fields', () => {
+    const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
+    expect(
+      parseComparisonUrlState(
+        new URLSearchParams(
+          'a=ROR&b=EDO&amount=oops&purchase=not-a-date&horizon=9999&tax=nope&inflation=500&nbp=NaN&horizonA=-1',
+        ),
+        defaults,
+      ),
+    ).toBeNull();
+    expect(parseComparisonUrlState(new URLSearchParams('a=ROR&b=EDO'), defaults)).toMatchObject({
       sharedConfig: {
         initialInvestment: defaults.initialInvestment,
         purchaseDate: defaults.purchaseDate,
@@ -113,14 +141,62 @@ describe('comparison deep-link state', () => {
     expect(parseComparisonUrlState(new URLSearchParams('a=BAD&b=EDO'), defaults)).toBeNull();
   });
 
-  it('recovers from impossible calendar dates without passing them to a calculation', () => {
+  it('does not admit fractional or over-360-month URL horizons', () => {
+    const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
+    expect(
+      parseComparisonUrlState(
+        new URLSearchParams('a=ROR&b=EDO&horizon=12.5&horizonA=361&horizonB=24.5'),
+        defaults,
+      ),
+    ).toBeNull();
+  });
+
+  it('rejects impossible calendar dates instead of substituting a different calculation', () => {
     const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
     const state = parseComparisonUrlState(
       new URLSearchParams('a=COI&b=EDO&purchase=2026-02-30&timing=exact&withdrawal=2027-02-30'),
       defaults,
     );
 
-    expect(state?.sharedConfig.purchaseDate).toBe(defaults.purchaseDate);
-    expect(state?.sharedConfig.withdrawalDate).toBe(defaults.withdrawalDate);
+    expect(state).toBeNull();
+  });
+
+  it('does not replace an invalid portable intent with a legacy bond pair', () => {
+    const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
+    expect(
+      parseComparisonUrlState(new URLSearchParams('scenario=broken&a=COI&b=EDO'), defaults),
+    ).toBeNull();
+  });
+
+  it('derives an exact legacy horizon and rejects contradictory or ignored dates', () => {
+    const defaults = buildDefaultSharedConfig(new Date('2026-07-22T00:00:00.000Z'));
+    const exact = parseComparisonUrlState(
+      new URLSearchParams('a=ROR&b=EDO&timing=exact&purchase=2026-08-01&withdrawal=2028-08-01'),
+      defaults,
+    );
+    expect(exact?.sharedConfig).toMatchObject({
+      investmentHorizonMonths: 24,
+      withdrawalDate: '2028-08-01',
+    });
+    expect(
+      parseComparisonUrlState(
+        new URLSearchParams(
+          'a=ROR&b=EDO&timing=exact&purchase=2026-08-01&withdrawal=2028-08-01&horizon=12',
+        ),
+        defaults,
+      ),
+    ).toBeNull();
+    expect(
+      parseComparisonUrlState(
+        new URLSearchParams('a=ROR&b=EDO&purchase=2026-08-01&withdrawal=2028-08-01'),
+        defaults,
+      )?.sharedConfig,
+    ).toMatchObject({ timingMode: 'exact', investmentHorizonMonths: 24 });
+    expect(
+      parseComparisonUrlState(
+        new URLSearchParams('a=ROR&b=EDO&timing=general&withdrawal=2028-08-01'),
+        defaults,
+      ),
+    ).toBeNull();
   });
 });

@@ -12,6 +12,7 @@ import { SingleBondCalculationEnvelope } from '../../bond-core/types/scenarios';
 import { isCalculationAbort, runSingleBondCalculation } from '../lib/single-calculator-actions';
 import {
   getInitialSingleCalculatorClientState,
+  isSameSingleCalculatorCalculation,
   resolveSingleCalculatorFieldUpdate,
   resolveSingleCalculatorReplacementInputs,
   resolveSingleCalculatorSelectedSeriesUpdate,
@@ -55,12 +56,19 @@ export function useBondCalculator(initialInputs?: BondInputs, bondFromUrl?: Bond
         { envelope: SingleBondCalculationEnvelope; finalInputs: BondInputs }
       >({
         transitions: {
-          start: () => setIsDirty(false),
-          succeed: (_inputs, result) => {
+          start: () => undefined,
+          succeed: (calculationInputs, result) => {
             // Result rendering is non-urgent, but only this workflow may commit it.
             startTransition(() => {
               setEnvelope(result.envelope);
               setLastCommittedInputs(result.finalInputs);
+              // Starting a request is not a commit: retain stale state after
+              // failures/cancellations or edits made while it was in flight.
+              // Reverse mode reports solved inputs but compares its request.
+              setInputs((visibleInputs) => {
+                setIsDirty(!isSameSingleCalculatorCalculation(visibleInputs, calculationInputs));
+                return visibleInputs;
+              });
             });
           },
           fail: () => undefined,
@@ -90,13 +98,24 @@ export function useBondCalculator(initialInputs?: BondInputs, bondFromUrl?: Bond
   );
 
   useBondCalculatorEffects({
-    inputs,
-    envelope,
-    selectedSeriesId,
-    lastCommittedInputs,
-    isDirty,
-    isCalculating,
-    isPersistenceReady,
+    session: {
+      inputs,
+      envelope,
+      selectedSeriesId,
+      lastCommittedInputs,
+      isDirty,
+      isCalculating,
+      isPersistenceReady,
+    },
+    actions: {
+      setInputs,
+      setEnvelope,
+      setSelectedSeriesId,
+      setLastCommittedInputs,
+      setIsDirty,
+      setIsPersistenceReady,
+      setAvailableSeries,
+    },
     initialInputs,
     bondFromUrl,
     fallbackInputs,
@@ -107,13 +126,6 @@ export function useBondCalculator(initialInputs?: BondInputs, bondFromUrl?: Bond
     hasAutoCalculatedSharedScenarioRef: hasAutoCalculatedSharedScenario,
     restoredFromPersistenceRef: restoredFromPersistence,
     hasTouchedMacroAssumptionsRef: hasTouchedMacroAssumptions,
-    setInputs,
-    setEnvelope,
-    setSelectedSeriesId,
-    setLastCommittedInputs,
-    setIsDirty,
-    setIsPersistenceReady,
-    setAvailableSeries,
   });
 
   const results = envelope?.result || null;
@@ -161,11 +173,11 @@ export function useBondCalculator(initialInputs?: BondInputs, bondFromUrl?: Bond
   }, []);
 
   const setBondType = useCallback(
-    (type: BondType) => {
+    (type: BondType, horizonChoice: 'preserve' | 'native' = 'preserve') => {
       if (!definitions) return;
       setIsDirty(true);
       setSelectedSeriesId('current');
-      setInputs((prev) => resolveBondTypeInputUpdate(prev, type, definitions[type]));
+      setInputs((prev) => resolveBondTypeInputUpdate(prev, type, definitions[type], horizonChoice));
     },
     [definitions],
   );

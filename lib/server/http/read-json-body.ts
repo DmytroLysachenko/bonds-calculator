@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-import { CalculationDomainError } from '@/features/bond-core/errors';
+export class UnreadableJsonBodyError extends Error {
+  constructor(cause: unknown) {
+    super('Request body could not be read safely.', { cause });
+    this.name = 'UnreadableJsonBodyError';
+  }
+}
 
 /** Default ceiling for ordinary API commands. Larger endpoints opt in explicitly. */
 export const DEFAULT_JSON_BODY_MAX_BYTES = 64 * 1024;
@@ -149,11 +154,7 @@ export async function readJsonBody<TSchema extends z.ZodTypeAny>(
       throw error;
     }
 
-    throw new CalculationDomainError({
-      code: 'CALCULATION_INVALID_INPUT',
-      message: 'Request body could not be read safely.',
-      cause: error,
-    });
+    throw new UnreadableJsonBodyError(error);
   }
 }
 

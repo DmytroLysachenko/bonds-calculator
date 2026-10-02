@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 
+import { getIndexableRoutes } from '@/lib/route-policy';
 import { getCanonicalBaseUrl, isIndexableDeployment } from '@/lib/site-url';
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -8,22 +9,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }
 
   const baseUrl = getCanonicalBaseUrl();
-  const routes = [
-    '',
-    '/single-calculator',
-    '/compare',
-    '/regular-investment',
-    '/ladder',
-    '/economic-data',
-    '/education',
-    '/multi-asset',
-    '/notebook',
-    '/optimize',
-    '/retirement',
-  ].map((route) => ({
-    url: `${baseUrl}${route}`,
+  const routes = getIndexableRoutes().map((route) => ({
+    url: `${baseUrl}${route === '/' ? '' : route}`,
     changeFrequency: 'weekly' as const,
-    priority: route === '' ? 1 : 0.8,
+    priority: route === '/' ? 1 : 0.8,
   }));
 
   return routes;

@@ -22,10 +22,12 @@ redacted logger; browser responses do not.
 ## Rate-limit identity
 
 Client identity is not inferred from arbitrary forwarded headers. A deployment
-must explicitly declare `TRUSTED_PROXY=1` before `x-forwarded-for` is accepted.
-Without that contract the limiter uses only a valid direct `x-real-ip` value or
-the anonymous bucket. This prevents a caller from choosing a new quota merely
-by inventing a forwarded address.
+must explicitly declare `TRUSTED_PROXY=1` and `TRUSTED_PROXY_HOPS` before
+`x-forwarded-for` is accepted. The limiter selects the address immediately
+before trusted proxy hops; ingress must append those hops and strip
+caller-supplied copies. Without that contract the limiter uses the anonymous
+bucket. This prevents callers from choosing quota buckets through spoofed
+headers.
 
 Named policies reflect capability cost:
 

@@ -137,7 +137,7 @@ export function buildComparisonChartSummary(
     return t('bonds.chart_accessible_summary_empty');
   }
 
-  return t('comparison.chart_accessible_summary', {
+  return t('comparison.bond_chart_accessible_summary', {
     count: valueChartData.length,
     startA: formatCurrency(Number(firstPoint.nominalA)),
     endA: formatCurrency(Number(lastPoint.nominalA)),

@@ -16,6 +16,29 @@ describe('cookie mutation origin policy', () => {
     ).toBe(true);
   });
 
+  it('uses the received host when a reverse proxy rewrites the internal request URL', () => {
+    const proxied = new NextRequest('http://internal:3200/api/portfolio', {
+      method: 'POST',
+      headers: {
+        Host: '127.0.0.1:3200',
+        Origin: 'http://127.0.0.1:3200',
+        'Sec-Fetch-Site': 'same-origin',
+      },
+    });
+    expect(isTrustedMutationOrigin(proxied)).toBe(true);
+    expect(
+      isTrustedMutationOrigin(
+        new NextRequest(proxied, {
+          headers: {
+            Host: '127.0.0.1:3200',
+            Origin: 'http://evil.test',
+            'Sec-Fetch-Site': 'same-site',
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it('rejects cross-site fetches before considering a forged Origin', () => {
     expect(
       isTrustedMutationOrigin(

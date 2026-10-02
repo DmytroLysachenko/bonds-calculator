@@ -53,6 +53,18 @@ describe('retirement planner model', () => {
     expect(createRetirementChartData(null)).toEqual([]);
   });
 
+  it('keeps an off-anniversary exhaustion endpoint visible', () => {
+    const short = {
+      ...resultEnvelope,
+      result: { ...resultEnvelope.result, timeline: resultEnvelope.result.timeline.slice(0, 15) },
+    };
+    expect(createRetirementChartData(short).map((point) => point.date)).toEqual([
+      '2024-01',
+      '2024-01',
+      '2024-03',
+    ]);
+  });
+
   it('creates coverage from the final simulated month', () => {
     expect(createRetirementScenarioCoverage(resultEnvelope, 'en')).toBe('2 years');
     expect(createRetirementScenarioCoverage(null, 'en')).toBeNull();

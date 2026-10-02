@@ -1,8 +1,5 @@
 import {
-  getReferenceAsOfLabel,
-  getReferenceCoverageLabel,
-  getReferenceScopeLabel,
-  getReferenceSourceLabel,
+  buildReferenceProvenanceItems,
   getReferenceState,
   getReferenceStatusKind,
 } from '@/shared/lib/data-reference';
@@ -73,26 +70,7 @@ export function buildEconomicHealthItems({
   language: 'pl' | 'en';
   labels: Pick<EconomicStatusLabels, 'source' | 'coverage' | 'asOf' | 'usage'>;
 }) {
-  const rows = [
-    {
-      label: labels.source,
-      value: isLoading ? '...' : getReferenceSourceLabel(meta, language),
-    },
-    {
-      label: labels.asOf,
-      value: isLoading ? '...' : getReferenceAsOfLabel(meta, language),
-    },
-    {
-      label: labels.coverage,
-      value: isLoading ? '...' : getReferenceCoverageLabel(meta, language),
-    },
-    {
-      label: labels.usage,
-      value: isLoading ? '...' : getReferenceScopeLabel(meta, language),
-    },
-  ];
-
-  return rows;
+  return buildReferenceProvenanceItems(meta, language, labels, isLoading);
 }
 
 export function getEconomicReferenceState(

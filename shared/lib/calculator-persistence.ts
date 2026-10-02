@@ -28,9 +28,10 @@ export function loadPersistedCalculatorState<T>(key: string): T | null {
   }
 }
 
-export function savePersistedCalculatorState<T>(key: string, state: T) {
+/** Returns false when browser storage is unavailable or quota-restricted. */
+export function savePersistedCalculatorState<T>(key: string, state: T): boolean {
   if (typeof window === 'undefined') {
-    return;
+    return false;
   }
 
   const payload: PersistedEnvelope<T> = {
@@ -39,5 +40,12 @@ export function savePersistedCalculatorState<T>(key: string, state: T) {
     state,
   };
 
-  window.localStorage.setItem(key, JSON.stringify(payload));
+  try {
+    window.localStorage.setItem(key, JSON.stringify(payload));
+    return true;
+  } catch {
+    // Draft persistence is best effort. A quota or privacy-mode failure must
+    // never take down an otherwise usable calculator session.
+    return false;
+  }
 }

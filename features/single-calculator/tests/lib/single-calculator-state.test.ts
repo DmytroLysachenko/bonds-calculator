@@ -10,6 +10,7 @@ import {
   getReverseCalculationTestInputs,
   normalizeSingleCalculatorInputs,
   parseBondType,
+  resolveBondTypeInputUpdate,
 } from '../../lib/single-calculator-state';
 
 describe('single calculator state model', () => {
@@ -42,6 +43,17 @@ describe('single calculator state model', () => {
     expect(next.firstYearRate).toBe(4.2);
     expect(next.margin).toBe(1.1);
     expect(next.duration).toBe(BOND_DEFINITIONS[BondType.EDO].duration);
+  });
+
+  it('makes a shorter family switch choose between the existing plan and native maturity', () => {
+    const previous = buildFallbackInputs(new Date('2026-06-16T00:00:00.000Z'));
+    const definition = BOND_DEFINITIONS[BondType.ROR];
+    const preserved = resolveBondTypeInputUpdate(previous, BondType.ROR, definition, 'preserve');
+    const native = resolveBondTypeInputUpdate(previous, BondType.ROR, definition, 'native');
+
+    expect(preserved.withdrawalDate).toBe('2036-06-16');
+    expect(native.withdrawalDate).toBe('2027-06-16');
+    expect(native.investmentHorizonMonths).toBe(12);
   });
 
   it('normalizes horizon-driven dates and custom rate paths', () => {

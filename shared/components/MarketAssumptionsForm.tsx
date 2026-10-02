@@ -19,13 +19,16 @@ import {
   getHeaderAssumptionValue,
   resolveAssumptionModeUpdate,
 } from '@/shared/lib/market-assumptions-form-model';
+import { type FieldUpdater } from '@/shared/types/field-updater';
 
 export type { AssumptionSetupMode } from '@/shared/lib/market-assumptions-form-model';
 
-type UpdateHandler = {
-  bivarianceHack: (key: keyof BondInputs | string, value: unknown) => void;
-}['bivarianceHack'];
-interface MarketAssumptionsFormProps {
+export type MarketAssumptionFields = Pick<
+  BondInputs,
+  'expectedInflation' | 'expectedNbpRate' | 'customInflation' | 'customNbpRate'
+>;
+type UpdateHandler = FieldUpdater<MarketAssumptionFields>;
+export interface MarketAssumptionsFormProps {
   expectedInflation: number;
   expectedNbpRate?: number;
   bondType: BondType;
@@ -141,7 +144,7 @@ export const MarketAssumptionsForm = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div data-testid="market-assumptions-form" className="space-y-6">
       {showIntro ? (
         <div className="space-y-3">
           <p

@@ -13,18 +13,18 @@ network, device, or third-party provider condition.
 
 ## Service-level objectives and measurement
 
-| Area | Target | Measurement and evidence |
-| --- | --- | --- |
-| Core Web Vitals | p75 LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 on public routes | Aggregate-only field telemetry after the external-evidence gate; lab budgets prevent regression before field evidence exists. |
-| API reliability | p95 successful API latency ≤ 800 ms and 5xx rate < 1% per rolling 30 days | Correlated server metrics, excluding expected client validation failures. |
-| Availability | Monthly authenticated readiness success ≥ 99.5% | Cloud Run readiness observation and post-deploy smoke receipt. |
-| Reference-data freshness | Current offer/sync status displayed with its as-of value; failed sync never claims current data | Sync ledger and freshness UI checks. |
-| Recovery | RPO ≤ 24 h and RTO ≤ 4 h | Managed backup/PITR and isolated restore drill; this remains externally gated. |
-| Accessibility | WCAG 2.2 AA automated checks on trusted routes; manual keyboard, zoom, forced-colors, and chart review every release tranche | Playwright/axe artifacts plus manual review record. |
-| Supported browsers | Current stable Chromium, Firefox, and WebKit desktop; current Chromium mobile viewport | CI smoke matrix and release-browser record. |
-| Security patches | Critical dependency/security fixes assessed within 24 h and remediated or mitigated within 7 days | Dependabot/CodeQL findings and release record. |
-| Privacy and retention | No scenario inputs, raw URLs, account IDs, or user agents in vital telemetry; aggregate vital data retained for 30 days | Schema, cleanup job, and privacy review receipt. |
-| Boundary size | Portfolio imports ≤ 256 KiB and 500 lots; share payloads follow their route schema limits | Route-schema boundary tests. |
+| Area                     | Target                                                                                                                       | Measurement and evidence                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Core Web Vitals          | p75 LCP ≤ 2.5 s, INP ≤ 200 ms, CLS ≤ 0.1 on public routes                                                                    | Aggregate-only field telemetry after the external-evidence gate; lab budgets prevent regression before field evidence exists. |
+| API reliability          | p95 successful API latency ≤ 800 ms and 5xx rate < 1% per rolling 30 days                                                    | Correlated server metrics, excluding expected client validation failures.                                                     |
+| Availability             | Monthly authenticated readiness success ≥ 99.5%                                                                              | Cloud Run readiness observation and post-deploy smoke receipt.                                                                |
+| Reference-data freshness | Current offer/sync status displayed with its as-of value; failed sync never claims current data                              | Sync ledger and freshness UI checks.                                                                                          |
+| Recovery                 | RPO ≤ 24 h and RTO ≤ 4 h                                                                                                     | Managed backup/PITR and isolated restore drill; this remains externally gated.                                                |
+| Accessibility            | WCAG 2.2 AA automated checks on trusted routes; manual keyboard, zoom, forced-colors, and chart review every release tranche | Playwright/axe artifacts plus manual review record.                                                                           |
+| Supported browsers       | Current stable Chromium, Firefox, and WebKit desktop; current Chromium mobile viewport                                       | CI smoke matrix and release-browser record.                                                                                   |
+| Security patches         | Critical dependency/security fixes assessed within 24 h and remediated or mitigated within 7 days                            | Dependabot/CodeQL findings and release record.                                                                                |
+| Privacy and retention    | No scenario inputs, raw URLs, account IDs, or user agents in vital telemetry; aggregate vital data retained for 30 days      | Schema, cleanup job, and privacy review receipt.                                                                              |
+| Boundary size            | Portfolio imports ≤ 256 KiB and 500 lots; share payloads follow their route schema limits                                    | Route-schema boundary tests.                                                                                                  |
 
 ## 1. Correctness & Precision
 

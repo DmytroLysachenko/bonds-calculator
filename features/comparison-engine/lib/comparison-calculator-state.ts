@@ -73,6 +73,7 @@ export function buildScenarioInputs(
 
   return {
     bondType: normalizedScenario.bondType,
+    selectedSeriesId: normalizedScenario.selectedSeriesId,
     initialInvestment: sharedConfig.initialInvestment,
     firstYearRate: definition.firstYearRate,
     expectedInflation: sharedConfig.expectedInflation,
@@ -91,6 +92,8 @@ export function buildScenarioInputs(
     isRebought: false,
     rebuyDiscount: definition.rebuyDiscount,
     taxStrategy: normalizedScenario.taxStrategy ?? sharedConfig.taxStrategy ?? TaxStrategy.STANDARD,
+    couponDisposition:
+      normalizedScenario.couponDisposition ?? sharedConfig.couponDisposition ?? 'reinvest',
     rollover: normalizedScenario.rollover ?? false,
     timingMode,
     investmentHorizonMonths: horizonMonths,
@@ -100,7 +103,7 @@ export function buildScenarioInputs(
 export function updateSharedComparisonConfig(
   previous: SharedComparisonConfig,
   key: keyof SharedComparisonConfig,
-  value: string | number | boolean | undefined,
+  value: string | number | boolean | number[] | undefined,
 ) {
   const next = { ...previous, [key]: value };
 
@@ -144,20 +147,23 @@ export function updateScenarioBondType(
   return {
     ...scenario,
     bondType: type,
+    selectedSeriesId: scenario.bondType === type ? scenario.selectedSeriesId : undefined,
     isRebought: false,
     investmentHorizonMonths: scenario.investmentHorizonMonths,
   };
 }
 
 export function splitComparisonEnvelope(envelope: BondComparisonCalculationEnvelope | null) {
-  const resultA = envelope?.result.find((item) => item.scenarioKey === 'scenarioA')?.result ?? null;
-  const resultB = envelope?.result.find((item) => item.scenarioKey === 'scenarioB')?.result ?? null;
+  const itemA = envelope?.result.find((item) => item.scenarioKey === 'scenarioA');
+  const itemB = envelope?.result.find((item) => item.scenarioKey === 'scenarioB');
+  const resultA = itemA?.result ?? null;
+  const resultB = itemB?.result ?? null;
 
   return {
     resultsA: resultA,
     resultsB: resultB,
-    envelopeA: buildSingleEnvelope(envelope, resultA),
-    envelopeB: buildSingleEnvelope(envelope, resultB),
+    envelopeA: buildSingleEnvelope(envelope, resultA, itemA?.offerTerms),
+    envelopeB: buildSingleEnvelope(envelope, resultB, itemB?.offerTerms),
   };
 }
 
@@ -180,6 +186,7 @@ export function getComparisonDirtyState({
   if (!committedInputsA || !committedInputsB) return true;
 
   return (
+    isDirty ||
     !areCalculatorStatesEqual(inputsA, committedInputsA) ||
     !areCalculatorStatesEqual(inputsB, committedInputsB)
   );
@@ -188,6 +195,7 @@ export function getComparisonDirtyState({
 function buildSingleEnvelope(
   source: BondComparisonCalculationEnvelope | null,
   result: SingleBondCalculationEnvelope['result'] | null,
+  offerTerms?: BondComparisonCalculationEnvelope['result'][number]['offerTerms'],
 ): SingleBondCalculationEnvelope | null {
   if (!source || !result) return null;
 
@@ -198,7 +206,10 @@ function buildSingleEnvelope(
     calculationNotes: source.calculationNotes || [],
     dataQualityFlags: source.dataQualityFlags || [],
     dataFreshness: source.dataFreshness ?? { status: 'unknown', usedFallback: false },
-    calculationVersion: source.calculationVersion ?? 'unknown',
+    calculationVersion: source.calculationVersion,
+    taxRulesRevision: source.taxRulesRevision,
+    diagnostics: source.diagnostics,
+    offerTerms,
   };
 }
 

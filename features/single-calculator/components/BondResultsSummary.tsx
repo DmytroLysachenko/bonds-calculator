@@ -2,6 +2,7 @@
 import { FileSpreadsheet, FileText, Info, Plus, Save } from 'lucide-react';
 import React from 'react';
 
+import type { SingleBondCalculationEnvelope } from '@/features/bond-core/types/scenarios';
 import { useAppI18n } from '@/i18n/client';
 import { Notice } from '@/shared/components/feedback/Notice';
 import { MathDeepDive } from '@/shared/components/insights/MathDeepDive';
@@ -14,6 +15,7 @@ import { SecondaryInsightAccordion } from '@/shared/components/results/Secondary
 import { useCurrencyFormatter } from '@/shared/hooks/useLocalizedFormatters';
 import { getAuditTimelinePoint } from '@/shared/lib/bond-display';
 import { buildTimelineExportHeaders } from '@/shared/lib/export-headers';
+import { buildSingleBondReportProvenance } from '@/shared/lib/report-provenance';
 import { buildTimelineCsvFilename, exportTimelineCsv } from '@/shared/lib/retained-exports';
 
 import { BondInputs, CalculationResult } from '../../bond-core/types';
@@ -34,6 +36,7 @@ interface BondResultsSummaryProps {
   onExportPDF?: () => void | Promise<void>;
   canManageWorkspace?: boolean;
   dataQualityFlags?: string[];
+  envelope?: SingleBondCalculationEnvelope | null;
 }
 export const BondResultsSummary: React.FC<BondResultsSummaryProps> = ({
   results,
@@ -43,6 +46,7 @@ export const BondResultsSummary: React.FC<BondResultsSummaryProps> = ({
   onExportPDF,
   canManageWorkspace = false,
   dataQualityFlags = [],
+  envelope,
 }) => {
   const { t, locale: language } = useAppI18n();
   const currencyFormatter = useCurrencyFormatter(language);
@@ -56,8 +60,9 @@ export const BondResultsSummary: React.FC<BondResultsSummaryProps> = ({
       headers: buildTimelineExportHeaders(t),
       language,
       fileName: buildTimelineCsvFilename('bond_simulation', inputs.bondType),
+      metadata: envelope ? buildSingleBondReportProvenance(inputs, envelope) : undefined,
     });
-  }, [inputs.bondType, language, results.timeline, t]);
+  }, [envelope, inputs, language, results.timeline, t]);
   const horizonLabel = inputs.investmentHorizonMonths ?? Math.round(inputs.duration * 12);
   const { headlineValue, headlineLabel, summaryNarrative } = React.useMemo(
     () => getBondResultsHeadline(results, inputs, t),
@@ -185,7 +190,13 @@ export const BondResultsSummary: React.FC<BondResultsSummaryProps> = ({
           <ScenarioFactsBlock
             title={t('bonds.results.scenario_facts_title')}
             description={t('bonds.results.scenario_facts_description')}
-            actions={<MathDeepDive results={results} trigger={<HelpButton />} />}
+            actions={
+              <MathDeepDive
+                results={results}
+                inputs={inputs}
+                trigger={<CalculationDetailsTrigger />}
+              />
+            }
             items={scenarioFacts}
           />
         </div>
@@ -193,22 +204,23 @@ export const BondResultsSummary: React.FC<BondResultsSummaryProps> = ({
     </div>
   );
 };
-const HelpButton = React.forwardRef<HTMLButtonElement, React.ComponentPropsWithoutRef<'button'>>(
-  function HelpButton(props, ref) {
-    const { t } = useAppI18n();
-    return (
-      <button
-        ref={ref}
-        className="ui-focus-ring group rounded-sm"
-        type="button"
-        aria-label={t('bonds.results.show_calculation_details')}
-        {...props}
-      >
-        <Info
-          className="h-4 w-4 cursor-help text-muted-foreground transition-colors group-hover:text-primary"
-          aria-hidden="true"
-        />
-      </button>
-    );
-  },
-);
+export const CalculationDetailsTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<'button'>
+>(function CalculationDetailsTrigger(props, ref) {
+  const { t } = useAppI18n();
+  return (
+    <button
+      ref={ref}
+      className="ui-focus-ring group rounded-sm"
+      type="button"
+      aria-label={t('bonds.results.show_calculation_details')}
+      {...props}
+    >
+      <Info
+        className="h-4 w-4 cursor-help text-muted-foreground transition-colors group-hover:text-primary"
+        aria-hidden="true"
+      />
+    </button>
+  );
+});

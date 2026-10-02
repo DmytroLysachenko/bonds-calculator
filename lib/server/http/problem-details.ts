@@ -10,6 +10,7 @@ import {
   InvalidContentLengthError,
   InvalidJsonEncodingError,
   RequestBodyTooLargeError,
+  UnreadableJsonBodyError,
   UnsupportedJsonMediaTypeError,
 } from './read-json-body';
 
@@ -70,7 +71,8 @@ export function mapApiErrorToProblemDetails(
   if (
     error instanceof EmptyJsonBodyError ||
     error instanceof InvalidContentLengthError ||
-    error instanceof InvalidJsonEncodingError
+    error instanceof InvalidJsonEncodingError ||
+    error instanceof UnreadableJsonBodyError
   ) {
     return createProblemDetails({
       type: 'https://api.obligacje.pl/errors/invalid-request-body',

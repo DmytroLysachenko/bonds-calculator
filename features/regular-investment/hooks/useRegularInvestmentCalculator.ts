@@ -1,17 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { useBondDefinitions } from '@/shared/context/BondDefinitionsContext';
-import { useCalculatorWorkflow } from '@/shared/hooks/useCalculatorWorkflow';
-import { useMacroAssumptionDefaults } from '@/shared/hooks/useMacroAssumptionDefaults';
+import { usePersistedMacroCalculator } from '@/shared/hooks/usePersistedMacroCalculator';
 import { getCalculationEndpoint } from '@/shared/lib/calculation-endpoints';
-import { createCalculationEnvelopeVersionValidator } from '@/shared/lib/calculation-envelope-version';
-import { applyUntouchedMacroDefaults } from '@/shared/lib/calculator-session-persistence';
-import { preserveStableState, stripDisplayOnlyInputs } from '@/shared/lib/calculator-state';
+import { stripDisplayOnlyInputs } from '@/shared/lib/calculator-state';
 import { logClientError } from '@/shared/lib/client-logger';
 
-import { MODEL_VERSION } from '../../bond-core/handlers';
+import { MODEL_VERSION } from '../../bond-core/model-version';
 import { BondType, RegularInvestmentInputs } from '../../bond-core/types';
 import {
   RegularInvestmentCalculationEnvelope,
@@ -30,35 +27,13 @@ const STORAGE_KEY = 'obligacje.regular-calculator.v1';
 /** Draft changes never replace displayed result. Session commits only successful calculations. */
 export function useRegularInvestmentCalculator() {
   const { definitions, isLoading: isLoadingDefs } = useBondDefinitions();
-  const { defaults: macroDefaults } = useMacroAssumptionDefaults();
-  const fallbackInputs = useMemo(() => buildRegularInvestmentFallbackInputs(), []);
-  const isCommittedResultValid = useMemo(
-    () => createCalculationEnvelopeVersionValidator(MODEL_VERSION),
-    [],
-  );
-  const hasTouchedMacroAssumptions = useRef(false);
-  const session = useCalculatorWorkflow<
-    RegularInvestmentInputs,
-    RegularInvestmentCalculationEnvelope
-  >({
-    initialInputs: fallbackInputs,
-    storageKey: STORAGE_KEY,
-    isCommittedResultValid,
-    modelVersion: MODEL_VERSION,
-  });
-  const {
-    draftInputs: inputs,
-    committedResult: envelope,
-    setDraftInputs,
-    runRemoteCalculation,
-  } = session;
-
-  const updateDraft = useCallback(
-    (update: (previous: RegularInvestmentInputs) => RegularInvestmentInputs) => {
-      setDraftInputs(preserveStableState(inputs, update(inputs)));
-    },
-    [inputs, setDraftInputs],
-  );
+  const { session, inputs, envelope, updateDraft, hasTouchedMacroAssumptionsRef } =
+    usePersistedMacroCalculator<RegularInvestmentInputs, RegularInvestmentCalculationEnvelope>({
+      buildInitialInputs: buildRegularInvestmentFallbackInputs,
+      storageKey: STORAGE_KEY,
+      modelVersion: MODEL_VERSION,
+    });
+  const { runRemoteCalculation } = session;
 
   useEffect(() => {
     if (!definitions || !definitions[inputs.bondType]) return;
@@ -69,11 +44,6 @@ export function useRegularInvestmentCalculator() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, [definitions, inputs.bondType, updateDraft]);
-
-  useEffect(() => {
-    if (!macroDefaults || !session.isPersistenceReady || hasTouchedMacroAssumptions.current) return;
-    updateDraft((previous) => applyUntouchedMacroDefaults(previous, macroDefaults, false));
-  }, [macroDefaults, session.isPersistenceReady, updateDraft]);
 
   const calculate = useCallback(async () => {
     try {
@@ -87,22 +57,22 @@ export function useRegularInvestmentCalculator() {
   }, [runRemoteCalculation]);
 
   const updateInput = useCallback(
-    (key: keyof RegularInvestmentInputs, value: string | number | boolean | undefined) => {
-      if (isRegularInvestmentMacroInputKey(key)) hasTouchedMacroAssumptions.current = true;
+    <K extends keyof RegularInvestmentInputs>(key: K, value: RegularInvestmentInputs[K]) => {
+      if (isRegularInvestmentMacroInputKey(key)) hasTouchedMacroAssumptionsRef.current = true;
       updateDraft((previous) =>
         normalizeRegularInvestmentInputs(previous, {
           [key]: value,
         } as Partial<RegularInvestmentInputs>),
       );
     },
-    [updateDraft],
+    [hasTouchedMacroAssumptionsRef, updateDraft],
   );
 
   const setBondType = useCallback(
-    (type: BondType) => {
+    (type: BondType, horizonChoice: 'preserve' | 'native') => {
       if (!definitions) return;
       updateDraft((previous) =>
-        resolveRegularInvestmentBondTypeUpdate(previous, type, definitions[type]),
+        resolveRegularInvestmentBondTypeUpdate(previous, type, definitions[type], horizonChoice),
       );
     },
     [definitions, updateDraft],

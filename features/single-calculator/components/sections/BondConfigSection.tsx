@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,13 +22,13 @@ interface BondSeries {
   id: string;
   seriesCode: string;
   firstYearRate: string | number;
-  baseMargin: string | number;
+  baseMargin: string | number | null;
   emissionMonth: string;
 }
 interface BondConfigSectionProps {
   inputs: BondInputs;
   onUpdate: (key: keyof BondInputs, value: string | number | boolean | undefined) => void;
-  onBondTypeChange: (type: BondType) => void;
+  onBondTypeChange: (type: BondType, horizonChoice: 'preserve' | 'native') => void;
   definitions: Record<BondType, BondDefinition>;
   availableSeries: BondSeries[];
   selectedSeriesId: string | null;
@@ -36,6 +36,7 @@ interface BondConfigSectionProps {
 export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
   ({ inputs, onUpdate, onBondTypeChange, definitions, availableSeries, selectedSeriesId }) => {
     const { t, locale: language } = useAppI18n();
+    const [pendingBondType, setPendingBondType] = useState<BondType | null>(null);
     const currentDef = definitions[inputs.bondType];
     const currentBondSupport = getBondSupportMeta(inputs.bondType, language);
     const rateContext = getBondRateContextCopy(
@@ -72,6 +73,7 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
       <div className="space-y-6">
         <div className="flex gap-1 border-b border-border pb-2">
           <Button
+            type="button"
             variant={
               !inputs.calculatorMode || inputs.calculatorMode === 'standard' ? 'default' : 'ghost'
             }
@@ -81,6 +83,7 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
             {t('bonds.standard_payout')}
           </Button>
           <Button
+            type="button"
             variant={inputs.calculatorMode === 'reverse' ? 'default' : 'ghost'}
             className="h-8 flex-1 text-sm font-medium"
             onClick={() => onUpdate('calculatorMode', 'reverse')}
@@ -92,7 +95,10 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
         {inputs.calculatorMode === 'reverse' ? (
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <Label className="flex items-center gap-2 text-sm font-semibold">
+              <Label
+                htmlFor="savingsGoal"
+                className="flex items-center gap-2 text-sm font-semibold"
+              >
                 {t('bonds.target_goal_req')}
               </Label>
               <InfoTooltip content={t('bonds.glossary.savings_goal')} />
@@ -142,7 +148,7 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
             label=""
             className="space-y-0"
             value={inputs.bondType}
-            onValueChange={(value) => onBondTypeChange(value as BondType)}
+            onValueChange={(value) => setPendingBondType(value as BondType)}
             placeholder={t('bonds.select_bond_type')}
             triggerClassName="bg-card"
             options={Object.values(BondType).map((type) => ({
@@ -157,6 +163,46 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
               ) : null,
             }))}
           />
+
+          {pendingBondType && pendingBondType !== inputs.bondType ? (
+            <div
+              role="group"
+              aria-label={t('bonds.horizon_choice_title')}
+              className="rounded-md border border-border bg-muted/35 p-3 text-sm"
+            >
+              <p className="font-semibold">
+                {t('bonds.horizon_choice_title', { bond: pendingBondType })}
+              </p>
+              <p className="mt-1 text-muted-foreground">{t('bonds.horizon_choice_description')}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    onBondTypeChange(pendingBondType, 'preserve');
+                    setPendingBondType(null);
+                  }}
+                >
+                  {t('bonds.horizon_choice_preserve')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    onBondTypeChange(pendingBondType, 'native');
+                    setPendingBondType(null);
+                  }}
+                >
+                  {t('bonds.horizon_choice_native', {
+                    months: Math.round(definitions[pendingBondType].duration * 12),
+                  })}
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => setPendingBondType(null)}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
 
           <FormSelect
             label={t('bonds.bond.series')}
@@ -173,7 +219,7 @@ export const BondConfigSection: React.FC<BondConfigSectionProps> = React.memo(
                 value: s.id,
                 label: s.seriesCode,
                 meta: formatSeriesMonth(s.emissionMonth),
-                description: `${Number(s.firstYearRate).toFixed(2)}% + ${Number(s.baseMargin).toFixed(2)}%`,
+                description: `${Number(s.firstYearRate).toFixed(2)}%${s.baseMargin === null ? '' : ` + ${Number(s.baseMargin).toFixed(2)}%`}`,
               })),
             ]}
           />

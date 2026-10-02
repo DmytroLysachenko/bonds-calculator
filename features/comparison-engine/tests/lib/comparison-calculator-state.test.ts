@@ -64,10 +64,21 @@ describe('comparison calculator state model', () => {
         inputsB: inputs,
         committedInputsA: inputs,
         committedInputsB: inputs,
-        isDirty: true,
+        isDirty: false,
         hasResults: true,
       }),
     ).toBe(false);
+
+    expect(
+      getComparisonDirtyState({
+        inputsA: inputs,
+        inputsB: inputs,
+        committedInputsA: inputs,
+        committedInputsB: inputs,
+        isDirty: true,
+        hasResults: true,
+      }),
+    ).toBe(true);
   });
 
   it('returns empty split envelopes when no comparison envelope is available', () => {

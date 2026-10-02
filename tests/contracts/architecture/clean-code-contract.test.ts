@@ -72,6 +72,7 @@ describe('clean code architecture contract', () => {
       'app/api/health/route.ts',
       'app/api/readiness/route.ts',
       'app/api/observability/vitals/route.ts',
+      'app/api/security/csp-report/route.ts',
     ]);
     const matches = filesContaining(/NextResponse\.json/)
       .filter((file) => file.startsWith('app/api/'))

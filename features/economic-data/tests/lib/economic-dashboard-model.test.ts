@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildReferenceProvenanceItems } from '@/shared/lib/data-reference';
+
 import {
   buildEconomicHealthItems,
   ECONOMIC_RANGE_OPTIONS,
@@ -19,6 +21,17 @@ const labels: EconomicStatusLabels = {
 };
 
 describe('economic dashboard model', () => {
+  it('reuses the shared reference provenance view model', () => {
+    const meta = {
+      data: [],
+      source: 'database' as const,
+      usedFallback: false,
+      syncStatus: 'success' as const,
+    };
+    expect(buildEconomicHealthItems({ meta, isLoading: false, language: 'en', labels })).toEqual(
+      buildReferenceProvenanceItems(meta, 'en', labels),
+    );
+  });
   it('keeps supported chart range options in display order', () => {
     expect(ECONOMIC_RANGE_OPTIONS.map((option) => option.value)).toEqual([
       '1Y',

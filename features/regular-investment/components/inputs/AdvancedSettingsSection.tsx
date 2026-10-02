@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,14 +10,15 @@ import { RegularInvestmentInputs } from '@/features/bond-core/types';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 import { AdvancedAssumptionsDisclosure } from '@/shared/components/forms/AdvancedAssumptionsDisclosure';
 import { FormInlineNotice } from '@/shared/components/forms/FormInlineNotice';
-import { MarketAssumptionsForm } from '@/shared/components/MarketAssumptionsForm';
+import { DeferredMarketAssumptionsForm } from '@/shared/components/market-assumptions/DeferredMarketAssumptionsForm';
+import { type FieldUpdater } from '@/shared/types/field-updater';
 
 type AdvancedSettingsSectionProps = {
   inputs: RegularInvestmentInputs;
   currentDef: BondDefinition;
   showCustomTax: boolean;
   onShowCustomTaxChange: (value: boolean) => void;
-  onUpdate: (key: keyof RegularInvestmentInputs | string, value: unknown) => void;
+  onUpdate: FieldUpdater<RegularInvestmentInputs>;
   t: (key: string) => string;
 };
 
@@ -29,22 +30,27 @@ export function AdvancedSettingsSection({
   onUpdate,
   t,
 }: AdvancedSettingsSectionProps) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
     <section>
       <AdvancedAssumptionsDisclosure
         title={t('common.advanced')}
         description={t('bonds.form.advanced_desc')}
+        onOpenChange={setIsOpen}
       >
-        <MarketAssumptionsForm
-          expectedInflation={inputs.expectedInflation}
-          expectedNbpRate={inputs.expectedNbpRate}
-          bondType={inputs.bondType}
-          customInflation={inputs.customInflation}
-          customNbpRate={inputs.customNbpRate}
-          inflationHorizonYears={Math.max(1, Math.ceil(inputs.investmentHorizonMonths / 12))}
-          onUpdate={onUpdate}
-          compact
-        />
+        {isOpen ? (
+          <DeferredMarketAssumptionsForm
+            expectedInflation={inputs.expectedInflation}
+            expectedNbpRate={inputs.expectedNbpRate}
+            bondType={inputs.bondType}
+            customInflation={inputs.customInflation}
+            customNbpRate={inputs.customNbpRate}
+            inflationHorizonYears={Math.max(1, Math.ceil(inputs.investmentHorizonMonths / 12))}
+            onUpdate={onUpdate}
+            compact
+          />
+        ) : null}
 
         {currentDef.rebuyDiscount > 0 ? (
           <div className="space-y-4 border-t border-border pt-6">
@@ -59,6 +65,7 @@ export function AdvancedSettingsSection({
               description={`${t('bonds.is_rebought_desc')} (-${currentDef.rebuyDiscount.toFixed(2)} PLN/szt)`}
               action={
                 <Switch
+                  aria-label={t('bonds.is_rebought')}
                   checked={inputs.isRebought}
                   onCheckedChange={(checked) => onUpdate('isRebought', checked)}
                 />
@@ -73,6 +80,7 @@ export function AdvancedSettingsSection({
             description={t('bonds.rollover_desc')}
             action={
               <Switch
+                aria-label={t('bonds.reinvest')}
                 checked={!!inputs.rollover}
                 onCheckedChange={(checked) => onUpdate('rollover', checked)}
               />
@@ -82,14 +90,20 @@ export function AdvancedSettingsSection({
           <div className="flex items-center justify-between border-t border-border pt-4">
             <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <Label className="text-sm font-semibold">{t('bonds.custom_tax_rate')}</Label>
+                <Label htmlFor="regular-custom-tax-toggle" className="text-sm font-semibold">
+                  {t('bonds.custom_tax_rate')}
+                </Label>
                 <InfoTooltip content={t('regular_form.tax_help')} />
               </div>
               <p className="text-base leading-6 text-muted-foreground">
                 {t('bonds.belka_tax_desc')}
               </p>
             </div>
-            <Switch checked={showCustomTax} onCheckedChange={onShowCustomTaxChange} />
+            <Switch
+              id="regular-custom-tax-toggle"
+              checked={showCustomTax}
+              onCheckedChange={onShowCustomTaxChange}
+            />
           </div>
 
           {showCustomTax ? (

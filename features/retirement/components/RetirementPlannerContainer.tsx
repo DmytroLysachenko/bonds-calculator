@@ -48,6 +48,7 @@ export const RetirementPlannerContainer: React.FC = () => {
     maximumFractionDigits: 0,
   });
   const { draftInputs: inputs, committedResult: results, setDraftInputs } = workflow;
+  const resultInputs = workflow.committedInputs ?? inputs;
   const hasTouchedMacroAssumptions = React.useRef(false);
   const formatCurrency = React.useCallback(
     (value: number) => currencyFormatter.format(value),
@@ -76,6 +77,7 @@ export const RetirementPlannerContainer: React.FC = () => {
         (draft) => ({
           ...draft,
           bondType: getSupportedRetirementBondType(draft.bondType),
+          projectionStartDate: new Date().toISOString().slice(0, 10),
         }),
       );
     } catch (error) {
@@ -130,10 +132,25 @@ export const RetirementPlannerContainer: React.FC = () => {
               chartData={chartData}
               scenarioCoverage={scenarioCoverage}
               language={language}
-              inputsHorizonYears={inputs.horizonYears}
+              inputsHorizonYears={resultInputs.horizonYears}
+              assumptions={[
+                t('retirement_page.model_assumptions.horizon', {
+                  years: resultInputs.horizonYears,
+                }),
+                t('retirement_page.model_assumptions.withdrawal', {
+                  amount: formatCurrency(resultInputs.monthlyWithdrawal),
+                }),
+                t('retirement_page.model_assumptions.family', { family: resultInputs.bondType }),
+                t('retirement_page.model_assumptions.rate', {
+                  rate: formatRetirementRate(results.result.modeledAnnualRate),
+                }),
+                t('retirement_page.model_assumptions.timing'),
+                t('retirement_page.model_assumptions.margin'),
+                t('retirement_page.model_assumptions.tax'),
+              ]}
               taxStrategyLabel={getRetirementTaxStrategyLabel(
                 taxStrategyLabels,
-                inputs.taxStrategy,
+                resultInputs.taxStrategy,
               )}
               formatCurrency={formatCurrency}
             />

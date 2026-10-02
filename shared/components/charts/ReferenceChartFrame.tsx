@@ -12,11 +12,14 @@ interface ReferenceChartFrameProps {
   sourceLabel: string;
   actions?: React.ReactNode;
   notice?: string;
+  noticeAction?: React.ReactNode;
   noticeTone?: 'default' | 'warning';
   fallbackNotice?: string;
   fallbackTone?: 'good' | 'warning';
   fallbackStatusLabel?: string;
   syncedStatusLabel?: string;
+  verificationHref?: string;
+  verificationLabel?: string;
   children: React.ReactNode;
 }
 
@@ -25,11 +28,14 @@ export function ReferenceChartFrame({
   sourceLabel,
   actions,
   notice,
+  noticeAction,
   noticeTone = 'default',
   fallbackNotice,
   fallbackTone = 'good',
   fallbackStatusLabel = 'Fallback',
   syncedStatusLabel = 'Synced',
+  verificationHref,
+  verificationLabel,
   children,
 }: ReferenceChartFrameProps) {
   const primaryMeta = metaItems.slice(0, 4);
@@ -82,7 +88,19 @@ export function ReferenceChartFrame({
                 )}
                 {fallbackTone === 'warning' ? fallbackStatusLabel : syncedStatusLabel}
               </div>
-              <p className="max-w-4xl text-sm leading-6 text-muted-foreground">{fallbackNotice}</p>
+              <p className="max-w-4xl text-base leading-6 text-muted-foreground">
+                {fallbackNotice}
+              </p>
+              {verificationHref && verificationLabel ? (
+                <a
+                  href={verificationHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ui-focus-ring text-base font-semibold text-foreground underline underline-offset-4"
+                >
+                  {verificationLabel}
+                </a>
+              ) : null}
             </div>
           </Notice>
         ) : null}
@@ -90,7 +108,10 @@ export function ReferenceChartFrame({
 
       {notice ? (
         <Notice tone={noticeTone === 'warning' ? 'warning' : 'info'} compact>
-          {notice}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{notice}</span>
+            {noticeAction}
+          </div>
         </Notice>
       ) : null}
 

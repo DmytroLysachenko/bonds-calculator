@@ -34,19 +34,6 @@ export async function createSharedSingleScenario(body: unknown, now = new Date()
   };
 }
 
-export async function getSharedSingleScenarioMetadata(shareId: string) {
-  const scenario = await findSharedSingleScenarioRecord(shareId);
-
-  if (!scenario) {
-    return null;
-  }
-
-  return {
-    title: scenario.title,
-    description: scenario.description,
-  };
-}
-
 export async function getSharedSingleScenarioPageData(shareId: string) {
   const scenario = await findSharedSingleScenarioRecord(shareId);
 

@@ -1,43 +1,39 @@
 import { describe, expect, it } from 'vitest';
 
-import { HISTORICAL_RETURNS } from '@/features/bond-core/constants/historical-data';
+import type { MonthlyReturn } from '@/features/bond-core/constants/historical-data';
 
-import { createFallbackMultiAssetHistory } from './multi-asset-history';
+import { fallbackAnnualInflationObservations } from './multi-asset-history';
 
-describe('multi asset history data helpers', () => {
-  it('creates a stable fallback envelope with default unavailable series flags', () => {
-    expect(createFallbackMultiAssetHistory()).toEqual({
-      data: HISTORICAL_RETURNS,
-      source: 'fallback',
-      usedFallback: true,
-      coverageStart: HISTORICAL_RETURNS[0]?.date ?? '2020-01',
-      coverageEnd: HISTORICAL_RETURNS[HISTORICAL_RETURNS.length - 1]?.date ?? '2024-06',
-      seriesAvailability: {
-        sp500: false,
-        gold: false,
-        inflation: false,
-        nbpRate: false,
-      },
-    });
+function months(count: number, inflation = 1): MonthlyReturn[] {
+  return Array.from({ length: count }, (_, index) => ({
+    date: `${2024 + Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`,
+    sp500: 0,
+    gold: 0,
+    savings: 0,
+    inflation,
+    inflationKind: 'month_on_month',
+    nbpRate: 5,
+  }));
+}
+
+describe('illustrative annual CPI fallback', () => {
+  it('compounds twelve monthly observations into an annual percentage', () => {
+    expect(fallbackAnnualInflationObservations(months(12))).toEqual([
+      expect.closeTo((1.01 ** 12 - 1) * 100, 8),
+    ]);
+    expect(fallbackAnnualInflationObservations(months(13))).toHaveLength(2);
   });
 
-  it('preserves known partial series availability in fallback mode', () => {
-    expect(
-      createFallbackMultiAssetHistory({
-        sp500: true,
-        gold: false,
-        inflation: true,
-        nbpRate: false,
-      }),
-    ).toMatchObject({
-      source: 'fallback',
-      usedFallback: true,
-      seriesAvailability: {
-        sp500: true,
-        gold: false,
-        inflation: true,
-        nbpRate: false,
-      },
-    });
+  it('does not mix annual CPI, gaps, or incomplete years into monthly windows', () => {
+    expect(fallbackAnnualInflationObservations(months(11))).toEqual([]);
+    const annual = months(12);
+    annual[4].inflationKind = 'year_over_year';
+    expect(fallbackAnnualInflationObservations(annual)).toEqual([]);
+    const untyped = months(12);
+    delete untyped[4].inflationKind;
+    expect(fallbackAnnualInflationObservations(untyped)).toEqual([]);
+    const gap = months(12);
+    gap[4].date = '2024-08';
+    expect(fallbackAnnualInflationObservations(gap)).toEqual([]);
   });
 });

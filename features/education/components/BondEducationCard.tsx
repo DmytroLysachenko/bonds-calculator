@@ -4,11 +4,14 @@ import { ArrowRight, Clock, Coins, ShieldCheck, TrendingUp } from 'lucide-react'
 import Link from 'next/link';
 
 import type { BondDefinition } from '@/features/bond-core/constants/bond-definitions';
+import type { CalculationDataFreshness } from '@/features/bond-core/types/scenarios';
 import { useAppI18n } from '@/i18n/client';
+import { OfferProvenance } from '@/shared/components/data/OfferProvenance';
 import { formatBondDuration } from '@/shared/lib/format-bond-duration';
 
 interface BondEducationCardProps {
   bond: BondDefinition;
+  dataFreshness?: CalculationDataFreshness;
 }
 
 function getRateBasis(bond: BondDefinition, t: ReturnType<typeof useAppI18n>['t']) {
@@ -17,7 +20,7 @@ function getRateBasis(bond: BondDefinition, t: ReturnType<typeof useAppI18n>['t'
   return t('education.comparison.fixed_rate');
 }
 
-export function BondEducationCard({ bond }: BondEducationCardProps) {
+export function BondEducationCard({ bond, dataFreshness }: BondEducationCardProps) {
   const { t, locale } = useAppI18n();
   const hasMargin = bond.margin > 0;
 
@@ -46,9 +49,17 @@ export function BondEducationCard({ bond }: BondEducationCardProps) {
         </div>
       </div>
 
-      <p className="mt-5 text-sm leading-6 text-foreground">{bond.description[locale]}</p>
+      <p className="mt-5 text-base leading-6 text-foreground">{bond.description[locale]}</p>
 
-      <dl className="mt-5 divide-y divide-border border-y border-border text-xs">
+      <div className="mt-5">
+        <OfferProvenance
+          dataFreshness={dataFreshness}
+          rateProvenance={bond.rateProvenance}
+          compact
+          genericFamily
+        />
+      </div>
+      <dl className="mt-4 divide-y divide-border border-y border-border text-base leading-6">
         <div className="flex items-center justify-between gap-4 py-3">
           <dt className="flex items-center gap-2 text-muted-foreground">
             <Clock className="size-3.5 text-foreground" aria-hidden="true" />
@@ -79,7 +90,7 @@ export function BondEducationCard({ bond }: BondEducationCardProps) {
         {hasMargin ? (
           <div className="flex items-center justify-between gap-4 py-3">
             <dt className="flex items-center gap-2 text-muted-foreground">
-              <TrendingUp className="size-3.5 text-success" aria-hidden="true" />
+              <TrendingUp className="size-3.5 text-foreground" aria-hidden="true" />
               {t('bonds.margin')}
             </dt>
             <dd className="font-mono font-semibold tabular-nums text-foreground">{bond.margin}%</dd>
@@ -87,7 +98,7 @@ export function BondEducationCard({ bond }: BondEducationCardProps) {
         ) : null}
       </dl>
 
-      <div className="mt-5 border-l-2 border-warning/60 bg-warning/5 px-3 py-2 text-xs leading-5 text-muted-foreground">
+      <div className="mt-5 border-l-2 border-warning/60 bg-warning/5 px-3 py-2 text-base leading-6 text-muted-foreground">
         <span className="font-semibold text-foreground">{t('bonds.early_exit_title')}: </span>
         {t('bonds.early_exit_desc', { fee: bond.earlyWithdrawalFee })}
       </div>

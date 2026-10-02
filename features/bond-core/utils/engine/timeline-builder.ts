@@ -30,12 +30,16 @@ export function generateCyclePeriods(
 
   const periods: TimelinePeriod[] = [];
   let currentPeriodStart = currentPurchaseDate;
+  let periodIndex = 0;
 
   // Safety counter to prevent infinite loops
   let safety = 0;
   while (isBefore(currentPeriodStart, actualCycleEndDate) && safety < 1000) {
     safety++;
-    const nextStepDate = stepFn(currentPeriodStart, 1);
+    periodIndex++;
+    // Always derive anniversaries from the cycle purchase anchor. Advancing
+    // from a clipped February date makes a 31st-of-month bond drift forever.
+    const nextStepDate = stepFn(currentPurchaseDate, periodIndex);
 
     const periodEndDate = min([nextStepDate, actualCycleEndDate]);
     const isMaturity = periodEndDate.getTime() === cycleMaturityDate.getTime();

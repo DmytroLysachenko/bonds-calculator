@@ -50,7 +50,7 @@ describe('layer boundary contract', () => {
     const clients = [
       'shared/hooks/useWorkspacePortfolios.ts',
       'shared/hooks/usePortfolioAccess.ts',
-      'features/single-calculator/components/BondCalculatorContainer.tsx',
+      'features/single-calculator/lib/single-calculator-actions.ts',
       'features/notebook/hooks/usePortfolioDetailsWorkspace.ts',
     ];
 
@@ -61,14 +61,41 @@ describe('layer boundary contract', () => {
       expect(source, client).not.toMatch(/fetch\([^)]*\/api\/portfolio/);
     }
 
+    const notebookController = read('features/notebook/hooks/useNotebookWorkspaceController.ts');
     const notebookContainer = read('features/notebook/components/NotebookContainer.tsx');
+    const workspaceResource = read('shared/hooks/useWorkspacePortfolios.ts');
 
-    expect(notebookContainer).toContain("from '@/shared/hooks/usePortfolioAccess'");
-    expect(notebookContainer).toContain("from '@/shared/hooks/useWorkspacePortfolios'");
+    expect(notebookController).toContain("from '@/shared/hooks/useWorkspacePortfolios'");
+    expect(workspaceResource).toContain('canManageWorkspace: access.canManageWorkspace');
+    expect(notebookController).toContain('canManageWorkspace: workspace.canManageWorkspace');
+    expect(notebookContainer).toContain(
+      "from '@/features/notebook/hooks/useNotebookWorkspaceController'",
+    );
+    expect(notebookContainer).toContain("from './portfolio-details/PortfolioDetails'");
+    expect(notebookContainer).not.toContain("from '@/shared/hooks/usePortfolioAccess'");
     expect(notebookContainer).not.toMatch(/fetch\([^)]*\/api\/portfolio/);
   });
 
-  it('keeps portfolio route controllers on command and query facades', () => {
+  it('keeps the calculator timeline renderer behind its subfeature entry', () => {
+    const details = read('features/single-calculator/components/BondCalculatorDetailsContent.tsx');
+    const timeline = read('features/single-calculator/components/timeline/BondTimeline.tsx');
+
+    expect(details).toContain("import('./timeline/BondTimeline')");
+    expect(timeline).toContain("from '@/features/single-calculator/types/timeline'");
+  });
+
+  it('prevents new browser and feature server dependencies', () => {
+    const forbiddenImports = /from ['"]@\/(?:db|lib\/server)(?:\/|['"])/;
+    const matches = listMatchingFiles(forbiddenImports)
+      .filter((file) => file.startsWith('features/') || file.startsWith('shared/'))
+      .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'));
+
+    // Existing server composition debt is tracked by audit roadmap R09.
+    // The type-only schema barrel is the documented current DTO exception.
+    expect(matches.sort()).toEqual(['shared/types/portfolio.ts']);
+  });
+
+  it('keeps portfolio route controllers on the application interface', () => {
     const routeFiles = [
       'app/api/portfolio/route.ts',
       'app/api/portfolio/lots/route.ts',
@@ -85,9 +112,7 @@ describe('layer boundary contract', () => {
       const source = read(routeFile);
 
       expect(source, routeFile).not.toMatch(/from ['"]@\/lib\/server\/portfolio\/service['"]/);
-      expect(source, routeFile).toMatch(
-        /from ['"]@\/lib\/server\/portfolio\/(?:commands|queries)['"]/,
-      );
+      expect(source, routeFile).toMatch(/from ['"]@\/lib\/server\/portfolio\/application['"]/);
     }
   });
 

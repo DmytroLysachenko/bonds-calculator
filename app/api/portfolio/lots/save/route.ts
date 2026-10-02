@@ -6,26 +6,21 @@ import { readJsonBody } from '@/lib/server/http/read-json-body';
 import { errorJson, okJson } from '@/lib/server/http/responses';
 import { createServerLogger } from '@/lib/server/logging';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
-import {
-  portfolioDomainErrorResponse,
-  withAuthenticatedPortfolioOwner,
-} from '@/lib/server/portfolio/http';
+import { portfolioDomainErrorResponse, withPortfolioCommand } from '@/lib/server/portfolio/http';
 
 const logger = createServerLogger('PortfolioLotSaveApi');
 
 export const POST = apiHandler(async (req: NextRequest) => {
-  return withAuthenticatedPortfolioOwner(req, async (owner) => {
+  return withPortfolioCommand(req, async (owner) => {
     try {
-      const { portfolioId, bondType, purchaseDate, amount, isRebought, notes } = await readJsonBody(
-        req,
-        PortfolioLotTransactionSchema,
-      );
+      const { portfolioId, bondType, purchaseDate, bondQuantity, isRebought, notes } =
+        await readJsonBody(req, PortfolioLotTransactionSchema);
 
       const result = await portfolioApplication.createLotWithTransaction(owner.ownerId, {
         portfolioId,
         bondType,
         purchaseDate,
-        amount,
+        bondQuantity,
         isRebought,
         notes,
       });

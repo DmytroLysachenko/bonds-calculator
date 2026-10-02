@@ -1,6 +1,6 @@
 import { cron } from 'inngest';
 
-import { calculationService } from '@/features/bond-core/application-service';
+import { calculationService } from '@/lib/server/calculation/composition';
 
 import { invalidateCached } from './data/market-data-cache';
 import { runAdminSync, type SyncMode } from './server/admin/sync';

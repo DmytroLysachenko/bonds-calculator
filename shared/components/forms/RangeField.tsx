@@ -38,6 +38,7 @@ export function RangeField({
   return (
     <FormField label={label} tooltip={tooltip} description={description} className={className}>
       <CommittedSliderInput
+        ariaLabel={typeof label === 'string' ? label : undefined}
         value={value}
         min={min}
         max={max}

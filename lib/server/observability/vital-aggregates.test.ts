@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  VITAL_RETENTION_DAYS,
   createVitalRetentionCleanup,
   shouldSampleVital,
   toVitalAggregate,
+  VITAL_RETENTION_DAYS,
   vitalRetentionCutoff,
 } from './vital-aggregates';
 

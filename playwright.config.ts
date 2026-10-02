@@ -41,8 +41,16 @@ export default defineConfig({
       use: { ...devices['Desktop Firefox'], bypassCSP: false },
     },
     {
+      name: 'chromium-csp',
+      use: { ...devices['Desktop Chrome'], bypassCSP: false },
+    },
+    {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'webkit-csp',
+      use: { ...devices['Desktop Safari'], bypassCSP: false },
     },
   ],
 });

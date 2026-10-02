@@ -112,6 +112,47 @@ export const RegularInvestmentResultsSummary: React.FC<RegularInvestmentResultsS
         className="ui-result-panel"
       />
 
+      {results.mixedAllocation ? (
+        <section className="ui-result-panel" aria-labelledby="allocation-results-title">
+          <h2 id="allocation-results-title" className="ui-heading-sm">
+            {t('regular_investment_page.allocation_title')}
+          </h2>
+          <p className="ui-meta mt-1 text-muted-foreground">
+            {t('regular_investment_page.allocation_result_note')}
+          </p>
+          <table className="mt-3 w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left">{t('bonds.bond.type')}</th>
+                <th className="text-right">{t('regular_investment_page.target_weight')}</th>
+                <th className="text-right">{t('regular_investment_page.actual_weight')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.mixedAllocation.actualWeights.map((row) => (
+                <tr key={row.bondType}>
+                  <td>{row.bondType}</td>
+                  <td className="text-right">{row.targetPercent.toFixed(1)}%</td>
+                  <td className="text-right">{row.actualPercent.toFixed(1)}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="ui-meta mt-3">
+            {t('regular_investment_page.allocation_value')}:{' '}
+            {formatCurrency(results.mixedAllocation.totalValue)} ·{' '}
+            {t('regular_investment_page.residual_cash')}:{' '}
+            {formatCurrency(results.mixedAllocation.residualCash)}
+          </p>
+          {results.mixedAllocation.cashBenchmark ? (
+            <p className="ui-meta mt-1">
+              {t('regular_investment_page.cash_benchmark_value')}:{' '}
+              {formatCurrency(results.mixedAllocation.cashBenchmark.finalValue)}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="ui-result-panel">
         <FinancialInsightStrip
           title={t('financial_insights.title')}

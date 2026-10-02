@@ -12,12 +12,10 @@ import {
   toggleScenarioCustomHorizon,
 } from './comparison-scenario-state';
 
-export type ComparisonUpdateValue = string | number | boolean | undefined;
-
-export function applySharedComparisonConfigUpdate(
+export function applySharedComparisonConfigUpdate<K extends keyof SharedComparisonConfig>(
   previous: SharedComparisonConfig,
-  key: keyof SharedComparisonConfig,
-  value: ComparisonUpdateValue,
+  key: K,
+  value: SharedComparisonConfig[K],
 ) {
   return updateSharedComparisonConfig(previous, key, value);
 }
@@ -26,10 +24,10 @@ export function isSharedComparisonMacroUpdate(key: keyof SharedComparisonConfig)
   return isComparisonMacroConfigKey(key);
 }
 
-export function applyScenarioOverrideUpdate(
+export function applyScenarioOverrideUpdate<K extends keyof ScenarioOverride>(
   previous: ScenarioOverride,
-  key: keyof ScenarioOverride,
-  value: ComparisonUpdateValue,
+  key: K,
+  value: ScenarioOverride[K],
 ) {
   return { ...previous, [key]: value };
 }

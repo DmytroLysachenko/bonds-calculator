@@ -10,47 +10,21 @@ import {
 import { HistoricalAverages } from '@/features/bond-core/types/scenarios';
 
 import {
+  CPI_MOM_SLUGS,
   CPI_SLUGS,
   getCached,
   GOLD_SLUGS,
   NBP_RATE_SLUGS,
   setCache,
   SP500_SLUGS,
+  USD_PLN_SLUGS,
 } from './market-data-cache';
-
-interface MultiAssetSeriesAvailability {
-  sp500: boolean;
-  gold: boolean;
-  inflation: boolean;
-  nbpRate: boolean;
-}
-
-interface MultiAssetHistoryEnvelope {
-  data: MonthlyReturn[];
-  source: 'database' | 'fallback';
-  usedFallback: boolean;
-  coverageStart: string;
-  coverageEnd: string;
-  lastSyncedAt?: string;
-  seriesAvailability?: MultiAssetSeriesAvailability;
-}
-
-const buildMonthlyPercentChangeMap = (series: { date: string; value: number }[]) => {
-  const result = new Map<string, number>();
-
-  for (let i = 0; i < series.length; i += 1) {
-    const current = series[i];
-    const previous = series[i - 1];
-    if (!previous || previous.value === 0) {
-      result.set(current.date, 0);
-      continue;
-    }
-
-    result.set(current.date, ((current.value - previous.value) / previous.value) * 100);
-  }
-
-  return result;
-};
+import {
+  buildMultiAssetHistory,
+  getMultiAssetSeriesAvailability,
+  type MultiAssetHistoryEnvelope,
+  type MultiAssetSeriesAvailability,
+} from './multi-asset-history-projection';
 
 const EMPTY_MULTI_ASSET_AVAILABILITY: MultiAssetSeriesAvailability = {
   sp500: false,
@@ -74,6 +48,9 @@ export function createFallbackMultiAssetHistory(
     source: 'fallback',
     usedFallback: true,
     ...getFallbackCoverageBounds(),
+    currencyBasis: 'mixed-USD-PLN',
+    observationBasis: 'illustrative',
+    coverageGaps: [],
     seriesAvailability,
   };
 }
@@ -87,7 +64,14 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
   const toDate = new Date().toISOString().slice(0, 10);
 
   try {
-    const allAliases = [...SP500_SLUGS, ...GOLD_SLUGS, ...CPI_SLUGS, ...NBP_RATE_SLUGS];
+    const allAliases = [
+      ...SP500_SLUGS,
+      ...GOLD_SLUGS,
+      ...CPI_SLUGS,
+      ...CPI_MOM_SLUGS,
+      ...NBP_RATE_SLUGS,
+      ...USD_PLN_SLUGS,
+    ];
     const series = await db.query.dataSeries.findMany({
       where: inArray(dataSeries.slug, allAliases),
     });
@@ -99,8 +83,9 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
     const seriesIds = series.map((s) => s.id);
     const sp500Id = series.find((s) => SP500_SLUGS.includes(s.slug))?.id;
     const goldId = series.find((s) => GOLD_SLUGS.includes(s.slug))?.id;
-    const cpiId = series.find((s) => CPI_SLUGS.includes(s.slug))?.id;
+    const cpiId = series.find((s) => CPI_MOM_SLUGS.includes(s.slug))?.id;
     const nbpId = series.find((s) => NBP_RATE_SLUGS.includes(s.slug))?.id;
+    const fxId = series.find((s) => USD_PLN_SLUGS.includes(s.slug))?.id;
 
     const allPoints = await db.query.dataPoints.findMany({
       where: and(
@@ -125,71 +110,22 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
     const inflationPoints = cpiId ? pointsBySeries[cpiId] || [] : [];
     const nbpPoints = nbpId ? pointsBySeries[nbpId] || [] : [];
 
-    const seriesAvailability = {
-      sp500: sp500Points.length >= 2,
-      gold: goldPoints.length >= 2,
-      inflation: inflationPoints.length > 0,
-      nbpRate: nbpPoints.length > 0,
+    const source = {
+      sp500: sp500Points,
+      gold: goldPoints,
+      inflation: inflationPoints,
+      nbpRate: nbpPoints,
+      usdPln: fxId ? pointsBySeries[fxId] || [] : [],
+      inflationUnit: 'month_on_month_percent' as const,
     };
+    const seriesAvailability = getMultiAssetSeriesAvailability(source);
+    const result = buildMultiAssetHistory(source);
 
-    if (sp500Points.length < 2 || goldPoints.length < 2 || inflationPoints.length === 0) {
+    if (!result) {
       const fallbackResult = createFallbackMultiAssetHistory(seriesAvailability);
       setCache(cacheKey, fallbackResult);
       return fallbackResult;
     }
-
-    const sp500Returns = buildMonthlyPercentChangeMap(sp500Points);
-    const goldReturns = buildMonthlyPercentChangeMap(goldPoints);
-    const inflationMap = new Map(inflationPoints.map((point) => [point.date, point.value]));
-    const nbpMap = new Map(nbpPoints.map((point) => [point.date, point.value]));
-
-    const dates = Array.from(
-      new Set([
-        ...sp500Returns.keys(),
-        ...goldReturns.keys(),
-        ...inflationMap.keys(),
-        ...nbpMap.keys(),
-      ]),
-    ).sort();
-
-    const data = dates
-      .filter((date) => inflationMap.has(date))
-      .map((date) => {
-        const nbpRate = nbpMap.get(date) ?? 0;
-        const annualSavingsRate = Math.max(0, nbpRate + 1);
-        const monthlySavingsRate = (Math.pow(1 + annualSavingsRate / 100, 1 / 12) - 1) * 100 * 0.81;
-
-        return {
-          date,
-          sp500: sp500Returns.get(date) ?? 0,
-          gold: goldReturns.get(date) ?? 0,
-          savings: monthlySavingsRate,
-          inflation: inflationMap.get(date) ?? 0,
-          nbpRate,
-        };
-      });
-
-    if (data.length === 0) {
-      const fallbackResult = createFallbackMultiAssetHistory(seriesAvailability);
-      setCache(cacheKey, fallbackResult);
-      return fallbackResult;
-    }
-
-    const lastSyncedAt = [sp500Points, goldPoints, inflationPoints, nbpPoints]
-      .flat()
-      .map((point) => point.date)
-      .sort()
-      .at(-1);
-
-    const result: MultiAssetHistoryEnvelope = {
-      data,
-      source: 'database',
-      usedFallback: nbpPoints.length === 0,
-      coverageStart: data[0].date,
-      coverageEnd: data[data.length - 1].date,
-      lastSyncedAt,
-      seriesAvailability,
-    };
     setCache(cacheKey, result);
     return result;
   } catch {
@@ -197,34 +133,77 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
   }
 });
 
+/** The illustrative fallback stores month-on-month changes; macro assumptions need annual CPI. */
+export function fallbackAnnualInflationObservations(rows: MonthlyReturn[]): number[] {
+  return rows.flatMap((_, index) => {
+    if (index < 11) return [];
+    const year = rows.slice(index - 11, index + 1);
+    if (
+      year.some(
+        (row, monthIndex) =>
+          row.inflationKind !== 'month_on_month' ||
+          !Number.isFinite(row.inflation) ||
+          row.inflation <= -100 ||
+          (monthIndex > 0 &&
+            Number(year[monthIndex - 1].date.slice(0, 4)) * 12 +
+              Number(year[monthIndex - 1].date.slice(5, 7)) +
+              1 !==
+              Number(row.date.slice(0, 4)) * 12 + Number(row.date.slice(5, 7))),
+      )
+    )
+      return [];
+    return [(year.reduce((factor, row) => factor * (1 + row.inflation / 100), 1) - 1) * 100];
+  });
+}
+
 export const getHistoricalAverages = cache(async (): Promise<HistoricalAverages> => {
   const cacheKey = 'historical-averages';
   const cached = getCached<HistoricalAverages>(cacheKey);
   if (cached) return cached;
 
-  const { data } = await getMultiAssetHistory();
+  // Core bond assumptions depend only on macro observations. The experimental
+  // equity/gold replay may have gaps or a different currency basis.
+  const macro: { inflation: number[]; nbpRate: number[] } = { inflation: [], nbpRate: [] };
+  try {
+    const series = await db.query.dataSeries.findMany({
+      where: inArray(dataSeries.slug, [...CPI_SLUGS, ...NBP_RATE_SLUGS]),
+    });
+    const cpiId = series.find((item) => CPI_SLUGS.includes(item.slug))?.id;
+    const nbpId = series.find((item) => NBP_RATE_SLUGS.includes(item.slug))?.id;
+    const ids = [cpiId, nbpId].filter((id): id is string => Boolean(id));
+    if (ids.length) {
+      const points = await db.query.dataPoints.findMany({
+        where: inArray(dataPoints.seriesId, ids),
+        orderBy: [asc(dataPoints.date)],
+      });
+      for (const point of points) {
+        const value = Number(point.value);
+        if (!Number.isFinite(value)) continue;
+        if (point.seriesId === cpiId) macro.inflation.push(value);
+        if (point.seriesId === nbpId) macro.nbpRate.push(value);
+      }
+    }
+  } catch {
+    // Offline macro defaults remain explicit and independent of asset rows.
+  }
 
-  const calculateAverage = (
-    items: MonthlyReturn[],
-    key: 'inflation' | 'nbpRate',
-    months: number,
-  ) => {
-    const recent = items.slice(-months);
-    if (recent.length === 0) return 0;
-    const sum = recent.reduce((acc, curr) => acc + (curr[key] || 0), 0);
-    return sum / recent.length;
+  const calculateAverage = (values: number[], fallback: number[], months: number) => {
+    const recent = (values.length ? values : fallback).slice(-months);
+    return recent.reduce((sum, value) => sum + value, 0) / recent.length;
   };
+  const fallbackInflation = fallbackAnnualInflationObservations(HISTORICAL_RETURNS);
+  const fallbackNbp = HISTORICAL_RETURNS.map((row) => row.nbpRate);
 
   const result: HistoricalAverages = {
     inflation: {
-      '1y': calculateAverage(data, 'inflation', 12),
-      '5y': calculateAverage(data, 'inflation', 60),
-      '10y': calculateAverage(data, 'inflation', 120),
+      '1y': calculateAverage(macro.inflation, fallbackInflation, 12),
+      '5y': calculateAverage(macro.inflation, fallbackInflation, 60),
+      '10y': calculateAverage(macro.inflation, fallbackInflation, 120),
     },
     nbpRate: {
-      '1y': calculateAverage(data, 'nbpRate', 12),
-      '5y': calculateAverage(data, 'nbpRate', 60),
-      '10y': calculateAverage(data, 'nbpRate', 120),
+      '1y': calculateAverage(macro.nbpRate, fallbackNbp, 12),
+      '5y': calculateAverage(macro.nbpRate, fallbackNbp, 60),
+      '10y': calculateAverage(macro.nbpRate, fallbackNbp, 120),
     },
   };
 

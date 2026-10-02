@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { calculationService } from '../application-service';
+import { calculationService } from '@/lib/server/calculation/composition';
+
 import {
   BondType,
   CalculationResult,
@@ -12,6 +13,7 @@ import { ScenarioKind } from '../types/scenarios';
 
 // Mock data-access to simulate DB interaction
 vi.mock('@/lib/data/market-data', () => ({
+  getTaxRulesForYear: vi.fn().mockResolvedValue(null),
   getHistoricalDataMap: vi.fn().mockResolvedValue({
     '2023-01': { inflation: 17.2, nbpRate: 6.75 },
     '2023-02': { inflation: 18.4, nbpRate: 6.75 },

@@ -9,6 +9,15 @@ const MAX_LOG_COLLECTION_LENGTH = 20;
 const SENSITIVE_KEY = /(?:authorization|cookie|secret|token|password|api[-_]?key|credential)/i;
 
 function truncate(value: string) {
+  value = value
+    .replace(/(?:postgres(?:ql)?|https?):\/\/[^\s]+/gi, '[url]')
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[email]')
+    .replace(/(?:bearer\s+)[^\s,;]+/gi, '[credential]')
+    .replace(
+      /(?:password|token|secret|cookie|authorization|api[_-]?key)\s*[:=]\s*[^\s,;]+/gi,
+      '[credential]',
+    )
+    .replace(/\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/gi, '[id]');
   return value.length > MAX_LOG_STRING_LENGTH
     ? `${value.slice(0, MAX_LOG_STRING_LENGTH)}…[truncated]`
     : value;
@@ -44,29 +53,29 @@ class ConsoleServerLogger implements ServerLogger {
 
   info(message: string, details?: unknown) {
     if (details === undefined) {
-      console.info(`[${this.scope}] ${message}`);
+      console.info(`[${this.scope}] ${truncate(message)}`);
       return;
     }
 
-    console.info(`[${this.scope}] ${message}`, sanitizeDetails(details));
+    console.info(`[${this.scope}] ${truncate(message)}`, sanitizeDetails(details));
   }
 
   warn(message: string, details?: unknown) {
     if (details === undefined) {
-      console.warn(`[${this.scope}] ${message}`);
+      console.warn(`[${this.scope}] ${truncate(message)}`);
       return;
     }
 
-    console.warn(`[${this.scope}] ${message}`, sanitizeDetails(details));
+    console.warn(`[${this.scope}] ${truncate(message)}`, sanitizeDetails(details));
   }
 
   error(message: string, details?: unknown) {
     if (details === undefined) {
-      console.error(`[${this.scope}] ${message}`);
+      console.error(`[${this.scope}] ${truncate(message)}`);
       return;
     }
 
-    console.error(`[${this.scope}] ${message}`, sanitizeDetails(details));
+    console.error(`[${this.scope}] ${truncate(message)}`, sanitizeDetails(details));
   }
 }
 

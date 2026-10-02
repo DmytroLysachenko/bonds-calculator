@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { BondInputs, SingleBondCalculationEnvelope } from '@/features/bond-core/types';
 import { useAppI18n } from '@/i18n/client';
 import { Notice } from '@/shared/components/feedback/Notice';
-import { ScenarioReadyPanel } from '@/shared/components/feedback/ScenarioReadyPanel';
 import { CalculationMetaPanel } from '@/shared/components/results/CalculationMetaPanel';
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
 
@@ -17,11 +16,12 @@ interface ComparisonFairnessPanelProps {
   durationMismatchTitle: string;
   durationMismatchText: string | null;
   hasResults: boolean;
+  isDirty: boolean;
   isCalculating: boolean;
   onCalculate: () => void;
 }
 
-interface ComparisonSetupStatePanelProps {
+interface ComparisonPendingResultsPanelProps {
   hasResults: boolean;
   isCalculating: boolean;
 }
@@ -41,33 +41,24 @@ export function ComparisonFairnessPanel({
   durationMismatchTitle,
   durationMismatchText,
   hasResults,
+  isDirty,
   isCalculating,
   onCalculate,
 }: ComparisonFairnessPanelProps) {
   const { t } = useAppI18n();
 
   return (
-    <section className="ui-plan-region ui-control-stack px-5 py-5 md:px-6 md:py-6">
-      <div className="ui-section-header gap-4">
-        <div className="ui-section-intro">
-          <h2 className="ui-card-title">{t('comparison.fairness.title')}</h2>
-          <p className="ui-body text-muted-foreground">
-            {t('comparison.auto_rollover_fairness_desc')}
-          </p>
-        </div>
-        <div className="ui-status-note shrink-0 text-muted-foreground">
-          {t('comparison.fairness.mode_label')}: {t('comparison.auto_rollover_mode_label')}
-        </div>
-      </div>
+    <section className="ui-plan-region ui-control-stack px-5 py-4 md:px-6">
+      <p className="text-sm text-muted-foreground">{t('comparison.run_cue')}</p>
       {durationMismatchText ? (
         <Notice tone="info" title={durationMismatchTitle}>
           {durationMismatchText}
         </Notice>
       ) : null}
-      {!hasResults ? (
+      {!hasResults || isDirty ? (
         <Button
           type="button"
-          className="h-12 w-full gap-2 text-sm font-semibold md:w-auto"
+          className="hidden h-12 w-full gap-2 text-sm font-semibold sm:inline-flex sm:w-auto"
           onClick={onCalculate}
           disabled={isCalculating}
         >
@@ -76,49 +67,21 @@ export function ComparisonFairnessPanel({
           ) : (
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
           )}
-          {t('common.calculate')}
+          {t(hasResults ? 'common.recalculate' : 'common.calculate')}
         </Button>
       ) : null}
     </section>
   );
 }
 
-export function ComparisonSetupStatePanel({
+export function ComparisonPendingResultsPanel({
   hasResults,
   isCalculating,
-}: ComparisonSetupStatePanelProps) {
-  const { t } = useAppI18n();
-
+}: ComparisonPendingResultsPanelProps) {
   return (
     <>
-      {!hasResults && !isCalculating ? (
-        <ScenarioReadyPanel
-          badge={t('comparison.ready_to_compare')}
-          title={t('comparison.ready_title')}
-          description={t('comparison.ready_desc')}
-          steps={[
-            {
-              id: 'shared-base',
-              title: t('comparison.ready_shared_base'),
-              description: t('comparison.ready_shared_base_desc'),
-            },
-            {
-              id: 'scenario-overrides',
-              title: t('comparison.ready_overrides'),
-              description: t('comparison.ready_overrides_desc'),
-            },
-            {
-              id: 'committed-result',
-              title: t('comparison.ready_committed'),
-              description: t('comparison.ready_committed_desc'),
-            },
-          ]}
-          footerText={t('comparison.ready_footer')}
-        />
-      ) : null}
-
       {isCalculating && !hasResults ? (
-        <div className="ui-control-stack" role="status" aria-live="polite">
+        <div className="ui-control-stack" aria-hidden="true">
           <div className="ui-surface-flush space-y-4 p-5 md:p-6">
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-8 w-2/3" />
@@ -184,6 +147,10 @@ export function ComparisonAssumptionsMetaPanel({
               calculationNotes={entry.envelope?.calculationNotes}
               dataQualityFlags={entry.envelope?.dataQualityFlags}
               dataFreshness={entry.envelope?.dataFreshness}
+              calculationVersion={entry.envelope?.calculationVersion}
+              taxRulesRevision={entry.envelope?.taxRulesRevision}
+              diagnostics={entry.envelope?.diagnostics}
+              offerTerms={entry.envelope?.offerTerms}
               compact
             />
           </section>

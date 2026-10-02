@@ -39,6 +39,16 @@ export function buildRegularInvestmentPrimaryStats({
       value: formatCurrency(results.finalRealValue),
       helper: t('regular_summary.real_value_helper'),
     },
+    {
+      label: t('regular_summary.cash_balance'),
+      value: formatCurrency(results.cashBalance),
+      helper: t('regular_summary.cash_balance_helper'),
+    },
+    {
+      label: t('regular_summary.active_holdings'),
+      value: formatCurrency(results.activeHoldingsValue),
+      helper: t('regular_summary.active_holdings_helper'),
+    },
   ];
 }
 

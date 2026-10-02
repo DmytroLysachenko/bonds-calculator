@@ -1,4 +1,4 @@
-import { describe, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   expectContains,
@@ -27,16 +27,35 @@ const providerConsumers = [
   'features/regular-investment/components/RegularInvestmentInputsForm.tsx',
   'features/comparison-engine/components/ScenarioOverrideCard.tsx',
   'features/education/components/EducationClient.tsx',
-  'features/notebook/components/PortfolioDetails.tsx',
+  'features/notebook/components/portfolio-details/PortfolioDetails.tsx',
 ] as const;
 
 describe('provider boundary contract', () => {
+  it('keeps client provider composition behind one root-layout boundary', () => {
+    const layout = readSource('app/layout.tsx');
+    const providers = readSource('shared/components/providers/ClientAppProviders.tsx');
+
+    expectContains(layout, "from '@/shared/components/providers/ClientAppProviders'");
+    expectContains(layout, '<ClientAppProviders');
+    expectNotContains(layout, 'NextIntlClientProvider');
+    expectContains(providers, '<NextIntlClientProvider');
+    expectContains(providers, 'timeZone={appTimeZone}');
+    expectContains(providers, '<AppLocaleProvider>');
+    expectContains(providers, '<ThemeProvider>');
+    expectContains(providers, '<ErrorBoundary>');
+  });
+
   it('loads bond definitions only on routes with interactive offer consumers', () => {
     const layout = readSource('app/layout.tsx');
 
     expectNotContains(layout, 'BondDefinitionsProvider');
     for (const routeFile of routeFiles) {
-      expectContains(readSource(routeFile), '<BondDefinitionsBoundary>');
+      const source = readSource(routeFile);
+      const isDirectBoundary = /<BondDefinitionsBoundary(?:\s|>)/.test(source);
+      const isCalculatorRouteBoundary = source.includes('<CalculatorRouteBoundary');
+      if (!isDirectBoundary && !isCalculatorRouteBoundary) {
+        throw new Error(`${routeFile} must scope bond definitions to its interactive route.`);
+      }
     }
   });
 
@@ -55,17 +74,15 @@ describe('provider boundary contract', () => {
 
     expectContains(provider, 'useBondDefinitions as useBondDefinitionsHook');
     expectContains(provider, 'BondDefinitionsProvider');
-    expectContains(boundary, '<BondDefinitionsProvider>');
-    expectContains(resourceHook, 'new ClientResource');
+    expect(boundary).toMatch(/<BondDefinitionsProvider(?:\s|>)/);
+    expectContains(resourceHook, 'useSWR');
     expectContains(resourceHook, "'/api/bond-definitions'");
   });
 
   it('keeps route files free of definition resource loading details', () => {
     for (const routeFile of routeFiles) {
       const source = readSource(routeFile);
-      expectNotContains(source, 'ClientResource');
       expectNotContains(source, '/api/bond-definitions');
-      expectNotContains(source, 'useClientResource');
     }
   });
 });

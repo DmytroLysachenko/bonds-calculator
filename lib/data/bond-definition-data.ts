@@ -6,6 +6,7 @@ import { db, isDatabaseConfigured } from '@/db';
 import { type BondSeries, bondSeries, type PolishBond, taxRules } from '@/db/schema';
 import { BOND_DEFINITIONS, BondDefinition } from '@/features/bond-core/constants/bond-definitions';
 import { BondType, InterestPayout } from '@/features/bond-core/types';
+import { isIsoCalendarDate } from '@/features/bond-core/types/iso-calendar-date';
 
 import { getCached, setCache } from './market-data-cache';
 
@@ -20,7 +21,15 @@ function parseNumeric(value: string | null | undefined, fallback: number) {
 
 function buildActiveSeriesMap(series: BondSeries[], asOfDate: string) {
   return series.reduce<Record<string, BondSeries>>((acc, item) => {
-    if (item.sellStartDate > asOfDate) {
+    if (
+      !isIsoCalendarDate(item.sellStartDate) ||
+      !isIsoCalendarDate(item.sellEndDate) ||
+      item.sellStartDate > item.sellEndDate ||
+      item.sellStartDate > asOfDate ||
+      item.sellEndDate < asOfDate ||
+      item.firstYearRate === null ||
+      !Number.isFinite(Number(item.firstYearRate))
+    ) {
       return acc;
     }
 
@@ -44,7 +53,15 @@ function isBondOfferFresh(updatedAt: Date | null | undefined, asOfDate: string) 
     return false;
   }
 
-  return differenceInDays(new Date(`${asOfDate}T00:00:00.000Z`), updatedAt) <= 45;
+  const ageDays = differenceInDays(new Date(`${asOfDate}T00:00:00.000Z`), updatedAt);
+  return ageDays >= 0 && ageDays <= 45;
+}
+
+function curatedRateProvenance(bootstrap: BondDefinition, asOfDate: string) {
+  const provenance = bootstrap.rateProvenance;
+  return provenance?.asOf && provenance.asOf <= asOfDate
+    ? provenance
+    : ({ kind: 'curated-reference' } as const);
 }
 
 export function mergeBondDefinitionsWithSeries(
@@ -54,7 +71,10 @@ export function mergeBondDefinitionsWithSeries(
   asOfDate = new Date().toISOString().slice(0, 10),
 ): BondDefinition[] {
   if (bonds.length === 0) {
-    return Object.values(fallbackDefinitions);
+    return Object.values(fallbackDefinitions).map((definition) => ({
+      ...definition,
+      rateProvenance: curatedRateProvenance(definition, asOfDate),
+    }));
   }
 
   const activeSeriesByBondTypeId = buildActiveSeriesMap(series, asOfDate);
@@ -64,12 +84,27 @@ export function mergeBondDefinitionsWithSeries(
     const bootstrap = fallbackDefinitions[symbol];
     const activeSeries = activeSeriesByBondTypeId[bond.id];
     const useDatabaseFallback = isBondOfferFresh(bond.updatedAt, asOfDate);
-    const fallbackFirstYearRate = useDatabaseFallback
+    const useDatabaseRate =
+      useDatabaseFallback &&
+      bond.firstYearRate !== null &&
+      Number.isFinite(Number(bond.firstYearRate));
+    const fallbackFirstYearRate = useDatabaseRate
       ? parseNumeric(bond.firstYearRate, bootstrap.firstYearRate)
       : bootstrap.firstYearRate;
     const fallbackMargin = useDatabaseFallback
       ? parseNumeric(bond.baseMargin, bootstrap.margin)
       : bootstrap.margin;
+    const firstPeriodUsesCuratedReference =
+      !activeSeries && shouldPreferBootstrapFirstPeriodRate(bond, symbol);
+    const rateProvenance: BondDefinition['rateProvenance'] = activeSeries
+      ? {
+          kind: 'issued-series',
+          asOf: activeSeries.sellStartDate,
+          seriesCode: activeSeries.seriesCode,
+        }
+      : useDatabaseRate && !firstPeriodUsesCuratedReference
+        ? { kind: 'database-reference', asOf: bond.updatedAt?.toISOString().slice(0, 10) }
+        : curatedRateProvenance(bootstrap, asOfDate);
 
     return {
       type: symbol,
@@ -99,6 +134,7 @@ export function mergeBondDefinitionsWithSeries(
         : shouldPreferBootstrapFirstPeriodRate(bond, symbol)
           ? bootstrap.firstYearRate
           : fallbackFirstYearRate,
+      rateProvenance,
       margin: activeSeries
         ? parseNumeric(activeSeries.baseMargin, bootstrap.margin)
         : fallbackMargin,

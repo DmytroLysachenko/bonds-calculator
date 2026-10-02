@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import {
   InvestmentLotSchema,
-  PortfolioLotTransactionSchema,
   InvestmentLotUpdateSchema,
   PORTFOLIO_LIMITS,
+  PortfolioLotTransactionSchema,
   PortfolioSchema,
 } from './portfolio-schemas';
 
@@ -12,7 +12,7 @@ const validLot = {
   portfolioId: '00000000-0000-4000-8000-000000000001',
   bondType: 'COI',
   purchaseDate: '2026-02-28',
-  amount: 100.25,
+  bondQuantity: 100.25,
   selectedSeriesId: null,
   isRebought: false,
   notes: 'Long-term allocation',
@@ -83,14 +83,14 @@ describe('portfolio command schemas', () => {
       [PORTFOLIO_LIMITS.lotAmount + 0.01, 'over business ceiling'],
       [100.001, 'three fractional digits'],
       [0.0001, 'sub-grosz amount'],
-    ])('rejects %s amount', (amount) => {
-      expect(InvestmentLotSchema.safeParse({ ...validLot, amount }).success).toBe(false);
+    ])('rejects %s bond quantity', (bondQuantity) => {
+      expect(InvestmentLotSchema.safeParse({ ...validLot, bondQuantity }).success).toBe(false);
     });
 
     it.each([0.01, 1, 100, 100.1, 100.25, PORTFOLIO_LIMITS.lotAmount])(
-      'accepts valid amount %s',
-      (amount) => {
-        expect(InvestmentLotSchema.safeParse({ ...validLot, amount }).success).toBe(true);
+      'accepts valid bond quantity %s',
+      (bondQuantity) => {
+        expect(InvestmentLotSchema.safeParse({ ...validLot, bondQuantity }).success).toBe(true);
       },
     );
 
@@ -132,7 +132,9 @@ describe('portfolio command schemas', () => {
   describe('portfolio lot updates', () => {
     it('accepts a focused field update without injecting create defaults', () => {
       expect(InvestmentLotUpdateSchema.parse({ notes: 'Reviewed' })).toEqual({ notes: 'Reviewed' });
-      expect(InvestmentLotUpdateSchema.parse({ amount: 200 })).toEqual({ amount: 200 });
+      expect(InvestmentLotUpdateSchema.parse({ bondQuantity: 200 })).toEqual({
+        bondQuantity: 200,
+      });
     });
 
     it('rejects an empty patch command', () => {
@@ -144,8 +146,8 @@ describe('portfolio command schemas', () => {
     });
 
     it.each([
-      { amount: 1.001 },
-      { amount: -1 },
+      { bondQuantity: 1.001 },
+      { bondQuantity: -1 },
       { bondType: 'UNKNOWN' },
       { purchaseDate: '2026-02-30' },
       { portfolioId: 'not-a-uuid' },
@@ -185,7 +187,7 @@ describe('portfolio command schemas', () => {
     });
 
     it.each([
-      { amount: 10.001 },
+      { bondQuantity: 10.001 },
       { bondType: 'UNKNOWN' },
       { purchaseDate: '2026-02-30' },
       { notes: 'x'.repeat(PORTFOLIO_LIMITS.lotNotesLength + 1) },

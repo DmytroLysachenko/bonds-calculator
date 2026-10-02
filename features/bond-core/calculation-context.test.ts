@@ -32,6 +32,14 @@ describe('CalculationContextProvider', () => {
       taxRulesRevision: 'tax:2026-08',
       cacheRevision: JSON.stringify({
         dataFreshness: { status: 'fresh', usedFallback: false },
+        definitions: JSON.stringify(
+          Object.keys(BOND_DEFINITIONS)
+            .sort()
+            .map((bondType) => [
+              bondType,
+              BOND_DEFINITIONS[bondType as keyof typeof BOND_DEFINITIONS],
+            ]),
+        ),
         taxRulesRevision: 'tax:2026-08',
       }),
     });
@@ -51,5 +59,22 @@ describe('CalculationContextProvider', () => {
 
     expect(changedTax.cacheRevision).not.toBe(baseline.cacheRevision);
     expect(changedData.cacheRevision).not.toBe(baseline.cacheRevision);
+  });
+
+  it('changes cache identity when current definitions change', async () => {
+    const changedDefinitions = {
+      ...BOND_DEFINITIONS,
+      EDO: { ...BOND_DEFINITIONS.EDO, firstYearRate: BOND_DEFINITIONS.EDO.firstYearRate + 0.01 },
+    };
+    const makeProvider = (definitions: typeof BOND_DEFINITIONS) =>
+      new CalculationContextProvider({
+        getDataFreshness: async () => ({ status: 'fresh', usedFallback: false }),
+        getDefinitions: async () => definitions,
+        getTaxRulesRevision: async () => 'tax:1',
+      });
+
+    const baseline = await makeProvider(BOND_DEFINITIONS).load();
+    const changed = await makeProvider(changedDefinitions).load();
+    expect(changed.cacheRevision).not.toBe(baseline.cacheRevision);
   });
 });

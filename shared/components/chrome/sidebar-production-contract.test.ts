@@ -3,6 +3,8 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { getFeaturesForNavigation } from '@/shared/lib/feature-catalog';
+
 const root = process.cwd();
 
 function read(relativePath: string) {
@@ -18,89 +20,24 @@ function expectNotContains(source: string, fragment: string) {
 }
 
 describe('sidebar production navigation contract', () => {
-  function extractNavSection(source: string, sectionKey: string) {
-    const start = source.indexOf(`label: t('${sectionKey}')`);
-    const conditionalStart = source.indexOf("label: t('sidebar.sections.conditional')");
-
-    if (start === -1) {
-      return '';
-    }
-
-    if (sectionKey === 'sidebar.sections.core' && conditionalStart > start) {
-      return source.slice(start, conditionalStart);
-    }
-
-    return source.slice(start);
-  }
-
-  it('keeps comparison beside the primary calculator in core tools', () => {
-    const source = read('shared/components/chrome/SidebarNavigation.tsx');
-    const coreStart = source.indexOf("label: t('sidebar.sections.core')");
-    const conditionalStart = source.indexOf("label: t('sidebar.sections.conditional')");
-    const singleIndex = source.indexOf("href: '/single-calculator'");
-    const comparisonIndex = source.indexOf("href: '/compare'");
-    const economicIndex = source.indexOf("href: '/economic-data'");
-
-    expect(coreStart).toBeGreaterThanOrEqual(0);
-    expect(conditionalStart).toBeGreaterThan(coreStart);
-    expect(singleIndex).toBeGreaterThan(coreStart);
-    expect(comparisonIndex).toBeGreaterThan(singleIndex);
-    expect(economicIndex).toBeGreaterThan(comparisonIndex);
-    expect(comparisonIndex).toBeLessThan(conditionalStart);
+  it('orders core navigation according to the authoritative release catalog', () => {
+    expect(getFeaturesForNavigation('core').map(({ route }) => route)).toEqual([
+      '/single-calculator',
+      '/economic-data',
+      '/education',
+    ]);
   });
-
-  it('keeps the core tools ordered as education, single calculator, comparison, and data', () => {
-    const source = read('shared/components/chrome/SidebarNavigation.tsx');
-    const coreSection = extractNavSection(source, 'sidebar.sections.core');
-    const expectedOrder = [
-      "href: '/education'",
-      "href: '/single-calculator'",
-      "href: '/compare'",
-      "href: '/economic-data'",
-    ];
-    const indexes = expectedOrder.map((fragment) => coreSection.indexOf(fragment));
-
-    for (const index of indexes) {
-      expect(index).toBeGreaterThanOrEqual(0);
-    }
-
-    expect(indexes[0]).toBeLessThan(indexes[1]);
-    expect(indexes[1]).toBeLessThan(indexes[2]);
-    expect(indexes[2]).toBeLessThan(indexes[3]);
-  });
-
-  it('keeps secondary strategy pages out of the core group', () => {
-    const source = read('shared/components/chrome/SidebarNavigation.tsx');
-    const conditionalStart = source.indexOf("label: t('sidebar.sections.conditional')");
-    const regularIndex = source.indexOf("href: '/regular-investment'");
-    const ladderIndex = source.indexOf("href: '/ladder'");
-    const notebookIndex = source.indexOf("href: '/notebook'");
-
-    expect(conditionalStart).toBeGreaterThanOrEqual(0);
-    expect(regularIndex).toBeGreaterThan(conditionalStart);
-    expect(ladderIndex).toBeGreaterThan(conditionalStart);
-    expect(notebookIndex).toBeGreaterThan(conditionalStart);
-  });
-
-  it('does not duplicate comparison inside the secondary strategy group', () => {
-    const source = read('shared/components/chrome/SidebarNavigation.tsx');
-    const coreSection = extractNavSection(source, 'sidebar.sections.core');
-    const strategySection = extractNavSection(source, 'sidebar.sections.conditional');
-    const comparisonOccurrences = source.match(/href: '\/compare'/g) ?? [];
-
-    expect(comparisonOccurrences).toHaveLength(1);
-    expectContains(coreSection, "href: '/compare'");
-    expectNotContains(strategySection, "href: '/compare'");
-  });
-
-  it('keeps every core navigation item icon-backed after regrouping', () => {
-    const source = read('shared/components/chrome/SidebarNavigation.tsx');
-    const coreSection = extractNavSection(source, 'sidebar.sections.core');
-
-    expectContains(coreSection, 'icon: BookOpen');
-    expectContains(coreSection, 'icon: Calculator');
-    expectContains(coreSection, 'icon: Scale');
-    expectContains(coreSection, 'icon: BarChart2');
+  it('keeps preview workflows in the conditional group without duplicate links', () => {
+    const core = getFeaturesForNavigation('core');
+    const conditional = getFeaturesForNavigation('conditional');
+    expect(conditional.map(({ route }) => route)).toEqual([
+      '/compare',
+      '/regular-investment',
+      '/ladder',
+      '/notebook',
+    ]);
+    const routes = [...core, ...conditional].map(({ route }) => route);
+    expect(new Set(routes).size).toBe(routes.length);
   });
 
   it('keeps settings controls intentionally lightweight', () => {

@@ -11,45 +11,6 @@ type HomeRouteItem = Omit<HomeToolDefinition, 'titleKey' | 'descriptionKey'> & {
   description: string;
 };
 
-export function HomePrimaryRoute({ item }: { item: HomeRouteItem }) {
-  const { t } = useAppI18n();
-  return (
-    <Link href={item.href} className="block ui-focus-ring">
-      <article
-        data-testid="home-primary-route"
-        className="group rounded-md border border-foreground/20 bg-muted/25 px-4 py-7 transition-colors duration-150 hover:border-foreground/40 hover:bg-muted/40 md:flex md:items-center md:justify-between md:gap-8 md:px-6"
-      >
-        <div className="flex min-w-0 gap-4">
-          <div
-            className="border-l-2 border-foreground pl-3 pt-0.5 text-foreground"
-            aria-hidden="true"
-          >
-            <item.icon className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <p className="ui-kicker text-muted-foreground">
-              {t('landing.home_routes.primary_eyebrow')}
-            </p>
-            <h2 className="mt-2 text-[26px] font-semibold tracking-tight text-foreground">
-              {item.title}
-            </h2>
-            <p className="mt-2 max-w-2xl text-[15px] leading-7 text-muted-foreground">
-              {item.description}
-            </p>
-          </div>
-        </div>
-        <span className="mt-5 inline-flex shrink-0 items-center gap-2 text-[15px] font-semibold text-foreground md:mt-0">
-          {t('landing.home_routes.primary_action')}
-          <ArrowRight
-            className="size-4 transition-transform duration-150 group-hover:translate-x-0.5"
-            aria-hidden="true"
-          />
-        </span>
-      </article>
-    </Link>
-  );
-}
-
 export function HomeSupportingRoutes({
   items,
   optional = false,

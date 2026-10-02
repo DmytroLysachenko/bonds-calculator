@@ -16,7 +16,7 @@ describe('deployment configuration contract', () => {
     expect(deploy).toContain('workflow_dispatch');
     expect(deploy).toContain('refs/heads/main');
     expect(deploy).toContain('production-cloud-run');
-    expect(deploy).toContain('--no-allow-unauthenticated');
+    expect(deploy).toContain('--allow-unauthenticated');
     expect(deploy).toContain('Validate runtime secrets');
     expect(deploy).toContain('Apply reviewed database migrations');
     expect(deploy).toContain('pnpm exec drizzle-kit migrate');
@@ -60,6 +60,14 @@ describe('deployment configuration contract', () => {
     expect(ci).toContain('pnpm audit --prod --audit-level=high');
   });
 
+  it('retains database test evidence after Playwright clears test-results', () => {
+    const ci = readFileSync(join(root, ciWorkflow), 'utf8');
+
+    expect(ci).toContain('--outputFile=artifacts/database-integration.json');
+    expect(ci).toContain('path: artifacts/database-integration.json');
+    expect(ci).not.toContain('test-results/database-integration.json');
+  });
+
   it('keeps local container workflow discoverable and no-secret by default', () => {
     const compose = readFileSync(join(root, 'compose.yaml'), 'utf8');
     const taskfile = readFileSync(join(root, 'Taskfile.yml'), 'utf8');
@@ -81,12 +89,12 @@ describe('deployment configuration contract', () => {
     const cloudBuild = readFileSync(join(root, 'cloudbuild.yaml'), 'utf8');
     const cloudBuildLines = cloudBuild.split(/\r?\n/).map((line) => line.trim());
 
-    expect(cloudBuild).toContain('--no-allow-unauthenticated');
+    expect(cloudBuild).toContain('--allow-unauthenticated');
     expect(cloudBuild).toContain('pnpm check:release');
     expect(cloudBuild).toContain('--execution-environment');
     expect(cloudBuild).toContain('gen2');
     expect(cloudBuild).toContain('managed-by=cloud-build');
-    expect(cloudBuildLines).not.toContain('- --allow-unauthenticated');
+    expect(cloudBuildLines).not.toContain('- --no-allow-unauthenticated');
   });
 
   it('keeps Docker build context free of local artifacts and secrets', () => {

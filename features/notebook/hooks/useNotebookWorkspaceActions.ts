@@ -100,17 +100,19 @@ export function useNotebookWorkspaceActions({
   const handleCreateDemo = async () => {
     setIsMutating(true);
     try {
-      const createdPortfolio = await portfolioClient.createPortfolio({
-        name: labels.demoName,
-        description: labels.demoDescription,
+      const imported = await portfolioClient.importPortfolio({
+        version: '2.0',
+        packageType: 'portfolio-package',
+        portfolio: {
+          name: labels.demoName,
+          description: labels.demoDescription,
+          lots: NOTEBOOK_DEMO_LOTS,
+        },
       });
-      const portfolioId = createdPortfolio?.id;
-      if (!portfolioId) {
+      const createdPortfolio = imported?.portfolio;
+      if (!createdPortfolio?.id) {
         await fetchPortfolios();
         return;
-      }
-      for (const lot of NOTEBOOK_DEMO_LOTS) {
-        await portfolioClient.createLot({ portfolioId, ...lot });
       }
       mergePortfolioIntoState(createdPortfolio);
       setSelectedPortfolioId(createdPortfolio.id);
@@ -132,6 +134,11 @@ export function useNotebookWorkspaceActions({
       setIsMutating(true);
       const text = await file.text();
       const parsed = JSON.parse(text);
+      const preview = readPortfolioImportPreview(parsed);
+      const accepted = window.confirm(
+        `Import “${preview.name}” with ${preview.lotCount} lot${preview.lotCount === 1 ? '' : 's'}?`,
+      );
+      if (!accepted) return;
       const importPayload = await portfolioClient.importPortfolio(parsed);
       setError(null);
       if (importPayload?.portfolio?.id) {
@@ -182,4 +189,28 @@ export function useNotebookWorkspaceActions({
     handleImportFile,
     handleDeletePortfolio,
   };
+}
+
+/**
+ * A local, no-write preview is deliberately lightweight; the authoritative
+ * schema still runs at the API boundary before the atomic import. It prevents
+ * accidental selection of an unrelated JSON file and gives the user an
+ * explicit count before creating any records.
+ */
+function readPortfolioImportPreview(value: unknown) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('portfolio' in value) ||
+    !value.portfolio ||
+    typeof value.portfolio !== 'object' ||
+    !('name' in value.portfolio) ||
+    typeof value.portfolio.name !== 'string' ||
+    !('lots' in value.portfolio) ||
+    !Array.isArray(value.portfolio.lots)
+  ) {
+    throw new Error('The selected file is not a portfolio package.');
+  }
+
+  return { name: value.portfolio.name, lotCount: value.portfolio.lots.length };
 }

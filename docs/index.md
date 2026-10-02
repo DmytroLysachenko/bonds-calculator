@@ -7,6 +7,7 @@ Welcome to the official documentation for **Obligacje Calculator**. This documen
 ### 0. Documentation Governance
 
 - [Documentation Architecture and Rules](./00_documentation_architecture_and_rules.md) - Structure, naming, numbering, and archive rules for the documentation system.
+- [ADR 0001: Holding-record workspace, not a transaction ledger](./adr/0001-holding-record-not-ledger.md) - The notebook's persisted-record model and explicit non-ledger limit.
 
 ### 1. Strategy & Vision (Product)
 
@@ -27,9 +28,11 @@ Welcome to the official documentation for **Obligacje Calculator**. This documen
 - [UI Rules](./ui/02_ui_rules.md) - Layout, typography, color, and table rules.
 - [Design System](./ui/03_design_system.md) - Shared formatter, token, component, and refactor rules.
 - [Financial Workflow Accessibility Contract](./ui/04_accessibility_financial_workflow_contract.md) - Required accessible behavior for financial workflows.
+- [Desktop Visual and UX Audit](./ui/05_desktop_visual_ux_audit.md) - Screenshot-based, prioritized UI findings and implementation acceptance criteria for six desktop routes.
 
 ### 2. Technical Architecture
 
+- [Developer Architecture Guide](./technical/architecture/00_developer_guide.md) - Where new code belongs and how to verify it.
 - [System Architecture](./technical/architecture/19_system_architecture.md) - High-level technical design.
 - [Handler Pattern Orchestration](./technical/architecture/25_handler_pattern_orchestration.md) - **[NEW]** Decoupled calculation logic.
 - [Information Architecture](./technical/architecture/12_information_architecture.md) - Structural map.
@@ -42,6 +45,10 @@ Welcome to the official documentation for **Obligacje Calculator**. This documen
 - [Deployment & DevOps](./technical/architecture/24_deployment_and_devops.md) - CI/CD strategy.
 - [Engineering and Coding Rules](./technical/architecture/26_engineering_and_coding_rules.md) - Strict repo rules for i18n, component structure, code hygiene, and maintainability.
 - [HTTP Boundary Contract](./technical/architecture/33_http_boundary_contract.md) - Request identity, rate limits, correlation, telemetry, and administrative route rules.
+- [Modularity Refactoring Audit](./technical/architecture/34_modularity_refactoring_audit.md) - Proven refactoring seams and reusable dashboard baseline.
+- [Full-Stack Architecture Audit](./technical/architecture/35_full_stack_architecture_audit.md) - Read-only audit snapshot covering ownership, server correctness, dependency direction, enforcement gaps, and dashboard-template reuse.
+- [Architecture Implementation Ledger](./technical/architecture/36_implementation_ledger.md) - Implementation progress, decisions, and executed verification.
+- [Codebase Design and Domain Model Audit](./technical/architecture/37_codebase_design_and_domain_model_audit.md) - Current seam, terminology, and financial-model audit with prioritized remediation.
 - [Project Map](./technical/architecture/28_project_map.md) - Repository ownership map for app, feature, shared, server, data, sync, and docs layers.
 
 ### 3. Domain Knowledge
@@ -66,10 +73,13 @@ Welcome to the official documentation for **Obligacje Calculator**. This documen
 - [08. Cloud Run Release Candidate Plan](./plans/08_cloud_run_release_candidate_plan.md) - First Cloud Run deploy checklist for the trusted-core production scope.
 - [09. Comprehensive Codebase Quality, Security, and Refactor Plan](./plans/09_comprehensive_codebase_quality_security_refactor_plan.md) - Full-codebase audit and prioritized remediation program for security, correctness, data integrity, architecture, testing, performance, UI/UX, accessibility, scalability, operations, and documentation.
 - [10. Security, Resilience, and Adversarial Evidence Audit](./plans/10_security_resilience_evidence_audit.md) - Threat model, endpoint authorization matrix, adversarial runtime evidence, migration and supply-chain verification, load results, cross-browser/accessibility findings, and security acceptance criteria.
+- [11. Codebase Simplification and Cleanup Audit](./plans/11_codebase_simplification_cleanup_audit.md) - Evidence-led, no-behavior-change plan for removing dead code, reducing brittle tests and duplicate orchestration, and keeping React/Next bundle work measurable.
+- [12. Trusted-Core Release Scorecard](./plans/12_trusted_core_release_scorecard.md) - Repository evidence required for education, the single calculator, and economic-data admission.
 
 ### 6. Archived Plans
 
 - [Archived Plans Index](./archive/plans/index.md) - Historical and completed execution plans preserved for reference.
+- [13. Incremental Feature Folder Improvement Plan](./archive/plans/13_incremental_feature_folder_improvement_plan.md) - Completed feature-folder organization work retained for historical reference.
 - [July 2026 UI Audit](./archive/ui/2026_07_ui_audit.md) - Superseded visual audit retained as historical evidence.
 
 ### 7. Operations

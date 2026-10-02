@@ -6,16 +6,13 @@ import { readJsonBody } from '@/lib/server/http/read-json-body';
 import { errorJson, okJson } from '@/lib/server/http/responses';
 import { createServerLogger } from '@/lib/server/logging';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
-import {
-  portfolioDomainErrorResponse,
-  withAuthenticatedPortfolioOwner,
-} from '@/lib/server/portfolio/http';
+import { portfolioDomainErrorResponse, withPortfolioCommand } from '@/lib/server/portfolio/http';
 
 const logger = createServerLogger('PortfolioLotApi');
 
 export const PATCH = apiHandler<{ params: Promise<{ id: string }> }>(
   async (req: NextRequest, { params }) => {
-    return withAuthenticatedPortfolioOwner(req, async (owner) => {
+    return withPortfolioCommand(req, async (owner) => {
       const { id } = await params;
       const validated = await readJsonBody(req, InvestmentLotUpdateSchema);
 
@@ -35,7 +32,7 @@ export const PATCH = apiHandler<{ params: Promise<{ id: string }> }>(
 
 export const DELETE = apiHandler<{ params: Promise<{ id: string }> }>(
   async (req: NextRequest, { params }) => {
-    return withAuthenticatedPortfolioOwner(req, async (owner) => {
+    return withPortfolioCommand(req, async (owner) => {
       const { id } = await params;
 
       try {

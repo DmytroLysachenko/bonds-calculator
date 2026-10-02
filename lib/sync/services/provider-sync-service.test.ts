@@ -19,6 +19,12 @@ function createRepository(overrides: Partial<ProviderSyncRepository> = {}): Prov
     findSeriesBySlug: vi.fn(async (seriesSlug: string) =>
       seriesSlug === 'pl-cpi' ? { id: 'series-1' } : null,
     ),
+    findSeriesBySlugs: vi.fn(
+      async (seriesSlugs: readonly string[]) =>
+        new Map(
+          seriesSlugs.filter((slug) => slug === 'pl-cpi').map((slug) => [slug, { id: 'series-1' }]),
+        ),
+    ),
     findLatestPointForSeries: vi.fn(async () => null),
     upsertDataPoints: vi.fn(async () => undefined),
     markSeriesSyncSuccess: vi.fn(async () => undefined),
@@ -151,5 +157,29 @@ describe('ProviderSyncService repository boundary', () => {
       latestDate: '2024-01-01',
       status: 'success',
     });
+  });
+
+  it('resolves every returned series with one batch lookup', async () => {
+    const repository = createRepository({
+      findSeriesBySlugs: vi.fn(
+        async () =>
+          new Map([
+            ['pl-cpi', { id: 'series-1' }],
+            ['pl-cpi-core', { id: 'series-2' }],
+          ]),
+      ),
+    });
+    const provider = createProvider([
+      { seriesSlug: 'pl-cpi', date: '2024-01-01', value: 3.2 },
+      { seriesSlug: 'pl-cpi-core', date: '2024-01-01', value: 2.8 },
+      { seriesSlug: 'pl-cpi-core', date: '2024-02-01', value: 2.9 },
+    ]);
+    const service = new ProviderSyncService([provider], logger, recorder, repository);
+
+    await service.syncAll(2024);
+
+    expect(repository.findSeriesBySlugs).toHaveBeenCalledTimes(1);
+    expect(repository.findSeriesBySlugs).toHaveBeenCalledWith(['pl-cpi', 'pl-cpi-core']);
+    expect(repository.findSeriesBySlug).toHaveBeenCalledTimes(1);
   });
 });

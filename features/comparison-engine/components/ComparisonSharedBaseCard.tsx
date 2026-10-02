@@ -27,14 +27,13 @@ import { MarketAssumptionsForm } from '@/shared/components/MarketAssumptionsForm
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
 import { useNumberFormatter } from '@/shared/hooks/useLocalizedFormatters';
 import { toDateString } from '@/shared/lib/date-timing';
+import { type FieldUpdater } from '@/shared/types/field-updater';
 
 type SharedConfig = IndependentBondComparisonPayload['sharedConfig'];
 
 export interface ComparisonSharedBaseCardProps {
   sharedConfig: SharedConfig;
-  onUpdateSharedConfig: {
-    bivarianceHack: (key: keyof SharedConfig | string, value: unknown) => void;
-  }['bivarianceHack'];
+  onUpdateSharedConfig: FieldUpdater<SharedConfig>;
 }
 
 export function ComparisonSharedBaseCard({
@@ -50,11 +49,47 @@ export function ComparisonSharedBaseCard({
       <div className="space-y-2 border-b border-border pb-4">
         <h2 className="ui-section-title">{t('comparison.shared_base_title')}</h2>
         <p className="ui-body text-muted-foreground">{t('comparison.shared_base_desc')}</p>
-        <p className="text-base leading-7 text-muted-foreground">
-          {t('comparison.shared_base_scope')}
-        </p>
       </div>
       <div className="space-y-6">
+        <div className="space-y-2">
+          <Label htmlFor="comparison-maturity-mode" className="ui-metadata text-muted-foreground">
+            {t('comparison.maturity_policy')}
+          </Label>
+          <FormSelect
+            id="comparison-maturity-mode"
+            value={sharedConfig.strategyPolicy ?? 'reinvest_until_horizon'}
+            options={[
+              { value: 'reinvest_until_horizon', label: t('comparison.maturity_reinvest') },
+              { value: 'cash_after_maturity', label: t('comparison.maturity_cash') },
+              { value: 'hold_to_maturity', label: t('comparison.maturity_hold') },
+            ]}
+            onValueChange={(value) =>
+              onUpdateSharedConfig('strategyPolicy', value as SharedConfig['strategyPolicy'])
+            }
+          />
+          <p className="text-base leading-6 text-muted-foreground">
+            {t('comparison.maturity_cash_note')}
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label
+            htmlFor="comparison-coupon-disposition"
+            className="ui-metadata text-muted-foreground"
+          >
+            {t('comparison.coupon_policy')}
+          </Label>
+          <FormSelect
+            id="comparison-coupon-disposition"
+            value={sharedConfig.couponDisposition ?? 'reinvest'}
+            options={[
+              { value: 'reinvest', label: t('comparison.coupon_reinvest') },
+              { value: 'cash', label: t('comparison.coupon_cash') },
+            ]}
+            onValueChange={(value) =>
+              onUpdateSharedConfig('couponDisposition', value as SharedConfig['couponDisposition'])
+            }
+          />
+        </div>
         <div className="space-y-3">
           <Label className="ui-metadata text-muted-foreground">
             {t('bonds.timing.mode.label')}

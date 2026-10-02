@@ -1,7 +1,7 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
-import { userInvestmentLots, userPortfolios, users, userTransactions } from '@/db/schema';
+import { userInvestmentLots, userPortfolios } from '@/db/schema';
 
 export function listPortfoliosByOwner(ownerId: string) {
   return db.query.userPortfolios.findMany({
@@ -27,16 +27,6 @@ export function findPortfolioByOwner(ownerId: string, portfolioId: string) {
   });
 }
 
-export function ensureGuestPortfolioOwner(ownerId: string) {
-  return db
-    .insert(users)
-    .values({
-      id: ownerId,
-      name: 'Guest Notebook User',
-    })
-    .onConflictDoNothing();
-}
-
 export function findPortfolioByShareId(shareId: string) {
   return db.query.userPortfolios.findFirst({
     where: eq(userPortfolios.shareId, shareId),
@@ -55,6 +45,18 @@ export function updatePortfolioVisibility(ownerId: string, portfolioId: string, 
     .update(userPortfolios)
     .set({ isPublic, updatedAt: new Date() })
     .where(and(eq(userPortfolios.id, portfolioId), eq(userPortfolios.userId, ownerId)));
+}
+
+export function updatePortfolioByOwner(
+  ownerId: string,
+  portfolioId: string,
+  values: { name?: string; description?: string },
+) {
+  return db
+    .update(userPortfolios)
+    .set({ ...values, updatedAt: new Date() })
+    .where(and(eq(userPortfolios.id, portfolioId), eq(userPortfolios.userId, ownerId)))
+    .returning();
 }
 
 export function listLotsByPortfolio(portfolioId: string) {
@@ -77,8 +79,7 @@ export function listLotsByPortfolioIds(portfolioIds: string[]) {
 export async function findOwnedLotByOwner(ownerId: string, lotId: string) {
   const [lot] = await db
     .select({
-      id: userInvestmentLots.id,
-      portfolioId: userInvestmentLots.portfolioId,
+      ...getTableColumns(userInvestmentLots),
     })
     .from(userInvestmentLots)
     .innerJoin(userPortfolios, eq(userInvestmentLots.portfolioId, userPortfolios.id))
@@ -92,22 +93,11 @@ export function createLot(values: typeof userInvestmentLots.$inferInsert) {
   return db.insert(userInvestmentLots).values(values).returning();
 }
 
-export async function createLotWithBuyTransaction(values: typeof userInvestmentLots.$inferInsert) {
-  return db.transaction(async (tx) => {
-    const [newLot] = await tx.insert(userInvestmentLots).values(values).returning();
-
-    await tx.insert(userTransactions).values({
-      lotId: newLot.id,
-      transactionType: 'buy',
-      date: values.purchaseDate,
-      amount: (Number(values.amount) * 100).toString(),
-    });
-
-    return newLot;
-  });
-}
-
-export function updateLotByOwner(ownerId: string, lotId: string, values: Record<string, unknown>) {
+export function updateLotByOwner(
+  ownerId: string,
+  lotId: string,
+  values: Partial<Omit<typeof userInvestmentLots.$inferInsert, 'id' | 'createdAt'>>,
+) {
   const ownedPortfolioIds = db
     .select({ id: userPortfolios.id })
     .from(userPortfolios)
@@ -120,6 +110,7 @@ export function updateLotByOwner(ownerId: string, lotId: string, values: Record<
       and(
         eq(userInvestmentLots.id, lotId),
         inArray(userInvestmentLots.portfolioId, ownedPortfolioIds),
+        ...(values.portfolioId ? [sql`${values.portfolioId} in (${ownedPortfolioIds})`] : []),
       ),
     )
     .returning();
@@ -142,27 +133,4 @@ export function deleteLotByOwner(ownerId: string, lotId: string) {
     .returning();
 }
 
-export type PreparedPortfolioImportLot = Omit<
-  typeof userInvestmentLots.$inferInsert,
-  'portfolioId'
->;
-
-/** One transaction owns imported portfolio, lots, and rollback semantics. */
-export async function importPortfolioAtomically(
-  ownerId: string,
-  input: { name: string; description?: string; lots: PreparedPortfolioImportLot[] },
-) {
-  return db.transaction(async (tx) => {
-    const [portfolio] = await tx
-      .insert(userPortfolios)
-      .values({ userId: ownerId, name: `${input.name} (Imported)`, description: input.description })
-      .returning();
-
-    const lots = await tx
-      .insert(userInvestmentLots)
-      .values(input.lots.map((lot) => ({ ...lot, portfolioId: portfolio.id })))
-      .returning();
-
-    return { portfolio, importedLots: lots.length };
-  });
-}
+export { createLotWithBuyTransaction, importPortfolioAtomically } from './atomic-writes';

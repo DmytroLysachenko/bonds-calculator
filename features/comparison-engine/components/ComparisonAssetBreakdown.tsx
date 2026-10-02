@@ -5,8 +5,8 @@ import React from 'react';
 
 import { useAppI18n } from '@/i18n/client';
 import { cn } from '@/lib/utils';
-import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 import { chartColorClass } from '@/shared/components/charts/chart-color-class';
+import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 
 import { ComparisonAssetBreakdownProps } from '../types/multi-asset';
 
@@ -36,7 +36,9 @@ export const ComparisonAssetBreakdown: React.FC<ComparisonAssetBreakdownProps> =
             <div className="space-y-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className={`h-6 w-2 rounded-full ${chartColorClass(asset.metadata.color)}`} />
+                  <div
+                    className={`h-6 w-2 rounded-full ${chartColorClass(asset.metadata.color)}`}
+                  />
                   <p className="text-[10px] font-black uppercase tracking-widest">
                     {asset.metadata.name}
                   </p>

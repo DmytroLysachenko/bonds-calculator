@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { calculationService } from '../application-service';
+import { calculationService } from '@/lib/server/calculation/composition';
+
 import { BOND_DEFINITIONS } from '../constants/bond-definitions';
 import {
   BondInputs,
@@ -9,7 +10,7 @@ import {
   RegularInvestmentInputs,
   TaxStrategy,
 } from '../types';
-import { ScenarioKind } from '../types/scenarios';
+import { normalizeCalculationScenarioRequest, ScenarioKind } from '../types/scenarios';
 import {
   BondComparisonScenarioPayloadSchema,
   BondInputsSchema,
@@ -170,7 +171,57 @@ describe('calculation request validation hardening', () => {
     );
   });
 
+  it('rejects legacy normalized reinvest rather than silently ignoring its policy', () => {
+    expectInvalid('unsupported normalized reinvest', () =>
+      BondComparisonScenarioPayloadSchema.parse({
+        mode: 'normalized',
+        bondTypes: [BondType.EDO, BondType.ROR],
+        initialInvestment: 10000,
+        purchaseDate: '2026-05-30',
+        withdrawalDate: '2028-05-30',
+        expectedInflation: 3,
+        reinvest: false,
+      }),
+    );
+  });
+
   it('rejects date order and impossible horizon combinations', () => {
+    expectInvalid('exact date just beyond the maximum horizon', () =>
+      BondInputsSchema.parse(
+        singlePayload({
+          purchaseDate: '2026-01-31',
+          withdrawalDate: '2056-02-01',
+          investmentHorizonMonths: undefined,
+        }),
+      ),
+    );
+    expectInvalid('optimizer reversed dates', () =>
+      BondOptimizerPayloadSchema.parse({
+        initialInvestment: 1000,
+        purchaseDate: '2027-01-01',
+        withdrawalDate: '2026-01-01',
+        expectedInflation: 3,
+      }),
+    );
+    expectInvalid('retirement tax mode omitted', () =>
+      RetirementPlannerPayloadSchema.parse({
+        initialCapital: 100,
+        monthlyWithdrawal: 10,
+        expectedInflation: 3,
+        bondType: BondType.EDO,
+        horizonYears: 1,
+      }),
+    );
+    expectInvalid('unsupported retirement family', () =>
+      RetirementPlannerPayloadSchema.parse({
+        initialCapital: 100,
+        monthlyWithdrawal: 10,
+        expectedInflation: 3,
+        bondType: BondType.ROS,
+        taxStrategy: TaxStrategy.STANDARD,
+        horizonYears: 1,
+      }),
+    );
     expectInvalid('reversed dates', () =>
       BondInputsSchema.parse(
         singlePayload({
@@ -185,6 +236,154 @@ describe('calculation request validation hardening', () => {
     expectInvalid('too long regular horizon', () =>
       RegularInvestmentInputsSchema.parse(regularPayload({ investmentHorizonMonths: 601 })),
     );
+    expectInvalid('independent override reverses effective dates', () =>
+      BondComparisonScenarioPayloadSchema.parse({
+        mode: 'independent',
+        sharedConfig: {
+          initialInvestment: 10000,
+          purchaseDate: '2026-01-01',
+          withdrawalDate: '2028-01-01',
+          investmentHorizonMonths: 24,
+          timingMode: 'exact',
+          expectedInflation: 3,
+        },
+        scenarioA: { bondType: BondType.EDO, purchaseDate: '2029-01-01' },
+        scenarioB: { bondType: BondType.ROR },
+      }),
+    );
+    expectInvalid('optimizer conflicting date and horizon', () =>
+      BondOptimizerPayloadSchema.parse({
+        initialInvestment: 1000,
+        purchaseDate: '2026-01-01',
+        withdrawalDate: '2028-01-01',
+        investmentHorizonMonths: 12,
+        expectedInflation: 3,
+      }),
+    );
+  });
+
+  it('rejects independent overrides that would be silently rewritten', () => {
+    const sharedConfig = {
+      initialInvestment: 10000,
+      purchaseDate: '2026-01-01',
+      withdrawalDate: '2028-01-01',
+      investmentHorizonMonths: 24,
+      timingMode: 'general',
+      expectedInflation: 3,
+    };
+    const scenarioB = { bondType: BondType.ROR };
+    for (const scenarioA of [
+      { bondType: BondType.EDO, withdrawalDate: '2027-01-01' },
+      { bondType: BondType.EDO, timingMode: 'exact' },
+      { bondType: BondType.EDO, investmentHorizonMonths: 12, withdrawalDate: '2029-01-01' },
+      { bondType: BondType.EDO, investmentHorizonMonths: 12, timingMode: 'exact' },
+    ]) {
+      expectInvalid('rewritten independent override', () =>
+        BondComparisonScenarioPayloadSchema.parse({
+          mode: 'independent',
+          sharedConfig,
+          scenarioA,
+          scenarioB,
+        }),
+      );
+    }
+  });
+
+  it('rejects unknown comparison policy fields instead of silently stripping them', () => {
+    const sharedConfig = {
+      initialInvestment: 10000,
+      purchaseDate: '2026-01-01',
+      withdrawalDate: '2028-01-01',
+      investmentHorizonMonths: 24,
+      expectedInflation: 3,
+    };
+    const independent = {
+      mode: 'independent',
+      sharedConfig,
+      scenarioA: { bondType: BondType.EDO },
+      scenarioB: { bondType: BondType.ROR },
+    };
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        ...independent,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        ...independent,
+        sharedConfig: { ...sharedConfig, reinvest: false },
+      }).success,
+    ).toBe(false);
+    expect(
+      BondComparisonScenarioPayloadSchema.safeParse({
+        mode: 'normalized',
+        bondTypes: [BondType.EDO],
+        initialInvestment: 10000,
+        purchaseDate: '2026-01-01',
+        withdrawalDate: '2028-01-01',
+        expectedInflation: 3,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects unmodeled policy fields in portfolio, optimizer and retirement requests', () => {
+    expect(
+      PortfolioSimulationPayloadSchema.safeParse({
+        investments: [
+          {
+            bondType: BondType.EDO,
+            amount: 100,
+            purchaseDate: '2026-01-01',
+            strategyPolicy: 'cash_after_maturity',
+          },
+        ],
+        expectedInflation: 3,
+        withdrawalDate: '2027-01-01',
+      }).success,
+    ).toBe(false);
+    expect(
+      BondOptimizerPayloadSchema.safeParse({
+        initialInvestment: 1000,
+        purchaseDate: '2026-01-01',
+        investmentHorizonMonths: 12,
+        expectedInflation: 3,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+    expect(
+      RetirementPlannerPayloadSchema.safeParse({
+        initialCapital: 10000,
+        monthlyWithdrawal: 100,
+        expectedInflation: 3,
+        bondType: BondType.EDO,
+        taxStrategy: TaxStrategy.STANDARD,
+        horizonYears: 10,
+        rollover: false,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('accepts a valid exact partial month under a one-month work horizon', () => {
+    expect(
+      BondInputsSchema.safeParse(
+        singlePayload({
+          purchaseDate: '2026-05-01',
+          withdrawalDate: '2026-05-15',
+          investmentHorizonMonths: 1,
+        }),
+      ).success,
+    ).toBe(true);
+    expect(
+      BondOptimizerPayloadSchema.safeParse({
+        initialInvestment: 1000,
+        purchaseDate: '2026-05-01',
+        withdrawalDate: '2026-05-15',
+        investmentHorizonMonths: 1,
+        expectedInflation: 3,
+      }).success,
+    ).toBe(true);
   });
 
   it.each(['2026-02-30', '2025-02-29', '2026-13-01', '2026-01-01T00:00:00Z'])(
@@ -263,15 +462,53 @@ describe('calculation request validation hardening', () => {
       throw new Error('expected single-bond request');
     }
     expect('chartStep' in parsed.payload).toBe(false);
+    expect('firstYearRate' in parsed.payload).toBe(false);
+    expect('duration' in parsed.payload).toBe(false);
+    expect('earlyWithdrawalFee' in parsed.payload).toBe(false);
   });
 
-  it('keeps regular investment schema independent from chart display controls', () => {
-    const parsed = RegularInvestmentInputsSchema.parse({
-      ...regularPayload(),
-      chartStep: 'yearly',
+  it('makes a legacy retirement request time-explicit before cache identity', () => {
+    const request = normalizeCalculationScenarioRequest(
+      {
+        kind: ScenarioKind.RETIREMENT_PLANNER,
+        payload: {
+          initialCapital: 500000,
+          monthlyWithdrawal: 2500,
+          expectedInflation: 3,
+          bondType: BondType.EDO,
+          taxStrategy: TaxStrategy.STANDARD,
+          horizonYears: 20,
+        },
+      },
+      '2026-05-30',
+    );
+
+    expect((request.payload as { projectionStartDate?: string }).projectionStartDate).toBe(
+      '2026-05-30',
+    );
+  });
+
+  it('keeps regular investment intent independent from display and issuer fields', () => {
+    const parsed = parseCalculationScenarioRequest({
+      kind: ScenarioKind.REGULAR_INVESTMENT,
+      payload: {
+        ...regularPayload(),
+        chartStep: 'yearly',
+        firstYearRate: 99,
+        margin: 99,
+        duration: 99,
+        earlyWithdrawalFee: 99,
+      },
     });
 
-    expect('chartStep' in parsed).toBe(false);
+    if (parsed.kind !== ScenarioKind.REGULAR_INVESTMENT) {
+      throw new Error('expected regular-investment request');
+    }
+    expect('chartStep' in parsed.payload).toBe(false);
+    expect('firstYearRate' in parsed.payload).toBe(false);
+    expect('margin' in parsed.payload).toBe(false);
+    expect('duration' in parsed.payload).toBe(false);
+    expect('earlyWithdrawalFee' in parsed.payload).toBe(false);
   });
 
   it('rejects optimizer requests without any horizon definition', () => {
@@ -336,6 +573,27 @@ describe('calculation request validation hardening', () => {
     );
   });
 
+  it('rejects portfolio work beyond the lot-month budget before calculation', () => {
+    expectInvalid('portfolio workload', () =>
+      PortfolioSimulationPayloadSchema.parse({
+        investments: Array.from({ length: 100 }, () => ({
+          bondType: BondType.ROR,
+          amount: 100,
+          purchaseDate: '2026-01-01',
+        })),
+        expectedInflation: 3,
+        withdrawalDate: '2046-01-01',
+      }),
+    );
+    expectInvalid('portfolio exact-date bypass', () =>
+      PortfolioSimulationPayloadSchema.parse({
+        investments: [{ bondType: BondType.ROR, amount: 100, purchaseDate: '2026-01-01' }],
+        expectedInflation: 3,
+        withdrawalDate: '2056-01-02',
+      }),
+    );
+  });
+
   it('validates the full discriminated calculation request before service execution', async () => {
     const parsed = parseCalculationScenarioRequest({
       kind: ScenarioKind.SINGLE_BOND,
@@ -359,5 +617,28 @@ describe('calculation request validation hardening', () => {
     expectInvalid('invalid payout value', () =>
       BondInputsSchema.parse(singlePayload({ payoutFrequency: 'DAILY' as InterestPayout })),
     );
+  });
+
+  it('requires unique mixed-allocation targets totaling 100 percent', () => {
+    expectInvalid('underallocated targets', () =>
+      RegularInvestmentInputsSchema.parse(
+        regularPayload({
+          allocationTargets: [
+            { bondType: BondType.COI, percent: 40 },
+            { bondType: BondType.EDO, percent: 40 },
+          ],
+        }),
+      ),
+    );
+    expect(
+      RegularInvestmentInputsSchema.parse(
+        regularPayload({
+          allocationTargets: [
+            { bondType: BondType.COI, percent: 50 },
+            { bondType: BondType.EDO, percent: 50 },
+          ],
+        }),
+      ).allocationTargets,
+    ).toHaveLength(2);
   });
 });

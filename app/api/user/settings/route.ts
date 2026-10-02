@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { apiHandler } from '@/lib/server/http/api-handler';
 import { readJsonBody } from '@/lib/server/http/read-json-body';
 import { okJson } from '@/lib/server/http/responses';
-import { getPortfolioRouteContext, withPortfolioOwnerResponse } from '@/lib/server/portfolio/http';
+import { withPortfolioCommand, withPortfolioRead } from '@/lib/server/portfolio/http';
 import { getOwnerSettings, updateOwnerSettings } from '@/lib/server/settings/service';
 
 const UserSettingsUpdateSchema = z
@@ -18,19 +18,17 @@ const UserSettingsUpdateSchema = z
 
 const SETTINGS_MAX_BODY_BYTES = 8 * 1024;
 
-export const GET = apiHandler(async () => {
-  const { owner } = await getPortfolioRouteContext();
-  const settings = await getOwnerSettings(owner.ownerId);
+export const GET = apiHandler(async () =>
+  withPortfolioRead(async (owner) => {
+    return okJson(await getOwnerSettings(owner.ownerId));
+  }),
+);
 
-  return withPortfolioOwnerResponse(okJson(settings), owner);
-});
-
-export const PATCH = apiHandler(async (req: NextRequest) => {
-  const { owner } = await getPortfolioRouteContext();
-  const validated = await readJsonBody(req, UserSettingsUpdateSchema, {
-    maxBytes: SETTINGS_MAX_BODY_BYTES,
-  });
-  const updated = await updateOwnerSettings(owner.ownerId, validated);
-
-  return withPortfolioOwnerResponse(okJson(updated), owner);
-});
+export const PATCH = apiHandler(async (req: NextRequest) =>
+  withPortfolioCommand(req, async (owner) => {
+    const validated = await readJsonBody(req, UserSettingsUpdateSchema, {
+      maxBytes: SETTINGS_MAX_BODY_BYTES,
+    });
+    return okJson(await updateOwnerSettings(owner.ownerId, validated));
+  }),
+);

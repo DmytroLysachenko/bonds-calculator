@@ -1,6 +1,5 @@
-import { DataFreshnessStatus } from './scenarios';
-
 export enum SimulationEventType {
+  CONTRIBUTION = 'CONTRIBUTION',
   PURCHASE = 'PURCHASE',
   RATE_RESET = 'RATE_RESET',
   INTEREST_ACCRUAL = 'INTEREST_ACCRUAL',
@@ -18,50 +17,4 @@ export interface SimulationEvent {
   description: string;
   value?: number;
   metadata?: Record<string, unknown>;
-}
-
-interface SimulationPoint {
-  date: string;
-  nominalValue: number;
-  netValue: number;
-  grossValue: number;
-  accumulatedProfit: number;
-  accumulatedTax: number;
-  accumulatedFees: number;
-  interestRate?: number;
-  cumulativeInflation: number;
-  realValue: number;
-  isProjected: boolean;
-  events?: SimulationEvent[];
-}
-
-interface SimulationSummary {
-  initialInvestment: number;
-  finalNominalValue: number;
-  finalNetValue: number;
-  totalProfit: number;
-  totalTax: number;
-  totalFees: number;
-  nominalCAGR: number;
-  realCAGR: number;
-  totalHorizonYears: number;
-  isEarlyWithdrawal: boolean;
-  maturityDate: string;
-}
-
-interface SimulationResult {
-  summary: SimulationSummary;
-  timeline: SimulationPoint[];
-  explanationBlocks: string[];
-  warnings: string[];
-  assumptions: string[];
-  dataFreshness: {
-    status: DataFreshnessStatus;
-    asOf?: string;
-    usedFallback: boolean;
-  };
-  metadata: {
-    modelVersion: string;
-    calculationTimeMs: number;
-  };
 }

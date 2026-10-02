@@ -68,6 +68,7 @@ interface FinalSingleBondResultParams {
   cycleMaturityDate: Date;
   totalHorizonYears: number;
   calculationNotes?: string[];
+  noteDiagnostics?: CalculationResult['noteDiagnostics'];
   dataQualityFlags?: string[];
 }
 
@@ -81,6 +82,7 @@ export function createFinalSingleBondResult({
   cycleMaturityDate,
   totalHorizonYears,
   calculationNotes = [],
+  noteDiagnostics = [],
   dataQualityFlags = [],
 }: FinalSingleBondResultParams): CalculationResult {
   const lastPoint = timeline[timeline.length - 1];
@@ -113,20 +115,21 @@ export function createFinalSingleBondResult({
     nominalAnnualizedReturn,
     realAnnualizedReturn,
     calculationNotes,
+    noteDiagnostics,
     dataQualityFlags,
   };
 }
 
 function calculateRealAnnualizedReturn(
   totalHorizon: number,
-  totalInvested: Decimal,
+  realContributions: Decimal,
   lastPoint: RegularTimelinePoint,
 ): number {
-  if (totalHorizon <= 0 || totalInvested.lte(0)) {
+  if (totalHorizon <= 0 || realContributions.lte(0)) {
     return 0;
   }
 
-  const totalMultiplier = new Decimal(lastPoint.realValue).dividedBy(totalInvested);
+  const totalMultiplier = new Decimal(lastPoint.realValue).dividedBy(realContributions);
   if (totalMultiplier.lte(0)) {
     return 0;
   }
@@ -139,8 +142,14 @@ export function createRegularInvestmentResult(
   totalHorizon: number,
   timeline: RegularTimelinePoint[],
   lots: RegularInvestmentResult['lots'],
+  realContributions = totalInvested,
+  cashBalance = new Decimal(0),
+  activeHoldingsValue = new Decimal(lastRegularNominalValue(timeline, cashBalance)),
 ): RegularInvestmentResult {
   const lastPoint = timeline[timeline.length - 1];
+  const terminalNetSettlement = lastPoint?.events?.find(
+    (event) => event.type === 'WITHDRAWAL',
+  )?.value;
 
   return {
     totalInvested: totalInvested.toNumber(),
@@ -149,8 +158,47 @@ export function createRegularInvestmentResult(
     totalProfit: lastPoint.profit,
     totalTax: lastPoint.tax,
     totalEarlyWithdrawalFees: lastPoint.earlyWithdrawalFees,
-    realAnnualizedReturn: calculateRealAnnualizedReturn(totalHorizon, totalInvested, lastPoint),
+    realAnnualizedReturn: calculateRealAnnualizedReturn(totalHorizon, realContributions, lastPoint),
+    moneyWeightedAnnualizedReturn: calculateMoneyWeightedReturn(timeline, lastPoint.nominalValue),
     timeline,
     lots,
+    cashBalance: cashBalance.toNumber(),
+    totalContributions: totalInvested.toNumber(),
+    activeHoldingsValue: activeHoldingsValue.toNumber(),
+    terminalNetSettlement,
+    paidOutValue: terminalNetSettlement ?? 0,
+    terminalWealth: activeHoldingsValue.plus(cashBalance).toNumber(),
   };
+}
+
+function calculateMoneyWeightedReturn(timeline: RegularTimelinePoint[], terminalValue: number) {
+  const flows = timeline.flatMap((point) =>
+    (point.events ?? [])
+      .filter((event) => event.type === 'CONTRIBUTION')
+      .map((event) => ({ date: new Date(event.date), amount: -(event.value ?? 0) })),
+  );
+  const terminalDate = new Date(timeline.at(-1)?.date ?? '');
+  if (!flows.length || !Number.isFinite(terminalDate.getTime())) return undefined;
+  flows.push({ date: terminalDate, amount: terminalValue });
+  const origin = flows[0].date.getTime();
+  const npv = (rate: number) =>
+    flows.reduce(
+      (sum, flow) =>
+        sum +
+        flow.amount / Math.pow(1 + rate, (flow.date.getTime() - origin) / 86_400_000 / 365.25),
+      0,
+    );
+  let low = -0.9999;
+  let high = 10;
+  if (npv(low) * npv(high) > 0) return undefined;
+  for (let index = 0; index < 80; index += 1) {
+    const middle = (low + high) / 2;
+    if (npv(low) * npv(middle) <= 0) high = middle;
+    else low = middle;
+  }
+  return ((low + high) / 2) * 100;
+}
+
+function lastRegularNominalValue(timeline: RegularTimelinePoint[], fallback: Decimal) {
+  return timeline.at(-1)?.nominalValue ?? fallback.toNumber();
 }

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 
 interface FormSectionProps {
+  id?: string;
   title: React.ReactNode;
   description?: React.ReactNode;
   children: React.ReactNode;
@@ -19,6 +20,7 @@ interface FormSectionProps {
 }
 
 export function FormSection({
+  id,
   title,
   description,
   children,
@@ -34,7 +36,7 @@ export function FormSection({
   const visible = !collapsible || open;
 
   return (
-    <section className={cn('ui-control-group', className)}>
+    <section id={id} className={cn('ui-control-group', className)}>
       <div className="ui-section-header gap-3">
         <div className="ui-section-intro">
           {collapsible ? (

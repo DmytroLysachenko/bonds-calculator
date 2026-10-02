@@ -1,11 +1,13 @@
-import { calculationService } from '@/features/bond-core/application-service';
-import { TaxStrategy } from '@/features/bond-core/types';
+import { MODEL_VERSION } from '@/features/bond-core/model-version';
+import { BondType, TaxStrategy } from '@/features/bond-core/types';
 import {
   PortfolioSimulationCalculationEnvelope,
   type PortfolioSimulationResult,
   ScenarioKind,
 } from '@/features/bond-core/types/scenarios';
 import { getMacroAssumptionDefaults } from '@/lib/data/market-data';
+import { resolveStoredBondLotContext } from '@/lib/server/bonds/offer-terms';
+import { calculationService } from '@/lib/server/calculation/composition';
 import { getOwnedPortfolio } from '@/lib/server/portfolio/access';
 import { PortfolioServiceError } from '@/lib/server/portfolio/errors';
 import {
@@ -14,7 +16,6 @@ import {
   listPortfoliosByOwner,
 } from '@/lib/server/portfolio/repository';
 import { buildPortfolioSimulationPayload } from '@/lib/server/portfolio/simulation';
-export { buildSharedPortfolioPageMetadata } from './shared-page-service';
 
 const emptySimulationResult: PortfolioSimulationResult = {
   items: [],
@@ -22,6 +23,7 @@ const emptySimulationResult: PortfolioSimulationResult = {
   summary: {
     totalInvested: 0,
     totalNetValue: 0,
+    totalRealValue: 0,
     totalProfit: 0,
   },
 };
@@ -99,9 +101,9 @@ export async function exportOwnerPortfolio(
       : null;
 
   const exportData = {
-    version: '1.0',
+    version: '2.0',
     exportedAt: new Date().toISOString(),
-    appVersion: '2.7.0-db-driven-metadata',
+    appVersion: MODEL_VERSION,
     packageType: formatMode === 'package' ? 'portfolio-package' : 'portfolio-export',
     assumptions: {
       expectedInflation: macroDefaults.expectedInflation,
@@ -113,16 +115,24 @@ export async function exportOwnerPortfolio(
       id: portfolio.id,
       name: portfolio.name,
       description: portfolio.description,
-      lots: lots.map((lot) => ({
-        id: lot.id,
-        bondType: lot.bondType,
-        bondTypeId: lot.bondTypeId,
-        bondSeriesId: lot.bondSeriesId,
-        purchaseDate: lot.purchaseDate,
-        amount: lot.amount,
-        isRebought: lot.isRebought,
-        notes: lot.notes,
-      })),
+      lots: await Promise.all(
+        lots.map(async (lot) => ({
+          bondType: lot.bondType,
+          bondTypeId: lot.bondTypeId,
+          bondSeriesId: lot.bondSeriesId,
+          seriesCode: (
+            await resolveStoredBondLotContext(
+              lot.bondType as BondType,
+              lot.purchaseDate,
+              lot.bondSeriesId,
+            )
+          ).seriesCode,
+          purchaseDate: lot.purchaseDate,
+          amount: lot.amount,
+          isRebought: lot.isRebought,
+          notes: lot.notes,
+        })),
+      ),
     },
     summary: simulation?.result.summary ?? null,
   };
@@ -151,5 +161,7 @@ export async function summarizeOwnerPortfolios(ownerId: string) {
     payload: buildPortfolioSimulationPayload(lots),
   });
 
-  return envelope.result;
+  // The overview needs aggregate checkpoints, not every accounting event of
+  // every holding. Full lot detail remains available through simulation/export.
+  return { ...envelope.result, items: [] };
 }

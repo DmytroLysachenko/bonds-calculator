@@ -36,9 +36,9 @@ describe('Comprehensive Bond Calculations', () => {
     // 100 bonds * 100 PLN = 10000
     // interest = 10000 * 2.5% * (3/12) = 62.5 PLN gross
     // tax = 62.5 * 19% = 11.875 -> 12 PLN (rounded to full PLN)
-    // net = 10000 + 62.5 - 12 = 10050.5
+    // Tax is settled to grosze under the standard interest-tax rule.
     expect(results.grossValue).toBeCloseTo(10062.5, 1);
-    expect(results.totalProfit).toBeCloseTo(50.5, 1);
+    expect(results.totalProfit).toBeCloseTo(50.62, 1);
 
     // Early withdrawal before 3 months
     const earlyInputs = {
@@ -135,7 +135,7 @@ describe('Comprehensive Bond Calculations', () => {
       payoutFrequency: InterestPayout.MONTHLY,
       earlyWithdrawalFee: 0.5,
       purchaseDate: '2026-03-01T00:00:00.000Z',
-      withdrawalDate: '2026-07-01T00:00:00.000Z',
+      withdrawalDate: '2026-07-02T00:00:00.000Z',
     };
     const results = calculateBondInvestment(inputs);
     const finalPoint = results.timeline[results.timeline.length - 1];
@@ -273,9 +273,9 @@ describe('Comprehensive Bond Calculations', () => {
     expect(results.timeline[2].nominalValueBeforeInterest).toBeCloseTo(10560, 1);
     expect(results.timeline[2].nominalValueAfterInterest).toBeCloseTo(11193.6, 1);
 
-    // Final tax should be 19% of total earned interest (rounded to full PLN)
+    // Final tax uses the statutory grosz settlement exception.
     const totalEarned = results.grossValue - 10000;
-    expect(results.totalTax).toBe(Math.round(totalEarned * 0.19));
+    expect(results.totalTax).toBeCloseTo(Math.ceil(totalEarned * 19) / 100, 2);
   });
 
   it('Early withdrawal fee protection: investor never gets less than nominal', () => {

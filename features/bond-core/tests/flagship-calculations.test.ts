@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { calculationService } from '@/lib/server/calculation/composition';
 import { getWithdrawalDateFromMonths, toDateString } from '@/shared/lib/date-timing';
 
-import { calculationService } from '../application-service';
 import { BOND_DEFINITIONS } from '../constants/bond-definitions';
 import {
   BondType,
@@ -257,8 +257,9 @@ describe('Flagship calculation regressions', () => {
       const result = envelope.result as RegularInvestmentResult;
 
       expect(result.totalInvested).toBe(48000);
-      expect(result.finalNominalValue).toBe(48000);
-      expect(result.totalTax).toBeGreaterThan(700);
+      expect(result.finalNominalValue).toBeGreaterThan(48000);
+      // COI tax now follows annual issuer coupon periods, not a monthly approximation.
+      expect(result.totalTax).toBeGreaterThan(650);
       expect(result.totalTax).toBeLessThan(1200);
       expect(result.totalProfit).toBeGreaterThan(2500);
       expect(result.totalProfit).toBeLessThan(4000);

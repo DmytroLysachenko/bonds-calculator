@@ -1100,6 +1100,16 @@ foundation exists but this finding's acceptance criteria are not met.
 | SR-18   | Done    | Canonical share URLs and safe export filename/content-disposition adapters completed.                                        |
 | SR-19   | Done    | OAuth-token lifecycle, revocation, retention, and review runbook completed; deployed review stays external.                  |
 
+### Maintainer scope decision — 2026-08-25
+
+This remains a private-preview project. The maintainer has deferred the
+cloud-managed operational expansion and external evidence work, including GCP
+IAM/Secret Manager changes, Cloud Run review, managed backup/restore proof,
+Inngest operator verification, production load testing, and field telemetry
+receipts. SR-10 and the related external gates therefore remain `Blocked`; they
+are not waived or complete. Revisit them before public launch or any
+production-readiness representation.
+
 ### Phase A — 24-hour containment
 
 - SR-01 fail-closed admin authorization.

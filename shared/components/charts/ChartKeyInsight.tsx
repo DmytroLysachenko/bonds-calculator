@@ -34,9 +34,7 @@ export function ChartKeyInsight({
       <dl className="flex gap-4 text-sm tabular-nums">
         <div>
           <dt className="ui-kicker">{t('common.nominal_value')}</dt>
-          <dd className="mt-1 font-semibold text-foreground">
-            {numberFormatter.format(end)}
-          </dd>
+          <dd className="mt-1 font-semibold text-foreground">{numberFormatter.format(end)}</dd>
         </div>
         {typeof realEnd === 'number' ? (
           <div>

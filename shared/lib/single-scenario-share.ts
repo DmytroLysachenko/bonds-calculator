@@ -1,4 +1,5 @@
 import { BondInputs } from '@/features/bond-core/types';
+import { createSingleScenarioPackage, isSinglePortableScenario } from '@/shared/lib/scenario-codec';
 
 export interface SharedSingleScenarioPayload {
   title: string;
@@ -7,15 +8,12 @@ export interface SharedSingleScenarioPayload {
 }
 
 function normalizeSharedSingleScenarioInputs(inputs: BondInputs): BondInputs {
-  const rest = { ...inputs };
-  delete rest.historicalData;
-
-  // Client-side share construction only removes private historical context.
-  // The API validates this untrusted payload before storage.
-  return {
-    ...rest,
-    historicalData: undefined,
-  };
+  // Shared links and local packages use one intent codec. The API still
+  // validates this untrusted payload before storage.
+  const scenario = createSingleScenarioPackage(inputs);
+  if (!isSinglePortableScenario(scenario))
+    throw new Error('Expected a single-bond scenario package.');
+  return scenario.intent;
 }
 
 export function buildSharedSingleScenarioPayload(

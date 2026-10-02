@@ -8,8 +8,8 @@ import {
   FeatureStatusNotice,
   FeatureStatusPill,
 } from '@/shared/components/feedback/FeatureStatusNotice';
-import { SecondarySurfaceIntro } from '@/shared/components/page/SecondarySurfaceIntro';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
+import { SecondarySurfaceIntro } from '@/shared/components/page/SecondarySurfaceIntro';
 
 const recoveryLabPages = [
   {

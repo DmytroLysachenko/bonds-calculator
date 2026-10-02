@@ -1,30 +1,58 @@
 import { format, parseISO, subMonths } from 'date-fns';
 
-import { getHistoricalAverages, getHistoricalDataMap } from '@/lib/data/market-data';
-
 import { BondDefinition } from '../constants/bond-definitions';
 import { MODEL_VERSION } from '../model-version';
 import { BondInputs, BondType } from '../types';
 import {
   CalculationDataFreshness,
+  CalculationDiagnostic,
   CalculationEnvelope,
   HistoricalAverages,
   ScenarioKind,
 } from '../types/scenarios';
-
-export { MODEL_VERSION };
 
 export interface HandlerContext {
   dataFreshness: CalculationDataFreshness;
   dbDefinitions: Record<BondType, BondDefinition>;
 }
 
-export interface ScenarioHandler<TRequest, TResponse> {
-  kind: ScenarioKind;
+export interface ScenarioHandler<TKind extends ScenarioKind, TRequest, TResponse> {
+  kind: TKind;
   handle(payload: TRequest, context: HandlerContext): Promise<CalculationEnvelope<TResponse>>;
 }
 
+export interface HandlerData {
+  getHistoricalDataMap: (
+    start: string,
+    end: string,
+  ) => Promise<NonNullable<BondInputs['historicalData']>>;
+  getHistoricalAverages: () => Promise<HistoricalAverages>;
+  getTaxRulesForYear: (
+    year: number,
+  ) => Promise<{ ikeLimit: string | null; ikzeLimit: string | null } | null | undefined>;
+  resolveBondOfferTerms: (
+    bondType: BondType,
+    purchaseDate: string,
+    definitions: Record<BondType, BondDefinition>,
+    selectedSeriesId?: string | null,
+  ) => Promise<{
+    firstYearRate: number;
+    margin: number;
+    earlyWithdrawalFee?: number;
+    redemptionFeeCap?: string;
+    termsSourceUrl?: string;
+    termsRevision?: string;
+    termsAreVerified: boolean;
+    source: 'series' | 'definition' | 'unresolved';
+    seriesCode?: string;
+    emissionMonth?: string;
+    requestedSeriesId?: string;
+  }>;
+}
+
 export abstract class BaseHandler {
+  constructor(protected readonly data: HandlerData) {}
+
   protected applyInflationScenario(
     expectedInflation: number,
     inflationScenario?: 'low' | 'base' | 'high',
@@ -43,7 +71,7 @@ export abstract class BaseHandler {
   protected async withHistoricalData<T extends { purchaseDate: string; withdrawalDate: string }>(
     inputs: T,
   ): Promise<T & { historicalData: BondInputs['historicalData'] }> {
-    const historicalData = await getHistoricalDataMap(
+    const historicalData = await this.data.getHistoricalDataMap(
       format(subMonths(parseISO(inputs.purchaseDate), 3), 'yyyy-MM-dd'),
       inputs.withdrawalDate,
     );
@@ -117,9 +145,10 @@ export abstract class BaseHandler {
     assumptions: string[],
     dataFreshness: CalculationDataFreshness,
     historicalAverages?: HistoricalAverages,
+    diagnostics?: CalculationDiagnostic[],
   ): Promise<CalculationEnvelope<T>> {
     const resultAsRecord = result as Record<string, unknown>;
-    const averages = historicalAverages || (await getHistoricalAverages());
+    const averages = historicalAverages || (await this.data.getHistoricalAverages());
 
     return {
       result,
@@ -134,6 +163,7 @@ export abstract class BaseHandler {
       dataFreshness,
       calculationVersion: MODEL_VERSION,
       historicalAverages: averages,
+      ...(diagnostics ? { diagnostics } : {}),
     };
   }
 }

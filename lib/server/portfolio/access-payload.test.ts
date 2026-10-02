@@ -16,12 +16,10 @@ function owner(overrides: Partial<PortfolioOwnerContext> = {}): PortfolioOwnerCo
 describe('portfolio access payload', () => {
   it('marks authenticated non-guest owners as workspace managers', () => {
     expect(createPortfolioAccessPayload(owner())).toEqual({
-      data: {
-        ownerId: 'owner-1',
-        isGuest: false,
-        authMode: 'authenticated',
-        canManageWorkspace: true,
-      },
+      ownerId: 'owner-1',
+      isGuest: false,
+      authMode: 'authenticated',
+      canManageWorkspace: true,
     });
   });
 
@@ -35,12 +33,10 @@ describe('portfolio access payload', () => {
         }),
       ),
     ).toEqual({
-      data: {
-        ownerId: 'owner-1',
-        isGuest: true,
-        authMode: 'guest',
-        canManageWorkspace: false,
-      },
+      ownerId: 'owner-1',
+      isGuest: true,
+      authMode: 'guest',
+      canManageWorkspace: false,
     });
   });
 });

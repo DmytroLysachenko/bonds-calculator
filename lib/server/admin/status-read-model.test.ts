@@ -20,7 +20,11 @@ const series = {
 describe('admin status read model', () => {
   it.each([
     ['success', 'gov.pl', 'Official current-offer sync completed.'],
-    ['partial', 'obligacjeskarbowe.pl', 'Bond-offer sync completed with fallback or secondary evidence.'],
+    [
+      'partial',
+      'obligacjeskarbowe.pl',
+      'Bond-offer sync completed with fallback or secondary evidence.',
+    ],
     ['failed', null, 'Bond-offer sync failed; current-offer evidence is unavailable.'],
   ])('summarizes a %s bond-offer run with a safe message', (status, provider, message) => {
     expect(

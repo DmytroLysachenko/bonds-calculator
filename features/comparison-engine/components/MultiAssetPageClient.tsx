@@ -14,7 +14,7 @@ export function MultiAssetPageClient() {
 
   return (
     <PageTransition>
-      <div className="mx-auto max-w-7xl space-y-8">
+      <div className="space-y-8">
         <SecondarySurfaceIntro
           eyebrow={t('multi_asset_page.page_notice_eyebrow')}
           title={t('multi_asset_page.hero_title')}

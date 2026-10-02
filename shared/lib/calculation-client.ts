@@ -1,4 +1,4 @@
-import { ApiResponse } from '../types/api';
+import { ApiEnvelopeError, decodeEnvelopeResponse } from './api-response-codec';
 
 export interface CalculationClientErrorPayload {
   error?: string;
@@ -29,15 +29,19 @@ export async function postCalculation<TResponse>(
     signal,
   });
 
-  const result: ApiResponse<TResponse> = await response.json();
+  try {
+    return await decodeEnvelopeResponse<TResponse>(response);
+  } catch (error) {
+    if (!(error instanceof ApiEnvelopeError)) {
+      throw error;
+    }
 
-  if (!response.ok || result.error) {
     throw new CalculationClientError(
-      result.error?.message ?? 'Calculation failed',
-      result.error?.code,
-      result.error?.details,
+      error.message === `Request failed with status ${response.status}`
+        ? 'Calculation failed'
+        : error.message,
+      error.code,
+      error.details,
     );
   }
-
-  return result.data as TResponse;
 }

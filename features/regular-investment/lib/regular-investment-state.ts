@@ -111,8 +111,9 @@ export function resolveRegularInvestmentBondTypeUpdate(
   previous: RegularInvestmentInputs,
   type: BondType,
   definition: (typeof BOND_DEFINITIONS)[BondType],
+  horizonChoice: 'preserve' | 'native' = 'preserve',
 ) {
-  return {
+  const next = {
     ...previous,
     bondType: type,
     duration: definition.duration,
@@ -126,6 +127,15 @@ export function resolveRegularInvestmentBondTypeUpdate(
     nominalValue: definition.nominalValue,
     isInflationIndexed: definition.isInflationIndexed,
   };
+  if (horizonChoice === 'native') {
+    next.investmentHorizonMonths = Math.round(definition.duration * 12);
+    next.withdrawalDate = getWithdrawalDateFromMonths(
+      previous.purchaseDate,
+      next.investmentHorizonMonths,
+    );
+    extendCustomRatePaths(next, previous);
+  }
+  return next;
 }
 
 function extendCustomRatePaths(next: RegularInvestmentInputs, base: RegularInvestmentInputs) {

@@ -36,9 +36,9 @@ describe('Bond Calculations Engine (Modular)', () => {
       // 10000 * 3% * (3/12) = 75 gross interest
       // 75 * 19% tax = 14.25 tax
       // Rounded tax (official) = 14 (base 75 * 0.19 = 14.25 -> rounded to 14)
-      // Net profit = 75 - 14 = 61
+      // Tax is settled under the grosz rule: 75 * 19% = 14.25.
       expect(results.grossValue).toBeCloseTo(10075, 2);
-      expect(results.totalProfit).toBeCloseTo(61, 2);
+      expect(results.totalProfit).toBeCloseTo(60.75, 2);
     });
 
     it('handles deflation correctly (floor at 0%)', () => {
@@ -94,6 +94,8 @@ describe('Bond Calculations Engine (Modular)', () => {
         duration: 10,
         firstYearRate: 7.0,
         earlyWithdrawalFee: 2.0,
+        isCapitalized: true,
+        payoutFrequency: InterestPayout.MATURITY,
         withdrawalDate: '2024-02-01', // 1 month in => Fee must be capped
       };
       const resultsCapped = calculateBondInvestment(inputs);

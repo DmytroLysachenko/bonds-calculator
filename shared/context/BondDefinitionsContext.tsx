@@ -14,8 +14,14 @@ interface BondDefinitionsContextType {
 
 const BondDefinitionsContext = createContext<BondDefinitionsContextType | undefined>(undefined);
 
-export function BondDefinitionsProvider({ children }: { children: ReactNode }) {
-  const { definitions, isLoading, error } = useBondDefinitionsHook();
+export function BondDefinitionsProvider({
+  children,
+  initialDefinitions,
+}: {
+  children: ReactNode;
+  initialDefinitions?: Record<BondType, BondDefinition>;
+}) {
+  const { definitions, isLoading, error } = useBondDefinitionsHook(initialDefinitions);
 
   return (
     <BondDefinitionsContext.Provider value={{ definitions, isLoading, error }}>

@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { calculationService } from '@/lib/server/calculation/composition';
 import { getWithdrawalDateFromMonths, toDateString } from '@/shared/lib/date-timing';
 
-import { calculationService } from '../application-service';
 import { BOND_DEFINITIONS } from '../constants/bond-definitions';
 import {
   ALL_BOND_TYPES,
@@ -183,6 +183,11 @@ describe('Feature support matrix regression suite', () => {
         expect(result.lots.length).toBeGreaterThan(0);
         expect(result.totalInvested).toBeGreaterThan(0);
         expect(result.finalNominalValue).toBeGreaterThan(0);
+        expect(envelope.diagnostics).toContainEqual({
+          code: 'expected_inflation',
+          severity: 'assumption',
+          params: { value: 3.5 },
+        });
       },
     );
 
@@ -209,6 +214,10 @@ describe('Feature support matrix regression suite', () => {
       expect(result).toHaveLength(3);
       expect(result.map((item) => item.type)).toEqual([BondType.TOS, BondType.COI, BondType.EDO]);
       expect(result.every((item) => item.result.netPayoutValue > 0)).toBe(true);
+      expect(envelope.diagnostics).toContainEqual({
+        code: 'comparison_normalized',
+        severity: 'assumption',
+      });
     });
 
     it('calculates descriptive portfolio simulation for stored-lot style payloads', async () => {
@@ -247,6 +256,10 @@ describe('Feature support matrix regression suite', () => {
       expect(result.aggregatedTimeline.length).toBeGreaterThan(0);
       expect(result.summary.totalNetValue).toBeGreaterThanOrEqual(0);
       expect(result.items.every((item) => item.result.netPayoutValue >= 0)).toBe(true);
+      expect(envelope.diagnostics).toContainEqual({
+        code: 'portfolio_sparse_checkpoints',
+        severity: 'assumption',
+      });
     });
   });
 
@@ -282,6 +295,15 @@ describe('Feature support matrix regression suite', () => {
 
       const withoutFamily = withoutFamilyEnvelope.result as BondOptimizerResult;
       const withFamily = withFamilyEnvelope.result as BondOptimizerResult;
+
+      expect(withoutFamilyEnvelope.assumptions).toContain(
+        'Ranking metric: Highest projected net payout after 5.0 years in this scenario.',
+      );
+      expect(withoutFamilyEnvelope.diagnostics).toContainEqual({
+        code: 'ranking_net_payout',
+        severity: 'assumption',
+        params: { years: '5.0' },
+      });
 
       for (const familyType of FAMILY_BOND_TYPES) {
         expect(withoutFamily.rankedBonds.some((item) => item.bondType === familyType)).toBe(false);
@@ -331,8 +353,97 @@ describe('Feature support matrix regression suite', () => {
         expect(result.modeledAnnualRate).toBeCloseTo(expectedAnnualRate, 5);
         expect(result.timeline.length).toBeGreaterThan(1);
         expect(result.totalWithdrawn).toBeGreaterThan(0);
+        expect(envelope.diagnostics).toContainEqual({
+          code: 'retirement_approximation',
+          severity: 'assumption',
+        });
+        expect(result.timeline[0].withdrawal).toBe(0);
+        expect(result.timeline[0].balance).toBe(500000);
+        expect(result.timeline.reduce((sum, row) => sum + row.withdrawal, 0)).toBeCloseTo(
+          result.totalWithdrawn,
+          6,
+        );
       },
     );
+
+    it('records only the available final withdrawal when the balance is exhausted', async () => {
+      const envelope = await calculationService.calculate({
+        kind: ScenarioKind.RETIREMENT_PLANNER,
+        payload: {
+          initialCapital: 100,
+          monthlyWithdrawal: 90,
+          expectedInflation: 0,
+          expectedNbpRate: 0,
+          bondType: BondType.ROR,
+          taxStrategy: TaxStrategy.STANDARD,
+          horizonYears: 1,
+          projectionStartDate: '2026-01-01',
+        },
+      });
+      const result = envelope.result as RetirementPlannerResult;
+      expect(result.timeline[0]).toMatchObject({ balance: 100, withdrawal: 0 });
+      expect(result.timeline.at(-1)?.withdrawal).toBeLessThan(90);
+      expect(result.timeline.reduce((sum, row) => sum + row.withdrawal, 0)).toBeCloseTo(
+        result.totalWithdrawn,
+        6,
+      );
+      expect(result.exhaustionDate).toBe(result.timeline.at(-1)?.date);
+    });
+
+    it('reconciles exact first- and second-month depletion at zero modeled return', async () => {
+      for (const withdrawal of [50, 200]) {
+        const envelope = await calculationService.calculate({
+          kind: ScenarioKind.RETIREMENT_PLANNER,
+          payload: {
+            initialCapital: 100,
+            monthlyWithdrawal: withdrawal,
+            expectedInflation: 0,
+            expectedNbpRate: 0,
+            bondType: BondType.ROR,
+            taxStrategy: TaxStrategy.STANDARD,
+            horizonYears: 1,
+            projectionStartDate: '2026-01-01',
+          },
+        });
+        const result = envelope.result as RetirementPlannerResult;
+        const expectedMonth = withdrawal === 50 ? 2 : 1;
+        expect(result.modeledAnnualRate).toBe(0);
+        expect(result.timeline[0]).toMatchObject({ balance: 100, withdrawal: 0 });
+        expect(result.timeline.at(-1)).toMatchObject({
+          date: `2026-${String(expectedMonth + 1).padStart(2, '0')}-01`,
+          balance: 0,
+          withdrawal: withdrawal === 50 ? 50 : 100,
+        });
+        expect(result.exhaustionDate).toBe(result.timeline.at(-1)?.date);
+        expect(result.totalWithdrawn).toBe(100);
+        expect(result.totalTaxPaid).toBe(0);
+        expect(result.timeline.reduce((sum, row) => sum + row.withdrawal, 0)).toBe(100);
+      }
+    });
+
+    it('distinguishes standard periodic tax from wrapper assumptions', async () => {
+      const run = async (taxStrategy: TaxStrategy) =>
+        calculationService.calculate({
+          kind: ScenarioKind.RETIREMENT_PLANNER,
+          payload: {
+            initialCapital: 1000,
+            monthlyWithdrawal: 1,
+            expectedInflation: 0,
+            expectedNbpRate: 12,
+            bondType: BondType.ROR,
+            taxStrategy,
+            horizonYears: 1,
+            projectionStartDate: '2026-01-01',
+          },
+        });
+      const standard = (await run(TaxStrategy.STANDARD)).result as RetirementPlannerResult;
+      const ike = (await run(TaxStrategy.IKE)).result as RetirementPlannerResult;
+      const ikze = (await run(TaxStrategy.IKZE)).result as RetirementPlannerResult;
+      expect(standard.totalTaxPaid).toBeGreaterThan(0);
+      expect(ike.totalTaxPaid).toBe(0);
+      expect(ikze.totalTaxPaid).toBe(0);
+      expect(standard.finalBalance).toBeLessThan(ike.finalBalance);
+    });
   });
 
   describe('trusted boundary rules', () => {

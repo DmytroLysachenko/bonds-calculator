@@ -1,84 +1,25 @@
 # 05. Financial Instrument Model
 
-To support the expansion from Polish Bonds to other assets (Bitcoin, S&P 500, Gold), the system uses a unified domain model. This ensures that the UI can render any instrument using a standardized interface while delegating specific math to specialized engines.
+The current product model is Polish retail Treasury bonds first. It does not
+use a universal instrument abstraction: bond families, issued series, tax
+rules, and offer resolution have distinct financial invariants.
 
-## 1. Core Instrument Entity
+## Current model
 
-All instruments must implement this base structure:
+- A **bond family** defines enduring statutory structure.
+- An **issued bond series** defines dated offer terms and maturity.
+- A **calculation intent** contains the user's question and assumptions.
+- A **resolved calculation** combines that intent with verified catalogue,
+  tax, and reference-data facts before entering an engine.
+- A **holding lot** records bond quantity and an issued-series reference.
 
-```typescript
-interface FinancialInstrument {
-  id: string; // Unique identifier (e.g., "PL-EDO-0834")
-  slug: string; // URL-friendly name (e.g., "edo-10-year")
-  type: InstrumentType; // "bond" | "crypto" | "equity" | "commodity"
-  provider: string; // "Polish Treasury" | "Exchange" | "NBP"
+[`CONTEXT.md`](../../../CONTEXT.md) is the vocabulary authority. Persistence
+details live in the database model; each calculation engine exposes its own
+projection result rather than a forced universal time-series contract.
 
-  // Display Metadata
-  name: string;
-  description: string;
-  riskLevel: 1 | 2 | 3 | 4 | 5; // 1 = Low, 5 = High
+## Deferred expansion
 
-  // Logic Pointers
-  engineId: string; // ID of the calculation engine to use
-  taxRulesId: string; // ID of the tax logic to apply
-}
-```
-
-## 2. Instrument-Specific Extensions
-
-### Bond Extension
-
-```typescript
-interface BondMetadata extends FinancialInstrument {
-  durationMonths: number;
-  interestModel: 'fixed' | 'floating-nbp' | 'inflation-linked';
-  capitalizationInterval: 'annual' | 'maturity' | 'none';
-  earlyRedemptionFee: number; // PLN per 100 PLN nominal
-  baseMargin?: number; // For floating/inflation types
-}
-```
-
-### Market Asset Extension (Crypto/Equity)
-
-```typescript
-interface MarketAssetMetadata extends FinancialInstrument {
-  ticker: string; // e.g., "BTC", "SPX"
-  historicalSource: 'yahoo-finance' | 'coingecko' | 'nbp' | 'gus';
-  volatilityIndex?: number; // Calculated based on history
-}
-```
-
-## 3. The Calculation State
-
-When a user runs a simulation, the state is captured in a `Scenario` object:
-
-```typescript
-interface Scenario {
-  instrumentId: string;
-  startDate: Date;
-  initialInvestment: number;
-  monthlyContribution?: number;
-  durationMonths: number;
-
-  // User Assumptions
-  assumptions: {
-    expectedInflation: number[]; // Yearly percentages
-    expectedMarketGrowth?: number;
-    reinvestDividends: boolean;
-  };
-}
-```
-
-## 4. Normalization Layer
-
-Before results are sent to the UI, they must be normalized to a standard `TimeSeries` format:
-
-```typescript
-interface TimeSeriesResult {
-  date: Date;
-  nominalValue: number; // Principal + Accrued Interest
-  netValue: number; // After Tax and Fees
-  realValue: number; // Adjusted for Inflation
-  events: FinancialEvent[]; // e.g., "Interest Payout", "Tax Deduction"
-}
-```
+Equities, commodities, and cryptocurrencies may later have separate research
+or historical-comparison workflows. They must not share a calculation interface
+until they share the same financial invariants, provenance requirements, and
+result semantics as the bond workflow.

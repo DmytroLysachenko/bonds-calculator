@@ -10,14 +10,17 @@ describe('ladder display helpers', () => {
         {
           maturityDate: '2036-05-01T00:00:00.000Z',
           netValue: 1200,
+          investedAmount: 1000,
         },
         {
           maturityDate: '2036-05-15T00:00:00.000Z',
           netValue: 300,
+          investedAmount: 500,
         },
         {
           maturityDate: '2036-06-01T00:00:00.000Z',
           netValue: 900,
+          investedAmount: 900,
         },
       ] as never,
       enUS,
@@ -42,14 +45,17 @@ describe('ladder display helpers', () => {
         {
           maturityDate: '2036-05-01T00:00:00.000Z',
           netValue: 1200,
+          investedAmount: 1200,
         },
         {
           maturityDate: '2036-06-01T00:00:00.000Z',
           netValue: 900,
+          investedAmount: 900,
         },
         {
           maturityDate: '2037-01-01T00:00:00.000Z',
           netValue: 750,
+          investedAmount: 700,
         },
       ] as never,
       enUS,
@@ -71,7 +77,7 @@ describe('ladder display helpers', () => {
       key: '2037',
       year: '2037',
       displayDate: '2037',
-      amount: 750,
+      amount: 700,
       count: 1,
       firstMonth: 'Jan 2037',
       lastMonth: 'Jan 2037',

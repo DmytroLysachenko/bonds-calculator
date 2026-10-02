@@ -3,13 +3,10 @@ import { NextRequest } from 'next/server';
 import { apiHandler } from '@/lib/server/http/api-handler';
 import { createValidationErrorResponse, okJson } from '@/lib/server/http/responses';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
-import {
-  portfolioDomainErrorResponse,
-  withAuthenticatedPortfolioOwner,
-} from '@/lib/server/portfolio/http';
+import { portfolioDomainErrorResponse, withPortfolioCommand } from '@/lib/server/portfolio/http';
 
 export const GET = apiHandler(async (req: NextRequest) => {
-  return withAuthenticatedPortfolioOwner(req, async (owner) => {
+  return withPortfolioCommand(req, async (owner) => {
     const { searchParams } = new URL(req.url);
     const portfolioId = searchParams.get('portfolioId');
     const formatMode = searchParams.get('format') ?? 'portfolio';

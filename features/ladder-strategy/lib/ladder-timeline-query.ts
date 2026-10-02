@@ -31,16 +31,15 @@ export function readLadderTimelineQueryState(
     tableFilter: tableFilters.includes(tableFilter as LadderTableFilter)
       ? (tableFilter as LadderTableFilter)
       : defaultLadderTimelineQueryState.tableFilter,
-    rowLimit: rowLimits.includes(rowLimit === 'all' ? 'all' : Number(rowLimit) as TableRowLimit)
-      ? (rowLimit === 'all' ? 'all' : Number(rowLimit) as TableRowLimit)
+    rowLimit: rowLimits.includes(rowLimit === 'all' ? 'all' : (Number(rowLimit) as TableRowLimit))
+      ? rowLimit === 'all'
+        ? 'all'
+        : (Number(rowLimit) as TableRowLimit)
       : defaultLadderTimelineQueryState.rowLimit,
   };
 }
 
-export function getLadderTimelineUrl(
-  currentUrl: URL,
-  state: LadderTimelineQueryState,
-) {
+export function getLadderTimelineUrl(currentUrl: URL, state: LadderTimelineQueryState) {
   currentUrl.searchParams.set('ladderChart', state.chartMode);
   currentUrl.searchParams.set('ladderFilter', state.tableFilter);
   currentUrl.searchParams.set('ladderRows', String(state.rowLimit));

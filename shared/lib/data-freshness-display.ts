@@ -1,4 +1,32 @@
 import { CalculationDataFreshness } from '@/features/bond-core/types/scenarios';
+import type { DataReferenceMetaLike } from '@/shared/lib/data-reference';
+
+export function getCalculationReferenceMeta(
+  freshness?: CalculationDataFreshness,
+): DataReferenceMetaLike | undefined {
+  if (!freshness) return undefined;
+
+  return {
+    source: freshness.usedFallback ? 'fallback' : 'database',
+    usedFallback: freshness.usedFallback,
+    asOf: freshness.coverageAsOf ?? freshness.asOf,
+    lastCheck: freshness.lastSyncedAt ?? freshness.lastCheck,
+    dataSource:
+      freshness.bondOfferSource === 'gov.pl' || freshness.bondOfferSource === 'obligacjeskarbowe.pl'
+        ? 'Official bond offer page'
+        : freshness.bondOfferSource === 'curated-fallback'
+          ? 'Static fallback dataset'
+          : undefined,
+    syncStatus:
+      freshness.status === 'fresh'
+        ? 'success'
+        : freshness.status === 'stale'
+          ? 'stale'
+          : freshness.status === 'fallback' || freshness.usedFallback
+            ? 'partial'
+            : 'failed',
+  };
+}
 
 export function formatFreshnessDate(value?: string) {
   if (!value) {

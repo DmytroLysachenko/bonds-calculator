@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { pageRouteByKey } from '@/lib/page-metadata';
+import { getIndexableRoutes, pageRouteByKey, pageRoutePolicy } from '@/lib/page-metadata';
 import { getCanonicalBaseUrl, getCanonicalUrl, isIndexableDeployment } from '@/lib/site-url';
 
 import robots from './robots';
@@ -28,6 +28,16 @@ describe('SEO metadata contract', () => {
     );
   });
 
+  it.each([undefined, 'not-a-url', 'javascript:alert(1)', 'https://example.test/?user=secret'])(
+    'falls back when the configured production base URL is missing or unsafe: %s',
+    (configured) => {
+      const env = { NODE_ENV: 'production', NEXT_PUBLIC_APP_URL: configured } as NodeJS.ProcessEnv;
+      const base = getCanonicalBaseUrl(env);
+      expect(base).toBe('https://obligacje-calculator-ji72nqwtea-lm.a.run.app');
+      expect(getCanonicalUrl('/education', env)).toBe(`${base}/education`);
+    },
+  );
+
   it('keeps robots and sitemap on the configured public app URL', () => {
     const previous = process.env.NEXT_PUBLIC_APP_URL;
     const previousTier = process.env.NEXT_PUBLIC_DEPLOYMENT_TIER;
@@ -44,6 +54,10 @@ describe('SEO metadata contract', () => {
         ]),
       );
       expect(sitemap().every((item) => item.lastModified === undefined)).toBe(true);
+      expect(sitemap().map((item) => item.url)).toEqual(
+        getIndexableRoutes().map((route) => `https://seo.example${route === '/' ? '' : route}`),
+      );
+      expect(sitemap().some((item) => item.url.includes('/notebook'))).toBe(false);
     } finally {
       process.env.NEXT_PUBLIC_APP_URL = previous;
       process.env.NEXT_PUBLIC_DEPLOYMENT_TIER = previousTier;
@@ -67,6 +81,7 @@ describe('SEO metadata contract', () => {
     try {
       process.env.NEXT_PUBLIC_DEPLOYMENT_TIER = 'preview';
       expect(robots().rules).toEqual({ userAgent: '*', disallow: '/' });
+      expect(sitemap()).toEqual([]);
 
       process.env.NEXT_PUBLIC_DEPLOYMENT_TIER = 'production';
       expect(robots().rules).toEqual({
@@ -99,15 +114,23 @@ describe('SEO metadata contract', () => {
     );
   });
 
-  it('defines non-empty, unique metadata for every routed page key', () => {
-    const messages = JSON.parse(read('i18n/translations/en.json')) as {
-      metadata: { pages: Record<string, { title: string; description: string }> };
-    };
-    const entries = Object.keys(pageRouteByKey).map((key) => messages.metadata.pages[key]);
+  it('keeps private and experimental routes explicitly nonindexable', () => {
+    for (const key of ['notebook', 'login', 'multi_asset', 'retirement', 'recovery_lab'] as const) {
+      expect(pageRoutePolicy[key].indexable).toBe(false);
+    }
+  });
 
-    expect(entries).toHaveLength(Object.keys(pageRouteByKey).length);
-    expect(entries.every((entry) => entry?.title.trim() && entry.description.trim())).toBe(true);
-    expect(new Set(entries.map((entry) => entry.title)).size).toBe(entries.length);
+  it('defines non-empty, unique metadata for every routed page key', () => {
+    for (const locale of ['en', 'pl']) {
+      const messages = JSON.parse(read(`i18n/translations/${locale}.json`)) as {
+        metadata: { pages: Record<string, { title: string; description: string }> };
+      };
+      const entries = Object.keys(pageRouteByKey).map((key) => messages.metadata.pages[key]);
+
+      expect(entries).toHaveLength(Object.keys(pageRouteByKey).length);
+      expect(entries.every((entry) => entry?.title.trim() && entry.description.trim())).toBe(true);
+      expect(new Set(entries.map((entry) => entry.title)).size).toBe(entries.length);
+    }
   });
 
   it('keeps root layout metadata and JSON-LD free of legacy Vercel URLs', () => {

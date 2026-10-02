@@ -6,8 +6,8 @@ import { BondDefinition } from '@/features/bond-core/constants/bond-definitions'
 import { BondInputs } from '@/features/bond-core/types';
 import { useAppI18n } from '@/i18n/client';
 import { getDateFnsLocale } from '@/i18n/locale-utils';
-import { ParameterSummary } from '@/shared/components/results/ParameterSummary';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
+import { ParameterSummary } from '@/shared/components/results/ParameterSummary';
 import { getBondRateContextCopy } from '@/shared/lib/bond-rate-context';
 import { formatBondDuration } from '@/shared/lib/format-bond-duration';
 

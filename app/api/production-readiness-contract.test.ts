@@ -14,7 +14,7 @@ describe('production readiness contract', () => {
     const dockerfile = read('Dockerfile');
     const cloudbuild = read('cloudbuild.yaml');
 
-    expect(dockerfile).toContain('FROM node:24-bookworm-slim AS base');
+    expect(dockerfile).toMatch(/FROM node:24-bookworm-slim@sha256:[a-f0-9]{64} AS base/);
     expect(dockerfile).toContain('ENV NODE_ENV=production');
     expect(dockerfile).toContain('ENV HOSTNAME=0.0.0.0');
     expect(dockerfile).toContain('ENV PORT=8080');

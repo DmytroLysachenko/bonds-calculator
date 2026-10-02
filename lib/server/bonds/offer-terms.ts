@@ -6,6 +6,7 @@ import { BondType } from '@/features/bond-core/types';
 import {
   findActiveBondSeriesForDate,
   findBondDefinitionBySymbol,
+  findBondSeriesByCodeForBond,
   findBondSeriesByIdForBond,
 } from '@/lib/server/bonds/offer-terms-repository';
 import { createServerLogger } from '@/lib/server/logging';
@@ -15,9 +16,15 @@ const logger = createServerLogger('BondOfferTerms');
 export interface ResolvedBondOfferTerms {
   firstYearRate: number;
   margin: number;
-  source: 'series' | 'definition';
+  earlyWithdrawalFee?: number;
+  redemptionFeeCap?: string;
+  termsSourceUrl?: string;
+  termsRevision?: string;
+  termsAreVerified: boolean;
+  source: 'series' | 'definition' | 'unresolved';
   seriesCode?: string;
   emissionMonth?: string;
+  requestedSeriesId?: string;
 }
 
 export interface ResolvedStoredBondLotContext {
@@ -28,6 +35,13 @@ export interface ResolvedStoredBondLotContext {
 
 function getBondDurationMonths(definition: BondDefinition) {
   return Math.max(1, Math.round(definition.duration * 12));
+}
+
+function isPurchaseWithinSeriesWindow(
+  purchaseDate: string,
+  series: { sellStartDate: string; sellEndDate: string },
+) {
+  return purchaseDate >= series.sellStartDate && purchaseDate <= series.sellEndDate;
 }
 
 export function deriveSeriesCode(
@@ -74,6 +88,7 @@ export async function resolveBondOfferTerms(
   const fallback: ResolvedBondOfferTerms = {
     firstYearRate: definition.firstYearRate,
     margin: definition.margin,
+    termsAreVerified: false,
     source: 'definition',
   };
 
@@ -87,15 +102,32 @@ export async function resolveBondOfferTerms(
     if (selectedSeriesId && selectedSeriesId !== 'current') {
       const exactSeries = await findBondSeriesByIdForBond(selectedSeriesId, bond.id);
 
-      if (exactSeries) {
+      if (exactSeries && isPurchaseWithinSeriesWindow(purchaseDate, exactSeries)) {
         return {
           firstYearRate: Number(exactSeries.firstYearRate),
           margin: Number(exactSeries.baseMargin ?? 0),
+          earlyWithdrawalFee:
+            exactSeries.earlyWithdrawalFee === null
+              ? undefined
+              : Number(exactSeries.earlyWithdrawalFee),
+          redemptionFeeCap: exactSeries.redemptionFeeCap ?? undefined,
+          termsSourceUrl: exactSeries.termsSourceUrl ?? undefined,
+          termsRevision: exactSeries.termsRevision ?? undefined,
+          termsAreVerified: Boolean(exactSeries.termsSourceUrl && exactSeries.termsRevision),
           source: 'series',
           seriesCode: exactSeries.seriesCode,
           emissionMonth: exactSeries.emissionMonth,
         };
       }
+
+      // A recorded or explicitly selected series is historical fact. Do not
+      // silently replace it with the active offer when the catalogue cannot
+      // verify it, or when its sale window does not cover the supplied date.
+      return {
+        ...fallback,
+        source: 'unresolved',
+        requestedSeriesId: selectedSeriesId,
+      };
     }
 
     const activeSeries = await findActiveBondSeriesForDate(bond.id, purchaseDate);
@@ -123,12 +155,27 @@ export async function resolveBondOfferTerms(
     return {
       firstYearRate: Number(activeSeries.firstYearRate),
       margin: Number(activeSeries.baseMargin ?? 0),
+      earlyWithdrawalFee:
+        activeSeries.earlyWithdrawalFee === null
+          ? undefined
+          : Number(activeSeries.earlyWithdrawalFee),
+      redemptionFeeCap: activeSeries.redemptionFeeCap ?? undefined,
+      termsSourceUrl: activeSeries.termsSourceUrl ?? undefined,
+      termsRevision: activeSeries.termsRevision ?? undefined,
+      termsAreVerified: Boolean(activeSeries.termsSourceUrl && activeSeries.termsRevision),
       source: 'series',
       seriesCode: activeSeries.seriesCode,
       emissionMonth: activeSeries.emissionMonth,
     };
   } catch (error) {
     logger.error('Failed to resolve bond offer terms', error);
+    if (selectedSeriesId && selectedSeriesId !== 'current') {
+      return {
+        ...fallback,
+        source: 'unresolved',
+        requestedSeriesId: selectedSeriesId,
+      };
+    }
     return fallback;
   }
 }
@@ -137,6 +184,7 @@ export async function resolveStoredBondLotContext(
   bondType: BondType,
   purchaseDate: string,
   selectedSeriesId?: string | null,
+  selectedSeriesCode?: string | null,
 ): Promise<ResolvedStoredBondLotContext> {
   try {
     const bond = await findBondDefinitionBySymbol(bondType);
@@ -147,11 +195,30 @@ export async function resolveStoredBondLotContext(
 
     if (selectedSeriesId && selectedSeriesId !== 'current') {
       const exactSeries = await findBondSeriesByIdForBond(selectedSeriesId, bond.id);
+      if (exactSeries && isPurchaseWithinSeriesWindow(purchaseDate, exactSeries)) {
+        return {
+          bondTypeId: bond.id,
+          bondSeriesId: exactSeries.id,
+          seriesCode: exactSeries.seriesCode,
+        };
+      }
+      // UUIDs are database-local. A portable package may contain its source
+      // UUID as trace metadata, but its public series code is authoritative.
+      if (!selectedSeriesCode) return { bondTypeId: bond.id, bondSeriesId: null };
+    }
 
+    if (selectedSeriesCode) {
+      const exactSeries = await findBondSeriesByCodeForBond(selectedSeriesCode, bond.id);
       return {
         bondTypeId: bond.id,
-        bondSeriesId: exactSeries?.id ?? null,
-        seriesCode: exactSeries?.seriesCode,
+        bondSeriesId:
+          exactSeries && isPurchaseWithinSeriesWindow(purchaseDate, exactSeries)
+            ? exactSeries.id
+            : null,
+        seriesCode:
+          exactSeries && isPurchaseWithinSeriesWindow(purchaseDate, exactSeries)
+            ? exactSeries.seriesCode
+            : undefined,
       };
     }
 

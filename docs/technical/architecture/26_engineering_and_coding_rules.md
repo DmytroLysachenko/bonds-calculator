@@ -27,6 +27,10 @@ an interface also owns its adapter choice, tests, and replacement/deletion plan.
 - Browser clients never persist administrator bearer credentials.
 - Refactors delete superseded code and source-spelling contracts when behavior,
   types, lint boundaries, or integration tests protect the real invariant.
+- Source-reading tests are reserved for explicit repository policy (for example
+  layer boundaries, deployment pinning, documentation integrity, and static
+  style contracts). Product behavior and provider contracts use rendered,
+  request/response, or browser-observable tests instead.
 - A delivery updates its relevant documentation in the same change and names
   the focused behavioral check that proves the boundary still holds.
 
@@ -224,6 +228,25 @@ exports. `pnpm scan:unused` is a required clean gate; investigate dynamic and
 test consumers before deleting any reported symbol.
 
 ## 5. Components Must Stay Small and Focused
+
+### 4.1 Client GET resources
+
+SWR is the default client-side primitive for cacheable GET requests. It owns
+request deduplication, freshness, revalidation, and subscriber updates. New
+client GET hooks must use the shared `apiGet` fetcher with SWR unless a
+documented boundary requires a different transport or lifecycle.
+
+Do not introduce a second module-level cache/subscription abstraction for a
+normal API GET. Configure SWR explicitly when a resource must avoid focus or
+reconnect revalidation, and keep endpoint keys stable so callers share cache
+entries predictably.
+
+### 4.2 Route-bundle budgets
+
+`pnpm check:bundle-budgets` writes the route-bundle report from a completed
+production build and checks the flagship calculator routes against their
+versioned byte ceilings. Run it after `pnpm build`; add a lazy boundary only
+when this evidence identifies a costly result- or interaction-only branch.
 
 ### 5.1 Responsibility
 

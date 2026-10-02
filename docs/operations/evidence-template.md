@@ -13,16 +13,16 @@ unredacted provider responses.
 
 ## Required checks
 
-| Control | Evidence to attach | Result |
-| --- | --- | --- |
-| Workload identity | Service-account name, bound repository/environment, least-privilege role review | pass / fail |
-| Runtime secrets | Secret Manager reference names only; no plaintext env-file values | pass / fail |
-| Database migration | Migration identity execution; runtime role DDL-denial query result | pass / fail |
-| Inngest schedule | Function identifier, schedule, signed delivery/retry observation | pass / fail |
-| Readiness/smoke | Redacted endpoint status, revision/image match, authenticated smoke result | pass / fail |
-| Backup/PITR | Retention configuration and isolated restore-drill timestamp | pass / fail |
-| Load test | Scenario, concurrency, p95/error rate, Cloud Run/Neon saturation | pass / fail |
-| RUM receipt | Aggregate route-template LCP/INP/CLS receipt without identifiers | pass / fail |
+| Control            | Evidence to attach                                                              | Result      |
+| ------------------ | ------------------------------------------------------------------------------- | ----------- |
+| Workload identity  | Service-account name, bound repository/environment, least-privilege role review | pass / fail |
+| Runtime secrets    | Secret Manager reference names only; no plaintext env-file values               | pass / fail |
+| Database migration | Migration identity execution; runtime role DDL-denial query result              | pass / fail |
+| Inngest schedule   | Function identifier, schedule, signed delivery/retry observation                | pass / fail |
+| Readiness/smoke    | Redacted endpoint status, revision/image match, authenticated smoke result      | pass / fail |
+| Backup/PITR        | Retention configuration and isolated restore-drill timestamp                    | pass / fail |
+| Load test          | Scenario, concurrency, p95/error rate, Cloud Run/Neon saturation                | pass / fail |
+| RUM receipt        | Aggregate route-template LCP/INP/CLS receipt without identifiers                | pass / fail |
 
 ## Exceptions
 

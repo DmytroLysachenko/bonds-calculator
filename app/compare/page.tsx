@@ -1,15 +1,22 @@
 import { ComparePageClient } from '@/features/comparison-engine/components/ComparePageClient';
+import { getBondDefinitionsMap } from '@/lib/data/bond-definition-data';
 import { getLocalizedPageMetadata } from '@/lib/page-metadata';
-import { BondDefinitionsBoundary } from '@/shared/components/providers/BondDefinitionsBoundary';
+import { CalculatorRouteBoundary } from '@/shared/components/page/CalculatorRouteBoundary';
+import { LocalizedMetadataMarker } from '@/shared/components/page/LocalizedMetadataMarker';
 
 export async function generateMetadata() {
   return getLocalizedPageMetadata('comparison');
 }
 
-export default function ComparisonPage() {
+export default async function ComparisonPage() {
+  const initialDefinitions = await getBondDefinitionsMap();
+
   return (
-    <BondDefinitionsBoundary>
-      <ComparePageClient />
-    </BondDefinitionsBoundary>
+    <>
+      <CalculatorRouteBoundary initialDefinitions={initialDefinitions}>
+        <ComparePageClient />
+      </CalculatorRouteBoundary>
+      <LocalizedMetadataMarker />
+    </>
   );
 }

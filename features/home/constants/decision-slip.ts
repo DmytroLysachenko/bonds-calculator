@@ -1,12 +1,11 @@
 import { getFeaturesForPlacement } from '@/shared/lib/feature-catalog';
 
 const decisionCopyByTitleKey = {
-  'nav.single_calculator': 'simulate',
   'nav.education': 'learn',
   'nav.economic_data': 'check-context',
 } as const;
 
-const decisionTitleKeys = ['nav.single_calculator', 'nav.education', 'nav.economic_data'] as const;
+const decisionTitleKeys = ['nav.education', 'nav.economic_data'] as const;
 
 const primaryFeatures = getFeaturesForPlacement('primary');
 

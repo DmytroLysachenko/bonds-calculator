@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { BoundedMemoryRateLimiter, type RateLimitPolicy,SharedStoreRateLimiter } from './rate-limiter';
+import {
+  BoundedMemoryRateLimiter,
+  type RateLimitPolicy,
+  SharedStoreRateLimiter,
+} from './rate-limiter';
 
 const policy: RateLimitPolicy = { key: 'write', limit: 2, windowMs: 1_000 };
 
@@ -8,7 +12,10 @@ describe('BoundedMemoryRateLimiter', () => {
   it('returns a stable decision and headers-ready metadata', () => {
     const limiter = new BoundedMemoryRateLimiter();
     expect(limiter.consume('user', policy, 1)).toEqual({
-      allowed: true, limit: 2, remaining: 1, resetAt: 1_001,
+      allowed: true,
+      limit: 2,
+      remaining: 1,
+      resetAt: 1_001,
     });
     expect(limiter.consume('user', policy, 2)).toMatchObject({ allowed: true, remaining: 0 });
     expect(limiter.consume('user', policy, 3)).toMatchObject({ allowed: false, remaining: 0 });
@@ -44,10 +51,15 @@ describe('SharedStoreRateLimiter', () => {
     const limiter = new SharedStoreRateLimiter({ consume });
 
     await expect(limiter.consume('user', policy, 1_000)).resolves.toEqual({
-      allowed: false, limit: 2, remaining: 0, resetAt: 2_000,
+      allowed: false,
+      limit: 2,
+      remaining: 0,
+      resetAt: 2_000,
     });
     expect(consume).toHaveBeenCalledWith({
-      bucketKey: 'write:user', now: new Date(1_000), resetAt: new Date(2_000),
+      bucketKey: 'write:user',
+      now: new Date(1_000),
+      resetAt: new Date(2_000),
     });
   });
 });
