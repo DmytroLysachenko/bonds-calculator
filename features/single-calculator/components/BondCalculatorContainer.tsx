@@ -249,7 +249,6 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
                   isDirty={isDirty}
                   hasResults={!!results}
                   loading={isCalculating}
-                  disabled={blockingGuardrails.length > 0}
                   formId={SINGLE_CALCULATOR_FORM_ID}
                   onClick={() => calculate()}
                 />

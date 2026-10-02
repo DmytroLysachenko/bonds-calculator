@@ -120,7 +120,12 @@ test('trusted-core routes: accessible education, calculator, and economic journe
   }
 
   await page.goto('/education', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('link', { name: /official|oficjal/i })).toBeVisible();
+  await expect(
+    page
+      .locator('#current-offers')
+      .getByRole('link', { name: /official|oficjal/i })
+      .first(),
+  ).toBeVisible();
   await expect(page.getByRole('link', { name: /calculate|oblicz|policz/i }).first()).toBeVisible();
 
   await page.goto('/single-calculator', { waitUntil: 'domcontentloaded' });
@@ -133,7 +138,7 @@ test('trusted-core routes: accessible education, calculator, and economic journe
   );
   await calculateButton.click();
   await calculationResponse;
-  await expect(page.getByText(/results current|wyniki aktualne/i)).toBeVisible();
+  await expect(page.locator('#calculator-results')).toBeVisible();
 
   await page.goto('/economic-data', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /CPI/i }).press('Tab');

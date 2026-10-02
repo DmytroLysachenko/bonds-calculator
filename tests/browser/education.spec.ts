@@ -29,7 +29,7 @@ test('education compares two selected offers in table order without browser diag
   await checkboxes.nth(0).check();
 
   await expect(page.getByText(/Wybrano: 2/)).toBeVisible();
-  const compareSelected = page.getByRole('link', { name: 'Porównaj wybrane' });
+  const compareSelected = comparison.getByRole('link', { name: 'Porównaj wybrane' });
   await expect(compareSelected).toHaveAttribute('href', '/compare?a=OTS&b=TOS');
   await expect(checkboxes.nth(2)).toBeDisabled();
   await expectNoBrowserDiagnostics(testInfo, diagnostics);

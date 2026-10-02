@@ -211,7 +211,7 @@ export function useBondCalculatorEffects({
   useEffect(() => {
     let obsolete = false;
     const timer = setTimeout(() => {
-      void fetchSeries(inputs.bondType).then((series) => {
+      void fetchSeries(inputs.bondType, () => obsolete).then((series) => {
         if (obsolete || !series) {
           return;
         }
@@ -283,12 +283,17 @@ export function useBondCalculatorEffects({
   ]);
 }
 
-async function fetchSeries(symbol: BondType): Promise<BondSeriesMetadata[] | null> {
+async function fetchSeries(
+  symbol: BondType,
+  isObsolete: () => boolean,
+): Promise<BondSeriesMetadata[] | null> {
   try {
     await Promise.resolve();
     return await fetchBondSeriesForSymbol(symbol);
   } catch (error) {
-    logClientError('Failed to fetch series:', error);
+    if (!isObsolete()) {
+      logClientError('Failed to fetch series:', error);
+    }
     return null;
   }
 }

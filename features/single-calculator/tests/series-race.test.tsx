@@ -19,10 +19,12 @@ const falseRef = () => ({ current: false });
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((next) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((next, fail) => {
     resolve = next;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function renderEffects(
@@ -66,7 +68,11 @@ function renderEffects(
 }
 
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  fetchSeriesForSymbol.mockReset();
+});
 
 it('ignores an obsolete bond-series response after bond type changes', async () => {
   const edo = deferred<[]>();
@@ -94,4 +100,22 @@ it('ignores an obsolete bond-series response after bond type changes', async () 
   });
 
   expect(setAvailableSeries).toHaveBeenCalledTimes(1);
+});
+
+it('does not report a late series failure after leaving the calculator', async () => {
+  const pending = deferred<[]>();
+  fetchSeriesForSymbol.mockReturnValue(pending.promise);
+  const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+  const hook = renderEffects(BondType.EDO, vi.fn());
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+  });
+  hook.unmount();
+  await act(async () => {
+    pending.reject(new Error('request cancelled during navigation'));
+    await Promise.resolve();
+  });
+
+  expect(consoleError).not.toHaveBeenCalled();
 });

@@ -6,18 +6,25 @@ import {
   stubWebVitals,
 } from './browser-diagnostics';
 
-test('persists theme and locale preferences through the browser shell', async ({ page }) => {
+test('persists theme and locale preferences through the browser shell', async ({
+  page,
+}, testInfo) => {
   await stubGuestPortfolioAccess(page);
   await stubOpportunisticSync(page);
   await stubWebVitals(page);
   await page.goto('/', { waitUntil: 'networkidle' });
 
   const mobileNavigation = page.getByRole('button', {
-    name: /open navigation|otwórz nawigacje/i,
+    name: /open navigation|otwórz nawigacj/i,
   });
-  if (await mobileNavigation.isVisible()) await mobileNavigation.click();
-  await page
-    .locator('summary:visible')
+  if (testInfo.project.name === 'mobile-chromium') {
+    await expect(mobileNavigation).toBeVisible();
+    await mobileNavigation.click();
+  }
+  const settingsRegion =
+    testInfo.project.name === 'mobile-chromium' ? page.getByRole('dialog') : page.locator('aside');
+  await settingsRegion
+    .locator('summary')
     .filter({ hasText: /settings|ustawienia/i })
     .click();
   const themeToggle = page.getByRole('button', { name: /dark mode|tryb ciemny/i }).first();
