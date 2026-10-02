@@ -44,16 +44,29 @@ module.exports = {
       },
     },
     assert: {
-      assertions: {
-        'categories:accessibility': ['error', { minScore: 0.95 }],
-        'categories:best-practices': ['error', { minScore: 0.9 }],
-        'categories:performance': ['warn', { minScore: 0.7 }],
+      assertMatrix: [
+        {
+          assertions: {
+            'categories:accessibility': ['error', { minScore: 0.95 }],
+            'categories:best-practices': ['error', { minScore: 0.9 }],
+            'categories:performance': ['warn', { minScore: 0.7 }],
+            ...(!isIndexableEnvironment ? { 'is-crawlable': 'off' } : {}),
+            'largest-contentful-paint': ['warn', { maxNumericValue: 2500 }],
+            'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
+          },
+        },
         ...(isIndexableEnvironment
-          ? { 'categories:seo': ['error', { minScore: 0.9 }] }
-          : { 'is-crawlable': 'off' }),
-        'largest-contentful-paint': ['warn', { maxNumericValue: 2500 }],
-        'cumulative-layout-shift': ['error', { maxNumericValue: 0.1 }],
-      },
+          ? [
+              {
+                // These are the public routes in lib/route-policy.ts. Keep SEO
+                // scoring off intentionally noindex calculator variants.
+                matchingUrlPattern:
+                  '^https?://[^/]+/(?:|education|single-calculator|economic-data)/?$',
+                assertions: { 'categories:seo': ['error', { minScore: 0.9 }] },
+              },
+            ]
+          : []),
+      ],
     },
     upload: {
       target: 'filesystem',
