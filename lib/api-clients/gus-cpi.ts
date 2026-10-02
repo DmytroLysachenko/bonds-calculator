@@ -11,6 +11,7 @@ const GUS_CPI_ARCHIVE_PAGE_URL =
   'https://stat.gov.pl/obszary-tematyczne/ceny-handel/wskazniki-cen/wskazniki-cen-towarow-i-uslug-konsumpcyjnych-pot-inflacja-/miesieczne-wskazniki-cen-towarow-i-uslug-konsumpcyjnych-od-1982-roku/';
 
 const GUS_CPI_PRESENTATION_LABEL = 'Analogiczny miesiac poprzedniego roku = 100';
+const GUS_CPI_MONTHLY_PRESENTATION_LABEL = 'Poprzedni miesiac = 100';
 
 function normalizePolishText(value: string) {
   return value
@@ -34,6 +35,24 @@ export function parseGusCpiCsvContent(
   startDate?: string,
   endDate?: string,
 ): GusCpiPoint[] {
+  return parseGusCpiPresentation(csvText, GUS_CPI_PRESENTATION_LABEL, startDate, endDate);
+}
+
+/** Month-on-month CPI change, distinct from the yearly CPI assumption series. */
+export function parseGusCpiMonthlyCsvContent(
+  csvText: string,
+  startDate?: string,
+  endDate?: string,
+): GusCpiPoint[] {
+  return parseGusCpiPresentation(csvText, GUS_CPI_MONTHLY_PRESENTATION_LABEL, startDate, endDate);
+}
+
+function parseGusCpiPresentation(
+  csvText: string,
+  presentationLabel: string,
+  startDate?: string,
+  endDate?: string,
+): GusCpiPoint[] {
   const start = startDate ? startOfMonth(parseISO(startDate)) : null;
   const end = endDate ? startOfMonth(parseISO(endDate)) : null;
   const rows = csvText.split(/\r?\n/);
@@ -50,7 +69,7 @@ export function parseGusCpiCsvContent(
     const month = (parts[4] ?? '').trim();
     const rawValue = (parts[5] ?? '').trim();
 
-    if (presentation !== GUS_CPI_PRESENTATION_LABEL) continue;
+    if (presentation !== presentationLabel) continue;
     if (!year || !month || !rawValue) continue;
 
     const indexValue = parseDecimal(rawValue);
@@ -62,8 +81,8 @@ export function parseGusCpiCsvContent(
     if (start && monthDate < start) continue;
     if (end && monthDate > end) continue;
 
-    // GUS publishes CPI here as an index where the same month of the previous year = 100.
-    // The app expects an annual inflation rate in percentage points, e.g. 103.2 -> 3.2.
+    // The selected presentation has a 100-based index. Its period is encoded
+    // by presentationLabel; the two series must never share a data-series slug.
     points.push({
       date,
       value: Number((indexValue - 100).toFixed(2)),
@@ -77,6 +96,16 @@ export class GusCpiApiClient {
   static readonly archivePageUrl = GUS_CPI_ARCHIVE_PAGE_URL;
 
   async fetchHistoricalData(startDate?: string, endDate?: string): Promise<GusCpiPoint[]> {
+    const csvText = await this.fetchArchiveCsv();
+    return parseGusCpiCsvContent(csvText, startDate, endDate);
+  }
+
+  async fetchMonthlyHistoricalData(startDate?: string, endDate?: string): Promise<GusCpiPoint[]> {
+    const csvText = await this.fetchArchiveCsv();
+    return parseGusCpiMonthlyCsvContent(csvText, startDate, endDate);
+  }
+
+  private async fetchArchiveCsv() {
     const archiveHtml = await fetchSyncText(GUS_CPI_ARCHIVE_PAGE_URL, {
       cache: 'no-store',
     });
@@ -95,6 +124,6 @@ export class GusCpiApiClient {
     const decoder = new TextDecoder('windows-1250');
     const csvText = decoder.decode(buffer);
 
-    return parseGusCpiCsvContent(csvText, startDate, endDate);
+    return csvText;
   }
 }

@@ -14,6 +14,15 @@ const SERIES = [
     dataSource: 'GUS official CPI monthly archive CSV',
   },
   {
+    slug: 'pl-cpi-mom',
+    name: 'Poland CPI month-on-month change',
+    description: 'Consumer Price Index change relative to the preceding month in Poland.',
+    category: 'macro' as const,
+    unit: '%',
+    frequency: 'monthly',
+    dataSource: 'GUS official CPI monthly archive CSV, previous month = 100 presentation',
+  },
+  {
     slug: 'nbp-ref-rate',
     name: 'NBP Reference Rate',
     description: 'The main interest rate of the National Bank of Poland.',

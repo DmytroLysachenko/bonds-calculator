@@ -172,6 +172,35 @@ async function seedMacroAndMarket() {
     logger.info(`Seeded ${inflationPoints.length} historical CPI points from GUS`);
   }
 
+  const monthlyCpiSeries = await db.query.dataSeries.findFirst({
+    where: eq(dataSeries.slug, 'pl-cpi-mom'),
+  });
+  if (monthlyCpiSeries) {
+    const monthlyPoints = await gusCpiClient.fetchMonthlyHistoricalData();
+    if (monthlyPoints.length) {
+      await db
+        .insert(dataPoints)
+        .values(
+          monthlyPoints.map((point) => ({
+            seriesId: monthlyCpiSeries.id,
+            date: point.date,
+            value: point.value.toString(),
+            qualityFlag: 'verified',
+            sourceMetadata: GusCpiApiClient.archivePageUrl,
+          })),
+        )
+        .onConflictDoUpdate({
+          target: [dataPoints.seriesId, dataPoints.date],
+          set: {
+            value: sql`EXCLUDED.value`,
+            qualityFlag: 'verified',
+            sourceMetadata: GusCpiApiClient.archivePageUrl,
+          },
+        });
+    }
+    logger.info(`Seeded ${monthlyPoints.length} monthly CPI points from GUS`);
+  }
+
   logger.info('Data seeding completed');
 }
 

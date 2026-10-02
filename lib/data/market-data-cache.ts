@@ -47,6 +47,8 @@ export function createMarketDataCache(
 const macroCache = createMarketDataCache();
 
 export const CPI_SLUGS = ['pl-cpi', 'inflation-pl'];
+/** GUS CPI month-over-month change; never interchangeable with CPI_SLUGS. */
+export const CPI_MOM_SLUGS = ['pl-cpi-mom'];
 export const NBP_RATE_SLUGS = ['nbp-ref-rate', 'nbp-reference-rate', 'nbp-rate'];
 export const SP500_SLUGS = ['sp500'];
 export const GOLD_SLUGS = ['gold-usd', 'gold'];
