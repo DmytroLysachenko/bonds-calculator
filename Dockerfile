@@ -23,6 +23,11 @@ ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
 ENV PORT=8080
 
+# The pinned base digest predates Debian's fixed PCRE2 package. Patch the
+# runtime package until the reviewed base digest is advanced.
+RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade libpcre2-8-0 \
+  && rm -rf /var/lib/apt/lists/*
+
 # The standalone server is launched directly with Node. Removing npm keeps its
 # bundled development-only dependency tree out of the production image.
 RUN rm -rf /usr/local/lib/node_modules/npm
