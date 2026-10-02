@@ -13,6 +13,7 @@ const env = {
   AUTH_TRUST_HOST: 'true',
   DATABASE_TRANSACTION_URL: process.env.TEST_DATABASE_URL,
   DATABASE_URL: process.env.TEST_DATABASE_URL,
+  PLAYWRIGHT_INTEGRATION_DATABASE: 'postgres-js',
   NEXT_PUBLIC_PLAYWRIGHT_SMOKE: '0',
   PLAYWRIGHT_SMOKE: '0',
   PORT: process.env.PORT ?? '3200',
@@ -32,7 +33,7 @@ function run(args) {
   });
 }
 
-await run([require.resolve('next/dist/bin/next'), 'build']);
+await run([require.resolve('next/dist/bin/next'), 'build', '--webpack']);
 
 const server = spawn(process.execPath, ['scripts/start-playwright-server.mjs'], {
   env,

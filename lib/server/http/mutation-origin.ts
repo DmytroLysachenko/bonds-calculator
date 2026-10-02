@@ -18,7 +18,9 @@ export function isTrustedMutationOrigin(request: NextRequest): boolean {
   if (!origin) return fetchSite === null || fetchSite === 'same-origin';
 
   try {
-    return new URL(origin).origin === request.nextUrl.origin;
+    const host = request.headers.get('host');
+    const requestOrigin = host ? `${request.nextUrl.protocol}//${host}` : request.nextUrl.origin;
+    return new URL(origin).origin === requestOrigin;
   } catch {
     return false;
   }

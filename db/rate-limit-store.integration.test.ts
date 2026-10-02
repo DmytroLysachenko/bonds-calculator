@@ -19,7 +19,7 @@ integration('PostgreSQL rate-limit adapter', () => {
     const database = drizzle(sql);
     return createPostgresRateLimitStore(async (query) => {
       const rows = await database.execute(query);
-      return Array.from(rows) as Array<{ count: number; reset_at: Date }>;
+      return Array.from(rows) as Array<{ count: number; reset_epoch_ms: number | string }>;
     });
   };
 
