@@ -60,6 +60,14 @@ describe('deployment configuration contract', () => {
     expect(ci).toContain('pnpm audit --prod --audit-level=high');
   });
 
+  it('retains database test evidence after Playwright clears test-results', () => {
+    const ci = readFileSync(join(root, ciWorkflow), 'utf8');
+
+    expect(ci).toContain('--outputFile=artifacts/database-integration.json');
+    expect(ci).toContain('path: artifacts/database-integration.json');
+    expect(ci).not.toContain('test-results/database-integration.json');
+  });
+
   it('keeps local container workflow discoverable and no-secret by default', () => {
     const compose = readFileSync(join(root, 'compose.yaml'), 'utf8');
     const taskfile = readFileSync(join(root, 'Taskfile.yml'), 'utf8');

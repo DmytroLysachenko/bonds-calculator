@@ -176,7 +176,7 @@ jobs:
         run: PGPASSWORD=obligacje psql -h 127.0.0.1 -U obligacje -d obligacje_test -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
 
       - name: Verify migrated PostgreSQL constraints and rollback
-        run: pnpm test:db --reporter=json --outputFile=test-results/database-integration.json
+        run: pnpm test:db --reporter=json --outputFile=artifacts/database-integration.json
 
       - name: Install authenticated browser
         run: pnpm exec playwright install --with-deps chromium
@@ -189,7 +189,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: database-integration-result
-          path: test-results/database-integration.json
+          path: artifacts/database-integration.json
           if-no-files-found: error
 
   docker-build:
