@@ -110,7 +110,7 @@ test('trusted-core routes: accessible education, calculator, and economic journe
 
   for (const route of ['/education', '/single-calculator', '/economic-data']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    if (route === '/single-calculator') {
+    if (route === '/education' || route === '/single-calculator') {
       await page.waitForLoadState('networkidle');
     }
     await expect(page.locator('main#main-content')).toBeVisible();
@@ -123,6 +123,7 @@ test('trusted-core routes: accessible education, calculator, and economic journe
   }
 
   await page.goto('/education', { waitUntil: 'domcontentloaded' });
+  await page.waitForLoadState('networkidle');
   await expect(
     page
       .locator('#current-offers')
