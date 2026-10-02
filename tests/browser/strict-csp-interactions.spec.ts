@@ -109,7 +109,7 @@ test('populated comparison works with strict CSP on a narrow viewport', async ({
   await expect(page.getByText(/comparison snapshot|migawka porównania/i)).toBeVisible({
     timeout: 30_000,
   });
-  const navigation = page.getByRole('button', { name: /open navigation|otwórz nawigacje/i });
+  const navigation = page.getByRole('button', { name: /open navigation|otwórz nawigacj/i });
   await navigation.click();
   const dialog = page.getByRole('dialog', { name: /navigation menu|menu nawigacji/i });
   await expect(dialog).toBeVisible();
