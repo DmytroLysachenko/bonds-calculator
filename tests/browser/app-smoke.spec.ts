@@ -100,15 +100,15 @@ test('shared content canvas aligns routes and prevents horizontal overflow', asy
   }
 });
 
-test('trusted-core routes: accessible education, calculator, and economic journeys', async ({
-  page,
-}, testInfo) => {
-  const diagnostics = installBrowserDiagnostics(page);
-  await stubOpportunisticSync(page);
-  await stubGuestPortfolioAccess(page);
-  await stubWebVitals(page);
+for (const route of ['/education', '/single-calculator', '/economic-data']) {
+  test(`trusted-core route ${route}: renders accessible landmarks without overflow`, async ({
+    page,
+  }, testInfo) => {
+    const diagnostics = installBrowserDiagnostics(page);
+    await stubOpportunisticSync(page);
+    await stubGuestPortfolioAccess(page);
+    await stubWebVitals(page);
 
-  for (const route of ['/education', '/single-calculator', '/economic-data']) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     if (route === '/education' || route === '/single-calculator') {
       await page.waitForLoadState('networkidle');
@@ -120,7 +120,17 @@ test('trusted-core routes: accessible education, calculator, and economic journe
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth),
     ).toBe(false);
-  }
+    await expectNoBrowserDiagnostics(testInfo, diagnostics);
+  });
+}
+
+test('trusted-core routes: education links to official offers and calculator', async ({
+  page,
+}, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await stubOpportunisticSync(page);
+  await stubGuestPortfolioAccess(page);
+  await stubWebVitals(page);
 
   await page.goto('/education', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle');
@@ -132,18 +142,41 @@ test('trusted-core routes: accessible education, calculator, and economic journe
   ).toBeVisible();
   await expect(page.getByRole('link', { name: /calculate|oblicz|policz/i }).first()).toBeVisible();
 
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+test('trusted-core routes: calculator submits and shows results', async ({ page }, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await stubOpportunisticSync(page);
+  await stubGuestPortfolioAccess(page);
+  await stubWebVitals(page);
+
   await page.goto('/single-calculator', { waitUntil: 'domcontentloaded' });
   await page.waitForLoadState('networkidle');
   const calculateButton = page.getByRole('button', { name: /calculate|oblicz/i }).first();
   await calculateButton.focus();
   await expect(calculateButton).toBeFocused();
-  const calculationResponse = page.waitForResponse(
-    (response) =>
-      response.url().includes(getCalculationEndpoint(ScenarioKind.SINGLE_BOND)) && response.ok(),
+  await expect(
+    page.locator('form#single-calculator-inputs [role="alert"]').getByText(/^blocking:/i),
+  ).toHaveCount(0);
+  const calculationResponse = page.waitForResponse((response) =>
+    response.url().includes(getCalculationEndpoint(ScenarioKind.SINGLE_BOND)),
   );
   await calculateButton.click();
-  await calculationResponse;
+  const response = await calculationResponse;
+  expect(response.ok(), `Calculation request returned HTTP ${response.status()}`).toBe(true);
   await expect(page.locator('#calculator-results')).toBeVisible();
+
+  await expectNoBrowserDiagnostics(testInfo, diagnostics);
+});
+
+test('trusted-core routes: economic-data tabs support keyboard navigation', async ({
+  page,
+}, testInfo) => {
+  const diagnostics = installBrowserDiagnostics(page);
+  await stubOpportunisticSync(page);
+  await stubGuestPortfolioAccess(page);
+  await stubWebVitals(page);
 
   await page.goto('/economic-data', { waitUntil: 'domcontentloaded' });
   await page.getByRole('button', { name: /CPI/i }).press('Tab');
