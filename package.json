@@ -57,7 +57,7 @@
     "check:local-env": "tsx scripts/check-local-env.ts",
     "check:prod-config": "tsx scripts/check-production-config.ts",
     "smoke:local": "tsx scripts/smoke-local.ts",
-    "gcp:proxy": "gcloud run services proxy obligacje-calculator --project bond-calculator-pl --region europe-central2 --port 8080",
+    "gcp:proxy": "gcloud run services proxy obligacje-calculator --project bond-calculator-pl --region europe-west1 --port 8080",
     "ops:cloud-run-status": "tsx scripts/cloud-run-status.ts",
     "ops:verify-prod": "tsx scripts/verify-production.ts",
     "deploy:prod": "gh workflow run deploy-cloud-run.yml --ref main",

@@ -35,7 +35,7 @@ interface CloudRunService {
 }
 
 const DEFAULT_PROJECT_ID = 'bond-calculator-pl';
-const DEFAULT_REGION = 'europe-central2';
+const DEFAULT_REGION = 'europe-west1';
 const DEFAULT_SERVICE = 'obligacje-calculator';
 
 function runGcloud(args: string[]) {

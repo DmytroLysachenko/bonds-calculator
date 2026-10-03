@@ -5,9 +5,9 @@ The production preview service is public so anyone can open it directly in a bro
 ## Service Details
 
 - GCP project: `bond-calculator-pl`
-- Region: `europe-central2`
+- Region: `europe-west1`
 - Cloud Run service: `obligacje-calculator`
-- Public service URL: `https://obligacje-calculator-ji72nqwtea-lm.a.run.app`
+- Public service URL: `https://obligacje-calculator-738965529859.europe-west1.run.app`
 
 Open the service URL directly. No Google Cloud account, proxy, or Cloud Run Invoker role is required for browser access.
 
@@ -16,8 +16,8 @@ Open the service URL directly. No Google Cloud account, proxy, or Cloud Run Invo
 Run directly against the public URL:
 
 ```bash
-curl https://obligacje-calculator-ji72nqwtea-lm.a.run.app/api/health
-curl https://obligacje-calculator-ji72nqwtea-lm.a.run.app/api/readiness
+curl https://obligacje-calculator-738965529859.europe-west1.run.app/api/health
+curl https://obligacje-calculator-738965529859.europe-west1.run.app/api/readiness
 ```
 
 Expected deployment contract:
@@ -91,6 +91,8 @@ The manual `Deploy Cloud Run` workflow requires these repository secrets:
 - `DATABASE_URL`
 - `AUTH_SECRET`
 - `SYNC_SECRET`
+- `INNGEST_EVENT_KEY`
+- `INNGEST_SIGNING_KEY`
 
 Optional until Google OAuth is configured:
 
@@ -98,6 +100,18 @@ Optional until Google OAuth is configured:
 - `AUTH_GOOGLE_SECRET`
 
 The workflow fails before deployment if the required secrets are missing, so it cannot silently overwrite Cloud Run with empty runtime values.
+The workflow passes these values to Cloud Run as runtime environment variables;
+it does not use Google Secret Manager. GitHub environment/repository secret
+access and Cloud Run revision access must therefore remain restricted. Do not
+set `INNGEST_DEV=1` on Cloud Run.
+
+After deployment, add `https://obligacje-calculator-738965529859.europe-west1.run.app/api/inngest`
+as an app URL in the intended Inngest Cloud environment and sync the app from
+the Inngest dashboard. Confirm that the `sync-economic-data` and both retention
+functions appear there before relying on their schedules. The deployment
+workflow checks that the endpoint responds, but this alone does not prove
+signed execution, a successful run, or retry/replay behavior. Record those
+observations separately in the operational evidence log.
 
 ## CI/CD Flow
 
@@ -159,7 +173,7 @@ List recent revisions:
 ```bash
 gcloud run revisions list \
   --project bond-calculator-pl \
-  --region europe-central2 \
+  --region europe-west1 \
   --service obligacje-calculator
 ```
 

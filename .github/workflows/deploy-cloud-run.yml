@@ -16,10 +16,10 @@ concurrency:
 env:
   PROJECT_ID: bond-calculator-pl
   PROJECT_NUMBER: '738965529859'
-  REGION: europe-central2
+  REGION: europe-west1
   SERVICE: obligacje-calculator
   AR_REPOSITORY: obligacje-calculator
-  APP_URL: https://obligacje-calculator-ji72nqwtea-lm.a.run.app
+  APP_URL: https://obligacje-calculator-738965529859.europe-west1.run.app
   DEPLOYER_SERVICE_ACCOUNT: github-actions-deployer@bond-calculator-pl.iam.gserviceaccount.com
   WORKLOAD_IDENTITY_PROVIDER: projects/738965529859/locations/global/workloadIdentityPools/github-actions/providers/github
 
@@ -53,6 +53,37 @@ jobs:
 
       - name: Release gate
         run: pnpm check:release
+
+      - name: Validate runtime secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+          INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+        run: |
+          missing=0
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "::error::Missing DATABASE_URL repository secret"
+            missing=1
+          fi
+          if [ -z "${AUTH_SECRET}" ]; then
+            echo "::error::Missing AUTH_SECRET repository secret"
+            missing=1
+          fi
+          if [ -z "${SYNC_SECRET}" ]; then
+            echo "::error::Missing SYNC_SECRET repository secret"
+            missing=1
+          fi
+          if [ -z "${INNGEST_EVENT_KEY}" ]; then
+            echo "::error::Missing INNGEST_EVENT_KEY repository secret"
+            missing=1
+          fi
+          if [ -z "${INNGEST_SIGNING_KEY}" ]; then
+            echo "::error::Missing INNGEST_SIGNING_KEY repository secret"
+            missing=1
+          fi
+          exit "${missing}"
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -89,23 +120,6 @@ jobs:
         run: |
           gcloud artifacts docker images describe "${IMAGE}" --project "${PROJECT_ID}" --format='value(image_summary.digest)'
 
-      - name: Validate runtime secrets
-        run: |
-          missing=0
-          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "::error::Missing DATABASE_URL repository secret"
-            missing=1
-          fi
-          if [ -z "${{ secrets.AUTH_SECRET }}" ]; then
-            echo "::error::Missing AUTH_SECRET repository secret"
-            missing=1
-          fi
-          if [ -z "${{ secrets.SYNC_SECRET }}" ]; then
-            echo "::error::Missing SYNC_SECRET repository secret"
-            missing=1
-          fi
-          exit "${missing}"
-
       - name: Apply reviewed database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -114,17 +128,22 @@ jobs:
           pnpm exec drizzle-kit migrate
 
       - name: Prepare runtime environment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          SYNC_SECRET: ${{ secrets.SYNC_SECRET }}
+          INNGEST_EVENT_KEY: ${{ secrets.INNGEST_EVENT_KEY }}
+          INNGEST_SIGNING_KEY: ${{ secrets.INNGEST_SIGNING_KEY }}
+          AUTH_GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID }}
+          AUTH_GOOGLE_SECRET: ${{ secrets.AUTH_GOOGLE_SECRET }}
         run: |
-          {
-            echo 'DATABASE_URL: "${{ secrets.DATABASE_URL }}"'
-            echo 'AUTH_SECRET: "${{ secrets.AUTH_SECRET }}"'
-            echo 'SYNC_SECRET: "${{ secrets.SYNC_SECRET }}"'
-            echo 'NEXT_PUBLIC_APP_URL: "${{ env.APP_URL }}"'
-            echo 'NEXT_PUBLIC_DEPLOYMENT_TIER: "preview"'
-            echo 'AUTH_TRUST_HOST: "true"'
-            echo 'AUTH_GOOGLE_ID: "${{ secrets.AUTH_GOOGLE_ID }}"'
-            echo 'AUTH_GOOGLE_SECRET: "${{ secrets.AUTH_GOOGLE_SECRET }}"'
-          } > .cloud-run-env.yaml
+          node -e '
+            const fs = require("node:fs");
+            const keys = ["DATABASE_URL", "AUTH_SECRET", "SYNC_SECRET", "INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY", "AUTH_GOOGLE_ID", "AUTH_GOOGLE_SECRET"];
+            const vars = Object.fromEntries(keys.map((key) => [key, process.env[key] ?? ""]));
+            Object.assign(vars, { NEXT_PUBLIC_APP_URL: process.env.APP_URL, NEXT_PUBLIC_DEPLOYMENT_TIER: "preview", AUTH_TRUST_HOST: "true" });
+            fs.writeFileSync(".cloud-run-env.yaml", JSON.stringify(vars), { mode: 0o600 });
+          '
 
       - name: Deploy public Cloud Run service
         run: |
@@ -171,6 +190,9 @@ jobs:
         env:
           IDENTITY_TOKEN: ${{ steps.health-auth.outputs.id_token }}
         run: pnpm ops:verify-prod -- --base-url "${APP_URL}" --allow-missing-oauth --expected-image "${IMAGE}" --expected-revision "${REVISION}"
+
+      - name: Verify Inngest endpoint
+        run: curl --fail --silent --show-error --output /dev/null "${APP_URL}/api/inngest"
 
       - name: Deployment summary
         run: |

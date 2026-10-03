@@ -1,4 +1,4 @@
-const DEFAULT_PRODUCTION_URL = 'https://obligacje-calculator-ji72nqwtea-lm.a.run.app';
+const DEFAULT_PRODUCTION_URL = 'https://obligacje-calculator-738965529859.europe-west1.run.app';
 const DEFAULT_DEVELOPMENT_URL = 'http://localhost:3000';
 
 export type DeploymentTier = 'preview' | 'production';

@@ -39,7 +39,7 @@ describe('production readiness contract', () => {
     const cloudbuild = read('cloudbuild.yaml');
 
     for (const substitution of [
-      '_REGION: europe-central2',
+      '_REGION: europe-west1',
       '_SERVICE: obligacje-calculator',
       '_AR_REPOSITORY: obligacje-calculator',
     ]) {

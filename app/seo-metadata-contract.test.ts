@@ -33,7 +33,7 @@ describe('SEO metadata contract', () => {
     (configured) => {
       const env = { NODE_ENV: 'production', NEXT_PUBLIC_APP_URL: configured } as NodeJS.ProcessEnv;
       const base = getCanonicalBaseUrl(env);
-      expect(base).toBe('https://obligacje-calculator-ji72nqwtea-lm.a.run.app');
+      expect(base).toBe('https://obligacje-calculator-738965529859.europe-west1.run.app');
       expect(getCanonicalUrl('/education', env)).toBe(`${base}/education`);
     },
   );

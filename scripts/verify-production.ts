@@ -42,9 +42,9 @@ interface CloudRunService {
   };
 }
 
-const DEFAULT_BASE_URL = 'https://obligacje-calculator-ji72nqwtea-lm.a.run.app';
+const DEFAULT_BASE_URL = 'https://obligacje-calculator-738965529859.europe-west1.run.app';
 const DEFAULT_PROJECT_ID = 'bond-calculator-pl';
-const DEFAULT_REGION = 'europe-central2';
+const DEFAULT_REGION = 'europe-west1';
 const DEFAULT_SERVICE = 'obligacje-calculator';
 const BODY_SNIPPET_LENGTH = 240;
 
