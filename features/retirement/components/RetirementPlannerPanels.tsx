@@ -10,6 +10,7 @@ import { ScenarioReadyPanel } from '@/shared/components/feedback/ScenarioReadyPa
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
 import { formatHorizonMonths } from '@/shared/lib/format-horizon';
 
+import { RetirementMonthlyTable } from './RetirementMonthlyTable';
 import { RetirementSection, RetirementSummaryMetric } from './RetirementSummarySections';
 import { RetirementSupportList } from './RetirementSupportList';
 
@@ -102,6 +103,16 @@ export function RetirementResultsPanel({
         inputsHorizonYears={inputsHorizonYears}
         taxStrategyLabel={taxStrategyLabel}
         totalTaxPaid={results.result.totalTaxPaid}
+        formatCurrency={formatCurrency}
+      />
+
+      <RetirementMonthlyTable
+        timeline={results.result.timeline}
+        title={labels.monthlyTable}
+        description={labels.monthlyTableDesc}
+        dateLabel={labels.date}
+        balanceLabel={labels.balance}
+        withdrawalLabel={labels.withdrawal}
         formatCurrency={formatCurrency}
       />
 

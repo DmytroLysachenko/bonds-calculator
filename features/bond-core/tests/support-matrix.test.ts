@@ -389,6 +389,61 @@ describe('Feature support matrix regression suite', () => {
       );
       expect(result.exhaustionDate).toBe(result.timeline.at(-1)?.date);
     });
+
+    it('reconciles exact first- and second-month depletion at zero modeled return', async () => {
+      for (const withdrawal of [50, 200]) {
+        const envelope = await calculationService.calculate({
+          kind: ScenarioKind.RETIREMENT_PLANNER,
+          payload: {
+            initialCapital: 100,
+            monthlyWithdrawal: withdrawal,
+            expectedInflation: 0,
+            expectedNbpRate: 0,
+            bondType: BondType.ROR,
+            taxStrategy: TaxStrategy.STANDARD,
+            horizonYears: 1,
+            projectionStartDate: '2026-01-01',
+          },
+        });
+        const result = envelope.result as RetirementPlannerResult;
+        const expectedMonth = withdrawal === 50 ? 2 : 1;
+        expect(result.modeledAnnualRate).toBe(0);
+        expect(result.timeline[0]).toMatchObject({ balance: 100, withdrawal: 0 });
+        expect(result.timeline.at(-1)).toMatchObject({
+          date: `2026-${String(expectedMonth + 1).padStart(2, '0')}-01`,
+          balance: 0,
+          withdrawal: withdrawal === 50 ? 50 : 100,
+        });
+        expect(result.exhaustionDate).toBe(result.timeline.at(-1)?.date);
+        expect(result.totalWithdrawn).toBe(100);
+        expect(result.totalTaxPaid).toBe(0);
+        expect(result.timeline.reduce((sum, row) => sum + row.withdrawal, 0)).toBe(100);
+      }
+    });
+
+    it('distinguishes standard periodic tax from wrapper assumptions', async () => {
+      const run = async (taxStrategy: TaxStrategy) =>
+        calculationService.calculate({
+          kind: ScenarioKind.RETIREMENT_PLANNER,
+          payload: {
+            initialCapital: 1000,
+            monthlyWithdrawal: 1,
+            expectedInflation: 0,
+            expectedNbpRate: 12,
+            bondType: BondType.ROR,
+            taxStrategy,
+            horizonYears: 1,
+            projectionStartDate: '2026-01-01',
+          },
+        });
+      const standard = (await run(TaxStrategy.STANDARD)).result as RetirementPlannerResult;
+      const ike = (await run(TaxStrategy.IKE)).result as RetirementPlannerResult;
+      const ikze = (await run(TaxStrategy.IKZE)).result as RetirementPlannerResult;
+      expect(standard.totalTaxPaid).toBeGreaterThan(0);
+      expect(ike.totalTaxPaid).toBe(0);
+      expect(ikze.totalTaxPaid).toBe(0);
+      expect(standard.finalBalance).toBeLessThan(ike.finalBalance);
+    });
   });
 
   describe('trusted boundary rules', () => {

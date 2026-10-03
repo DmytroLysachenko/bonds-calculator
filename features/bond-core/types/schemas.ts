@@ -1,6 +1,8 @@
 import { addMonths, differenceInCalendarMonths, format, parseISO } from 'date-fns';
 import { z } from 'zod';
 
+import { supportsRetirementBondType } from '../support-matrix';
+
 import { BondType, InterestPayout, InvestmentFrequency, ScenarioKind, TaxStrategy } from './index';
 import { BaseInstrumentInputsSchema } from './instruments';
 import {
@@ -425,7 +427,9 @@ export const RetirementPlannerPayloadSchema = z.strictObject({
   monthlyWithdrawal: money('monthlyWithdrawal', 1, 10_000_000),
   expectedInflation: percent('expectedInflation', -20, 100),
   expectedNbpRate: percent('expectedNbpRate', -10, 100).optional(),
-  bondType: z.nativeEnum(BondType),
+  bondType: z.nativeEnum(BondType).refine(supportsRetirementBondType, {
+    message: 'This bond family is not supported by the retirement model',
+  }),
   taxStrategy: z.nativeEnum(TaxStrategy),
   horizonYears: finiteNumber('horizonYears').int().min(1).max(50),
   projectionStartDate: DateStringSchema.optional(),
