@@ -4,7 +4,7 @@ export interface MonthlyReturn {
   gold: number; // % change
   savings: number; // % change
   inflation: number; // % change
-  /** GUS import currently supplies YoY CPI, not a month-on-month index. */
+  /** Explicit unit; GUS YoY CPI cannot be replayed as a monthly price change. */
   inflationKind?: 'month_on_month' | 'year_over_year';
   nbpRate: number; // % annual
 }
@@ -71,4 +71,4 @@ export const HISTORICAL_RETURNS: MonthlyReturn[] = [
   { date: '2024-04', sp500: -4.16, gold: 2.5, savings: 0.25, inflation: 1.1, nbpRate: 5.75 },
   { date: '2024-05', sp500: 4.8, gold: 1.8, savings: 0.25, inflation: 0.1, nbpRate: 5.75 },
   { date: '2024-06', sp500: 3.47, gold: -0.1, savings: 0.25, inflation: 0.1, nbpRate: 5.75 },
-];
+].map((row) => ({ ...row, inflationKind: 'month_on_month' as const }));

@@ -8,6 +8,7 @@ import { RecalculateButton } from '@/shared/components/feedback/RecalculateButto
 import { CalculatorPageShell } from '@/shared/components/page/CalculatorPageShell';
 import { SecondaryInsightAccordion } from '@/shared/components/results/SecondaryInsightAccordion';
 import { useCurrencyFormatter } from '@/shared/hooks/useLocalizedFormatters';
+import { isCalculatorInputEnter } from '@/shared/lib/calculator-keyboard-submit';
 
 import { useMultiAssetComparison } from '../hooks/useMultiAssetComparison';
 
@@ -60,6 +61,9 @@ export const MultiAssetComparisonContainer = () => {
     historySeriesAvailability,
     historyCoverageGaps,
     priceIndexIsApproximate,
+    historyReplayIssue,
+    historyCurrencyBasis,
+    historyObservationBasis,
     committedScenario,
   } = useMultiAssetComparison();
   const { locale: language, t } = useAppI18n();
@@ -75,7 +79,7 @@ export const MultiAssetComparisonContainer = () => {
     setTimeout(() => setIsCalculating(false), 250);
   };
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Enter' && isDirty) {
+    if (isCalculatorInputEnter(event) && isDirty) {
       handleRecalculate();
     }
   };
@@ -144,6 +148,10 @@ export const MultiAssetComparisonContainer = () => {
             availabilitySummary={availabilitySummary}
             coverageGaps={historyCoverageGaps}
             priceIndexIsApproximate={priceIndexIsApproximate}
+            replayIssue={historyReplayIssue}
+            currencyBasis={historyCurrencyBasis}
+            observationBasis={historyObservationBasis}
+            showRealValue={showRealValue}
             t={t}
           />
 

@@ -13,6 +13,7 @@ import {
   calculateAssetPerformance,
   calculateBondsPerformance,
   calculateSavingsPerformance,
+  getHistoricalReplayIssue,
 } from '../../bond-core/utils/asset-calculations';
 import { createMonthlyPriceIndexPath } from '../../bond-core/utils/engine/price-index';
 import { ASSETS_METADATA } from '../constants/multi-asset';
@@ -45,7 +46,8 @@ export function useMultiAssetComparison() {
     '/api/charts/multi-asset-history',
   );
 
-  const sourceData = historyResponse?.data?.length ? historyResponse.data : HISTORICAL_RETURNS;
+  // Never substitute the illustrative fallback beneath an observed response.
+  const sourceData = historyResponse ? historyResponse.data : HISTORICAL_RETURNS;
   const effectiveCoverageStart =
     historyResponse?.coverageStart ?? HISTORICAL_RETURNS[0]?.date ?? '2020-01';
   const effectiveCoverageEnd =
@@ -119,64 +121,85 @@ export function useMultiAssetComparison() {
 
   const filteredData = useMemo(() => {
     const effectiveStartDate = `${committed.startYear}-${committed.startMonth}`;
-    const data = sourceData.filter((row) => row.date >= effectiveStartDate);
-    return data.length > 0 ? data : sourceData;
+    return sourceData.filter((row) => row.date >= effectiveStartDate);
   }, [committed.startMonth, committed.startYear, sourceData]);
+
+  const historyReplayIssue = useMemo(() => {
+    if (
+      !historyResponse ||
+      historyResponse.currencyBasis !== 'PLN' ||
+      historyResponse.observationBasis !== 'observed'
+    )
+      return null;
+    return getHistoricalReplayIssue(filteredData);
+  }, [filteredData, historyResponse]);
+  const canReplay =
+    historyResponse?.currencyBasis === 'PLN' &&
+    historyResponse.observationBasis === 'observed' &&
+    !historyReplayIssue;
 
   const sp500 = useMemo(
     () =>
-      calculateAssetPerformance(
-        committed.initialSum,
-        committed.monthlyContribution,
-        'sp500',
-        ASSETS_METADATA.sp500,
-        filteredData,
-      ),
-    [committed.initialSum, committed.monthlyContribution, filteredData],
+      canReplay
+        ? calculateAssetPerformance(
+            committed.initialSum,
+            committed.monthlyContribution,
+            'sp500',
+            ASSETS_METADATA.sp500,
+            filteredData,
+          )
+        : null,
+    [canReplay, committed.initialSum, committed.monthlyContribution, filteredData],
   );
 
   const gold = useMemo(
     () =>
-      calculateAssetPerformance(
-        committed.initialSum,
-        committed.monthlyContribution,
-        'gold',
-        ASSETS_METADATA.gold,
-        filteredData,
-      ),
-    [committed.initialSum, committed.monthlyContribution, filteredData],
+      canReplay
+        ? calculateAssetPerformance(
+            committed.initialSum,
+            committed.monthlyContribution,
+            'gold',
+            ASSETS_METADATA.gold,
+            filteredData,
+          )
+        : null,
+    [canReplay, committed.initialSum, committed.monthlyContribution, filteredData],
   );
 
   const bonds = useMemo(
     () =>
-      calculateBondsPerformance(
-        committed.initialSum,
-        committed.monthlyContribution,
-        ASSETS_METADATA.bonds,
-        filteredData,
-      ),
-    [committed.initialSum, committed.monthlyContribution, filteredData],
+      canReplay
+        ? calculateBondsPerformance(
+            committed.initialSum,
+            committed.monthlyContribution,
+            ASSETS_METADATA.bonds,
+            filteredData,
+          )
+        : null,
+    [canReplay, committed.initialSum, committed.monthlyContribution, filteredData],
   );
 
   const savings = useMemo(
     () =>
-      calculateSavingsPerformance(
-        committed.initialSum,
-        committed.monthlyContribution,
-        ASSETS_METADATA.savings,
-        filteredData,
-      ),
-    [committed.initialSum, committed.monthlyContribution, filteredData],
+      canReplay
+        ? calculateSavingsPerformance(
+            committed.initialSum,
+            committed.monthlyContribution,
+            ASSETS_METADATA.savings,
+            filteredData,
+          )
+        : null,
+    [canReplay, committed.initialSum, committed.monthlyContribution, filteredData],
   );
 
   const purchasingPowerLoss = useMemo(() => {
-    if (filteredData.length === 0) return 0;
+    if (!canReplay) return 0;
 
     const priceIndexPath = createMonthlyPriceIndexPath(
       filteredData.map((row) => ({
         date: row.date,
         changePercent: row.inflation,
-        kind: row.inflationKind ?? 'month_on_month',
+        kind: row.inflationKind,
       })),
     );
     const startDate = new Date(`${filteredData[0].date}-01T00:00:00`);
@@ -194,7 +217,7 @@ export function useMultiAssetComparison() {
     }
 
     return nominalContributions - realContributions;
-  }, [committed.initialSum, committed.monthlyContribution, filteredData]);
+  }, [canReplay, committed.initialSum, committed.monthlyContribution, filteredData]);
 
   const years = useMemo(() => {
     const uniqueYears = Array.from(new Set(sourceData.map((row) => row.date.substring(0, 4))));
@@ -223,11 +246,11 @@ export function useMultiAssetComparison() {
     isDirty,
     isLoading,
     recalculate,
-    assets:
-      historyResponse?.currencyBasis === 'PLN' && historyResponse.observationBasis === 'observed'
-        ? [sp500, gold, bonds, savings]
-        : [],
-    purchasingPowerLoss: historyResponse?.currencyBasis === 'PLN' ? purchasingPowerLoss : 0,
+    assets: canReplay && sp500 && gold && bonds && savings ? [sp500, gold, bonds, savings] : [],
+    purchasingPowerLoss,
+    historyReplayIssue,
+    historyCurrencyBasis: historyResponse?.currencyBasis,
+    historyObservationBasis: historyResponse?.observationBasis,
     metadata: ASSETS_METADATA,
     availableDates: sourceData.map((row) => row.date),
     historySource: historyResponse?.source ?? 'fallback',
