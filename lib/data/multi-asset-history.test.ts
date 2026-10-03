@@ -29,6 +29,9 @@ describe('illustrative annual CPI fallback', () => {
     const annual = months(12);
     annual[4].inflationKind = 'year_over_year';
     expect(fallbackAnnualInflationObservations(annual)).toEqual([]);
+    const untyped = months(12);
+    delete untyped[4].inflationKind;
+    expect(fallbackAnnualInflationObservations(untyped)).toEqual([]);
     const gap = months(12);
     gap[4].date = '2024-08';
     expect(fallbackAnnualInflationObservations(gap)).toEqual([]);

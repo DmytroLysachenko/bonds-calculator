@@ -31,6 +31,7 @@ export interface MultiAssetHistorySource {
 }
 
 function monthNumber(date: string) {
+  if (!/^(\d{4})-(0[1-9]|1[0-2])$/.test(date)) return Number.NaN;
   const [year, month] = date.split('-').map(Number);
   return year * 12 + month;
 }
@@ -43,6 +44,8 @@ function buildMonthlyPercentChangeMap(series: Array<{ date: string; value: numbe
     const previous = ordered[index - 1];
     if (
       monthNumber(current.date) !== monthNumber(previous.date) + 1 ||
+      !Number.isFinite(previous.value) ||
+      !Number.isFinite(current.value) ||
       previous.value <= 0 ||
       current.value <= 0
     )
@@ -81,15 +84,27 @@ export function buildMultiAssetHistory(
     return null;
   }
 
-  const fx = new Map(source.usdPln.map((point) => [point.date, point.value]));
+  const fx = new Map(
+    source.usdPln
+      .filter((point) => Number.isFinite(point.value) && point.value > 0)
+      .map((point) => [point.date, point.value]),
+  );
   const convertToPln = (series: MultiAssetHistorySource['sp500']) =>
     series
       .filter((point) => fx.has(point.date))
       .map((point) => ({ date: point.date, value: point.value * fx.get(point.date)! }));
   const sp500Returns = buildMonthlyPercentChangeMap(convertToPln(source.sp500));
   const goldReturns = buildMonthlyPercentChangeMap(convertToPln(source.gold));
-  const inflationMap = new Map(source.inflation.map((point) => [point.date, point.value]));
-  const nbpMap = new Map(source.nbpRate.map((point) => [point.date, point.value]));
+  const inflationMap = new Map(
+    source.inflation
+      .filter((point) => Number.isFinite(point.value) && point.value > -100)
+      .map((point) => [point.date, point.value]),
+  );
+  const nbpMap = new Map(
+    source.nbpRate
+      .filter((point) => Number.isFinite(point.value))
+      .map((point) => [point.date, point.value]),
+  );
   const dates = Array.from(sp500Returns.keys())
     .filter((date) => goldReturns.has(date) && inflationMap.has(date) && nbpMap.has(date))
     .sort();
@@ -114,7 +129,7 @@ export function buildMultiAssetHistory(
   const coverageGaps: string[] = [];
   const lastCommonInputMonth = Math.min(
     ...[source.sp500, source.gold, source.inflation, source.nbpRate, source.usdPln].map((series) =>
-      Math.max(...series.map((point) => monthNumber(point.date))),
+      Math.max(...series.map((point) => monthNumber(point.date)).filter(Number.isFinite)),
     ),
   );
   const usable = new Set(dates);

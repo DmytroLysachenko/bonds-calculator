@@ -71,4 +71,44 @@ describe('buildMultiAssetHistory', () => {
       coverageGaps: ['2024-03', '2024-04'],
     });
   });
+
+  it('rejects nonoverlap, absent FX and missing gold despite intact macro series', () => {
+    const base = {
+      sp500: [
+        { date: '2024-01', value: 100 },
+        { date: '2024-02', value: 110 },
+      ],
+      gold: [
+        { date: '2024-01', value: 100 },
+        { date: '2024-02', value: 110 },
+      ],
+      inflation: [{ date: '2024-02', value: 0 }],
+      nbpRate: [{ date: '2024-02', value: 5 }],
+      usdPln: [
+        { date: '2024-01', value: 4 },
+        { date: '2024-02', value: 4 },
+      ],
+      inflationUnit: 'month_on_month_percent' as const,
+    };
+    expect(buildMultiAssetHistory({ ...base, gold: [] })).toBeNull();
+    expect(buildMultiAssetHistory({ ...base, usdPln: [] })).toBeNull();
+    expect(
+      buildMultiAssetHistory({
+        ...base,
+        gold: [
+          { date: '2023-01', value: 100 },
+          { date: '2023-02', value: 110 },
+        ],
+      }),
+    ).toBeNull();
+    expect(
+      buildMultiAssetHistory({
+        ...base,
+        usdPln: [
+          { date: '2024-01', value: 4 },
+          { date: '2024-02', value: Number.NaN },
+        ],
+      }),
+    ).toBeNull();
+  });
 });

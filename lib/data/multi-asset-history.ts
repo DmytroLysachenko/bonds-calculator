@@ -10,6 +10,7 @@ import {
 import { HistoricalAverages } from '@/features/bond-core/types/scenarios';
 
 import {
+  CPI_MOM_SLUGS,
   CPI_SLUGS,
   getCached,
   GOLD_SLUGS,
@@ -67,6 +68,7 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
       ...SP500_SLUGS,
       ...GOLD_SLUGS,
       ...CPI_SLUGS,
+      ...CPI_MOM_SLUGS,
       ...NBP_RATE_SLUGS,
       ...USD_PLN_SLUGS,
     ];
@@ -81,7 +83,7 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
     const seriesIds = series.map((s) => s.id);
     const sp500Id = series.find((s) => SP500_SLUGS.includes(s.slug))?.id;
     const goldId = series.find((s) => GOLD_SLUGS.includes(s.slug))?.id;
-    const cpiId = series.find((s) => CPI_SLUGS.includes(s.slug))?.id;
+    const cpiId = series.find((s) => CPI_MOM_SLUGS.includes(s.slug))?.id;
     const nbpId = series.find((s) => NBP_RATE_SLUGS.includes(s.slug))?.id;
     const fxId = series.find((s) => USD_PLN_SLUGS.includes(s.slug))?.id;
 
@@ -114,7 +116,7 @@ export const getMultiAssetHistory = cache(async (): Promise<MultiAssetHistoryEnv
       inflation: inflationPoints,
       nbpRate: nbpPoints,
       usdPln: fxId ? pointsBySeries[fxId] || [] : [],
-      inflationUnit: 'year_over_year_percent' as const,
+      inflationUnit: 'month_on_month_percent' as const,
     };
     const seriesAvailability = getMultiAssetSeriesAvailability(source);
     const result = buildMultiAssetHistory(source);
@@ -139,7 +141,7 @@ export function fallbackAnnualInflationObservations(rows: MonthlyReturn[]): numb
     if (
       year.some(
         (row, monthIndex) =>
-          row.inflationKind === 'year_over_year' ||
+          row.inflationKind !== 'month_on_month' ||
           !Number.isFinite(row.inflation) ||
           row.inflation <= -100 ||
           (monthIndex > 0 &&
