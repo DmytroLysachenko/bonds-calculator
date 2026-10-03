@@ -109,9 +109,11 @@ After deployment, add `https://obligacje-calculator-738965529859.europe-west1.ru
 as an app URL in the intended Inngest Cloud environment and sync the app from
 the Inngest dashboard. Confirm that the `sync-economic-data` and both retention
 functions appear there before relying on their schedules. The deployment
-workflow checks that the endpoint responds, but this alone does not prove
-signed execution, a successful run, or retry/replay behavior. Record those
-observations separately in the operational evidence log.
+workflow checks that the Inngest SDK rejects an unsigned GET with HTTP 401
+and its SDK-handled header. This proves the endpoint is reachable and protected,
+but not that Inngest has synced it or that signed execution, a successful run,
+or retry/replay works. Record those observations separately in the operational
+evidence log.
 
 ## CI/CD Flow
 

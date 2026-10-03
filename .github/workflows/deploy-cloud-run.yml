@@ -192,7 +192,7 @@ jobs:
         run: pnpm ops:verify-prod -- --base-url "${APP_URL}" --allow-missing-oauth --expected-image "${IMAGE}" --expected-revision "${REVISION}"
 
       - name: Verify Inngest endpoint
-        run: curl --fail --silent --show-error --output /dev/null "${APP_URL}/api/inngest"
+        run: pnpm exec tsx scripts/verify-inngest-endpoint.ts "${APP_URL}"
 
       - name: Deployment summary
         run: |
