@@ -13,7 +13,7 @@ unless they pass the same calculation and UX checks.
 - **Build:** GitHub Actions builds and pushes production images for deployment.
   The checked-in `cloudbuild.yaml` is kept aligned with the public Cloud Run policy
   for manual Google Cloud Build usage.
-- **Default region:** `europe-central2`, close to Polish users and supported by
+- **Default region:** `europe-west1`, supported by
   Cloud Run and Artifact Registry.
 - **Runtime port:** Cloud Run provides `PORT`; the container exposes `8080` and
   runs the standalone `server.js` with `HOSTNAME=0.0.0.0`.
@@ -93,7 +93,7 @@ Prepare Google Cloud resources:
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
 gcloud artifacts repositories create obligacje-calculator \
   --repository-format=docker \
-  --location=europe-central2
+  --location=europe-west1
 ```
 
 Run release checks before building:
@@ -144,11 +144,11 @@ Submit the Cloud Build deployment:
 ```bash
 gcloud builds submit \
   --config cloudbuild.yaml \
-  --substitutions _REGION=europe-central2,_SERVICE=obligacje-calculator,_AR_REPOSITORY=obligacje-calculator
+  --substitutions _REGION=europe-west1,_SERVICE=obligacje-calculator,_AR_REPOSITORY=obligacje-calculator
 ```
 
-Set secrets and environment variables through Cloud Run service configuration or
-Secret Manager. Do not commit `.env` files. GitHub Actions is the production
+Set secrets and environment variables through the protected GitHub Actions
+deployment environment. Do not commit `.env` files. GitHub Actions is the production
 source of truth for normal deploys; `cloudbuild.yaml` is kept as a manual
 fallback and runs the same release gate before building.
 

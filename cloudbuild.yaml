@@ -1,5 +1,5 @@
 substitutions:
-  _REGION: europe-central2
+  _REGION: europe-west1
   _SERVICE: obligacje-calculator
   _AR_REPOSITORY: obligacje-calculator
 

@@ -20,9 +20,9 @@ concurrency:
 
 env:
   PROJECT_ID: bond-calculator-pl
-  REGION: europe-central2
+  REGION: europe-west1
   SERVICE: obligacje-calculator
-  APP_URL: https://obligacje-calculator-ji72nqwtea-lm.a.run.app
+  APP_URL: https://obligacje-calculator-738965529859.europe-west1.run.app
   DEPLOYER_SERVICE_ACCOUNT: github-actions-deployer@bond-calculator-pl.iam.gserviceaccount.com
   WORKLOAD_IDENTITY_PROVIDER: projects/738965529859/locations/global/workloadIdentityPools/github-actions/providers/github
 

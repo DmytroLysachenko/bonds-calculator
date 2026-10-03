@@ -25,6 +25,10 @@ describe('deployment configuration contract', () => {
     expect(deploy).toContain('DATABASE_URL');
     expect(deploy).toContain('AUTH_SECRET');
     expect(deploy).toContain('SYNC_SECRET');
+    expect(deploy).toContain('INNGEST_EVENT_KEY');
+    expect(deploy).toContain('INNGEST_SIGNING_KEY');
+    expect(deploy).toContain('Verify Inngest endpoint');
+    expect(deploy).not.toContain('INNGEST_DEV');
     expect(deploy).toContain('pnpm ops:verify-prod');
     expect(deploy).toContain('--expected-image');
     expect(deploy).toContain('--expected-revision');

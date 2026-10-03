@@ -16,7 +16,7 @@ unredacted provider responses.
 | Control            | Evidence to attach                                                              | Result      |
 | ------------------ | ------------------------------------------------------------------------------- | ----------- |
 | Workload identity  | Service-account name, bound repository/environment, least-privilege role review | pass / fail |
-| Runtime secrets    | Secret Manager reference names only; no plaintext env-file values               | pass / fail |
+| Runtime secrets    | GitHub Actions secret names and Cloud Run env presence only; no values          | pass / fail |
 | Database migration | Migration identity execution; runtime role DDL-denial query result              | pass / fail |
 | Inngest schedule   | Function identifier, schedule, signed delivery/retry observation                | pass / fail |
 | Readiness/smoke    | Redacted endpoint status, revision/image match, authenticated smoke result      | pass / fail |
