@@ -4,28 +4,17 @@ import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 
 import { PublicPortfolioView } from '@/features/notebook/components/PublicPortfolioView';
+import { getSharedPageMetadata } from '@/lib/page-metadata';
 import { portfolioApplication } from '@/lib/server/portfolio/application';
-import { buildSharedPortfolioPageMetadata } from '@/lib/server/portfolio/queries';
 
 interface Props {
   params: Promise<{ shareId: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   const page = await getTranslations('metadata.pages.shared_portfolio');
   const common = await getTranslations('common');
-  const { shareId } = await params;
-  const portfolio = await portfolioApplication.loadSharedPortfolio(shareId);
-
-  return {
-    ...buildSharedPortfolioPageMetadata({
-      portfolio,
-      pageTitle: page('title'),
-      pageDescription: page('description'),
-      appTitle: common('title'),
-    }),
-    robots: { index: false, follow: false },
-  };
+  return getSharedPageMetadata(page('title'), page('description'), common('title'));
 }
 
 export default function SharedPortfolioPage({ params }: Props) {

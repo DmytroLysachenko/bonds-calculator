@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  buildSharedPortfolioPageMetadata,
-  getPublicSharedPortfolioPageData,
-} from './shared-page-service';
+import { getPublicSharedPortfolioPageData } from './shared-page-service';
 
 vi.mock('./repository', () => ({
   findPortfolioByShareId: vi.fn(async (shareId: string) => {
@@ -40,36 +37,5 @@ describe('shared portfolio page service', () => {
   it('filters missing and private shared portfolio records', async () => {
     await expect(getPublicSharedPortfolioPageData('missing')).resolves.toBeNull();
     await expect(getPublicSharedPortfolioPageData('private')).resolves.toBeNull();
-  });
-
-  it('builds fallback metadata when the public portfolio is missing', () => {
-    expect(
-      buildSharedPortfolioPageMetadata({
-        portfolio: null,
-        pageTitle: 'Shared Portfolio',
-        pageDescription: 'Shared description',
-        appTitle: 'Bonds Calculator',
-      }),
-    ).toEqual({
-      title: 'Shared Portfolio | Bonds Calculator',
-      description: 'Shared description',
-    });
-  });
-
-  it('builds portfolio-specific metadata when a public portfolio exists', () => {
-    expect(
-      buildSharedPortfolioPageMetadata({
-        portfolio: {
-          name: 'Long Term Bonds',
-          description: 'Real EDO lots',
-        },
-        pageTitle: 'Shared Portfolio',
-        pageDescription: 'Shared description',
-        appTitle: 'Bonds Calculator',
-      }),
-    ).toEqual({
-      title: 'Long Term Bonds | Shared Portfolio',
-      description: 'Real EDO lots',
-    });
   });
 });

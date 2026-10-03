@@ -4,10 +4,8 @@ import { getTranslations } from 'next-intl/server';
 import { Suspense } from 'react';
 
 import { BondCalculatorContainer } from '@/features/single-calculator/components/BondCalculatorContainer';
-import {
-  getSharedSingleScenarioMetadata,
-  getSharedSingleScenarioPageData,
-} from '@/lib/server/shared-scenarios/service';
+import { getSharedPageMetadata } from '@/lib/page-metadata';
+import { getSharedSingleScenarioPageData } from '@/lib/server/shared-scenarios/service';
 import { PageSuspenseFallback } from '@/shared/components/page/PageSuspenseFallback';
 import { PageTransition } from '@/shared/components/page/PageTransition';
 import { BondDefinitionsBoundary } from '@/shared/components/providers/BondDefinitionsBoundary';
@@ -16,26 +14,10 @@ interface Props {
   params: Promise<{ shareId: string }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
   const page = await getTranslations('metadata.pages.shared_scenario');
   const common = await getTranslations('common');
-  const { shareId } = await params;
-
-  const scenario = await getSharedSingleScenarioMetadata(shareId);
-
-  if (!scenario) {
-    return {
-      title: `${page('title')} | ${common('title')}`,
-      description: page('description'),
-      robots: { index: false, follow: false },
-    };
-  }
-
-  return {
-    title: `${scenario.title} | ${page('title')}`,
-    description: scenario.description || page('description'),
-    robots: { index: false, follow: false },
-  };
+  return getSharedPageMetadata(page('title'), page('description'), common('title'));
 }
 
 export default function SharedScenarioPage({ params }: Props) {
