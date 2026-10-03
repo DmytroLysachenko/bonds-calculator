@@ -28,6 +28,7 @@ describe('deployment configuration contract', () => {
     expect(deploy).toContain('INNGEST_EVENT_KEY');
     expect(deploy).toContain('INNGEST_SIGNING_KEY');
     expect(deploy).toContain('Verify Inngest endpoint');
+    expect(deploy).toContain('pnpm exec tsx scripts/verify-inngest-endpoint.ts');
     expect(deploy).not.toContain('INNGEST_DEV');
     expect(deploy).toContain('pnpm ops:verify-prod');
     expect(deploy).toContain('--expected-image');
