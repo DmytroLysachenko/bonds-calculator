@@ -5,7 +5,7 @@ export interface BondSeriesMetadata {
   id: string;
   seriesCode: string;
   firstYearRate: string | number;
-  baseMargin: string | number;
+  baseMargin: string | number | null;
   emissionMonth: string;
   sellStartDate?: string;
   sellEndDate?: string;

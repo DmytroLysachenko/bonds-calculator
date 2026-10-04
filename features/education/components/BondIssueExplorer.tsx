@@ -16,7 +16,7 @@ import {
 import { useAppI18n } from '@/i18n/client';
 import { useBondDefinitions } from '@/shared/context/BondDefinitionsContext';
 import { bondSeriesClient, type BondSeriesMetadata } from '@/shared/lib/bond-series-client';
-import { getWithdrawalDateFromMonths, toDateString } from '@/shared/lib/date-timing';
+import { getHorizonMonths, toDateString } from '@/shared/lib/date-timing';
 import {
   createComparisonScenarioPackage,
   createSingleScenarioPackage,
@@ -54,7 +54,13 @@ export function getIssueAvailability(issue: BondSeriesMetadata, today = toDateSt
 }
 
 export function getIssueSchedulePreview(issue: BondSeriesMetadata, definition: BondDefinition) {
-  if (!issue.sellStartDate || !issue.maturityDate) return [];
+  if (
+    !issue.sellStartDate ||
+    !issue.maturityDate ||
+    !isIsoCalendarDate(issue.sellStartDate) ||
+    !isIsoCalendarDate(issue.maturityDate)
+  )
+    return [];
   const purchase = new Date(`${issue.sellStartDate}T12:00:00Z`);
   const maturity = new Date(`${issue.maturityDate}T12:00:00Z`);
   if (Number.isNaN(purchase.getTime()) || Number.isNaN(maturity.getTime()) || maturity <= purchase)
@@ -66,6 +72,22 @@ export function getIssueSchedulePreview(issue: BondSeriesMetadata, definition: B
   const last = periods.at(-1);
   if (last) checkpoints.push(last.endDate.toISOString().slice(0, 10));
   return Array.from(new Set(checkpoints));
+}
+
+export function getIssueRateDescription(
+  issue: BondSeriesMetadata,
+  definition: BondDefinition,
+  fixed: string,
+  unverified: string,
+) {
+  const initialRate = Number(issue.firstYearRate);
+  if (!Number.isFinite(initialRate)) return unverified;
+  const initial = `${initialRate.toFixed(2)}%`;
+  if (!definition.isFloating && !definition.isInflationIndexed) return `${initial} ${fixed}`;
+  const margin =
+    issue.baseMargin === null || issue.baseMargin === undefined ? null : Number(issue.baseMargin);
+  const reset = definition.isFloating ? 'NBP' : 'CPI';
+  return `${initial} → ${reset}${margin !== null && Number.isFinite(margin) ? ` + ${margin.toFixed(2)}%` : ` + ${unverified}`}`;
 }
 
 export function BondIssueExplorer() {
@@ -82,6 +104,17 @@ export function BondIssueExplorer() {
   const [duration, setDuration] = useState('all');
   const [cashFlow, setCashFlow] = useState('all');
   const [eligibility, setEligibility] = useState('all');
+  const rateFor = (issue: BondSeriesMetadata, definition: BondDefinition) =>
+    getIssueRateDescription(
+      issue,
+      definition,
+      t('education.issue_explorer.fixed'),
+      t('education.issue_explorer.unverified_rate'),
+    );
+  const payoutFor = (definition: BondDefinition) =>
+    definition.isCapitalized
+      ? t('education.issue_explorer.capitalized')
+      : t(`education.issue_explorer.payout_${definition.payoutFrequency.toLowerCase()}`);
   const exitRuleFor = (issue: BondSeriesMetadata, definition: BondDefinition) => {
     const fee = issue.earlyWithdrawalFee;
     const amount =
@@ -121,6 +154,10 @@ export function BondIssueExplorer() {
       }),
     [issues, definitions, duration, cashFlow, eligibility],
   );
+  const unsupportedIssues = issues.filter((issue) => {
+    const family = familyForSeries(issue.seriesCode);
+    return !family || !definitions?.[family];
+  });
 
   const linksFor = (issue: BondSeriesMetadata) => {
     const family = familyForSeries(issue.seriesCode);
@@ -128,13 +165,14 @@ export function BondIssueExplorer() {
     if (!family || !definition || !issue.sellStartDate || !issue.maturityDate) return null;
     const base = buildFallbackInputs();
     const purchaseDate = issue.sellStartDate;
-    const horizonMonths = Math.min(360, Math.round(definition.duration * 12));
+    const horizonMonths = getHorizonMonths(purchaseDate, issue.maturityDate);
+    if (horizonMonths > 360) return null;
     const intent = applyDefinitionToInputs(
       {
         ...base,
         bondType: family,
         purchaseDate,
-        withdrawalDate: getWithdrawalDateFromMonths(purchaseDate, horizonMonths),
+        withdrawalDate: issue.maturityDate,
         investmentHorizonMonths: horizonMonths,
         selectedSeriesId: issue.id,
       },
@@ -256,21 +294,9 @@ export function BondIssueExplorer() {
                     <dt>{t('education.issue_explorer.maturity')}</dt>
                     <dd>{issue.maturityDate ?? '—'}</dd>
                     <dt>{t('education.issue_explorer.rate')}</dt>
-                    <dd>
-                      {Number(issue.firstYearRate).toFixed(2)}% →{' '}
-                      {definition.isFloating
-                        ? 'NBP'
-                        : definition.isInflationIndexed
-                          ? 'CPI'
-                          : t('education.issue_explorer.fixed')}{' '}
-                      + {Number(issue.baseMargin ?? 0).toFixed(2)}%
-                    </dd>
+                    <dd>{rateFor(issue, definition)}</dd>
                     <dt>{t('education.issue_explorer.cash_flow')}</dt>
-                    <dd>
-                      {definition.isCapitalized
-                        ? t('education.issue_explorer.capitalized')
-                        : t('education.issue_explorer.income')}
-                    </dd>
+                    <dd>{payoutFor(definition)}</dd>
                     <dt>{t('education.issue_explorer.exit')}</dt>
                     <dd>
                       {exitRule.amount}
@@ -292,6 +318,8 @@ export function BondIssueExplorer() {
                     {issue.termsSourceUrl && issue.termsRevision
                       ? issue.termsRevision
                       : t('education.issue_explorer.unverified_source')}
+                    {' · '}
+                    {t('education.issue_explorer.freshness_unknown')}
                   </p>
                   <div className="mt-4 flex flex-wrap gap-4 text-sm">
                     {status !== 'upcoming' && status !== 'issue_unavailable' && links?.calculate ? (
@@ -367,18 +395,8 @@ export function BondIssueExplorer() {
                         </span>
                       </td>
                       <td className="p-2">
-                        {Number(issue.firstYearRate).toFixed(2)}% →{' '}
-                        {definition.isFloating
-                          ? 'NBP'
-                          : definition.isInflationIndexed
-                            ? 'CPI'
-                            : t('education.issue_explorer.fixed')}{' '}
-                        + {Number(issue.baseMargin ?? 0).toFixed(2)}%
-                        <span className="block">
-                          {definition.isCapitalized
-                            ? t('education.issue_explorer.capitalized')
-                            : t('education.issue_explorer.income')}
-                        </span>
+                        {rateFor(issue, definition)}
+                        <span className="block">{payoutFor(definition)}</span>
                         {schedule.length ? (
                           <span className="block text-xs">
                             {t('education.issue_explorer.schedule')}: {schedule.join(' · ')}
@@ -417,6 +435,8 @@ export function BondIssueExplorer() {
                           {issue.termsSourceUrl && issue.termsRevision
                             ? issue.termsRevision
                             : t('education.issue_explorer.unverified_source')}
+                          {' · '}
+                          {t('education.issue_explorer.freshness_unknown')}
                         </span>
                         {issue.termsSourceUrl ? (
                           <a
@@ -437,6 +457,12 @@ export function BondIssueExplorer() {
           </div>
         </div>
       )}
+      {!loading && !error && unsupportedIssues.length > 0 ? (
+        <p role="status" className="ui-status-note">
+          {t('education.issue_explorer.unsupported_family')}:{' '}
+          {unsupportedIssues.map((issue) => issue.seriesCode).join(', ')}
+        </p>
+      ) : null}
     </section>
   );
 }

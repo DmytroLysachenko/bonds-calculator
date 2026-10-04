@@ -56,12 +56,22 @@ test('stored issues remain filterable by keyboard and hand off their identity', 
     explorer.locator('h4:visible, th[scope="row"]:visible').filter({ hasText: code });
   await expect(visibleIssue('ROR1027')).toBeVisible();
   await expect(
+    explorer.getByText('Monthly interest payout').filter({ visible: true }).first(),
+  ).toBeVisible();
+  await expect(
+    explorer
+      .getByText(/Source freshness not checked/)
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
     explorer
       .getByText('First period: interest cap; later periods: full fee may reduce principal')
       .filter({ visible: true })
       .first(),
   ).toBeVisible();
   await expect(visibleIssue('ROS1029')).toBeVisible();
+  await expect(visibleIssue('ROS1029')).toContainText('Historical');
 
   const eligibility = explorer.getByLabel('Eligibility');
   await eligibility.focus();
@@ -82,9 +92,17 @@ test('stored issues remain filterable by keyboard and hand off their identity', 
     expect(compared.scenario.intent.scenarioA.selectedSeriesId).toBe(
       '22222222-2222-4222-8222-222222222222',
     );
+    expect(compared.scenario.intent.sharedConfig.withdrawalDate).toBe('2029-10-01');
   }
   const href = await link.getAttribute('href');
   expect(href).toContain('/single-calculator?scenario=');
+  const selected = decodeScenarioFromUrl(
+    new URL(href!, 'http://localhost').searchParams.get('scenario'),
+  );
+  expect(selected.ok).toBe(true);
+  if (selected.ok && selected.scenario.kind === 'single-bond') {
+    expect(selected.scenario.intent.withdrawalDate).toBe('2029-10-01');
+  }
   await link.click();
   await expect(page).toHaveURL(/\/single-calculator\?scenario=/);
   await expectNoBrowserDiagnostics(testInfo, diagnostics);
