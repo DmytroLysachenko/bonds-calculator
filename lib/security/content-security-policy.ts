@@ -44,13 +44,13 @@ export function createContentSecurityPolicy(nonce: string, isDevelopment = false
     : `script-src 'self' 'nonce-${nonce}'`;
 
   // Next Fast Refresh and browser developer tools inject style elements without
-  // access to the request nonce. Keep production nonce-only; the local dev
-  // server may permit those transient elements so diagnostics remain usable.
+  // access to the request nonce. A nonce source makes 'unsafe-inline' ineffective,
+  // so the development style directives must omit it. Production stays nonce-only.
   const styleElementSource = isDevelopment
-    ? `style-src 'self' 'nonce-${nonce}' 'unsafe-inline'`
+    ? "style-src 'self' 'unsafe-inline'"
     : `style-src 'self' 'nonce-${nonce}'`;
   const styleElementDirective = isDevelopment
-    ? `style-src-elem 'self' 'nonce-${nonce}' 'unsafe-inline'`
+    ? "style-src-elem 'self' 'unsafe-inline'"
     : `style-src-elem 'self' 'nonce-${nonce}'`;
 
   return [

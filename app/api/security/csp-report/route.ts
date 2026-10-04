@@ -12,17 +12,20 @@ const logger = createServerLogger('CspReportApi');
 /** Browser-only endpoint: sampled, redacted CSP diagnostics without persistence. */
 export const POST = apiHandler(
   async (request: NextRequest) => {
-    const contentType = request.headers.get('content-type') ?? '';
+    // Reporting API delivery uses a batched JSON media type; legacy CSP uses its own.
+    const contentType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
     if (
-      !contentType.includes('application/csp-report') &&
-      !contentType.includes('application/json')
+      contentType !== 'application/csp-report' &&
+      contentType !== 'application/json' &&
+      contentType !== 'application/reports+json'
     ) {
       return NextResponse.json(
         {
           type: 'https://api.obligacje.pl/errors/unsupported-media-type',
           title: 'Unsupported Media Type',
           status: 415,
-          detail: 'CSP reports must use application/csp-report or application/json.',
+          detail:
+            'CSP reports must use application/csp-report, application/reports+json, or application/json.',
           code: 'UNSUPPORTED_MEDIA_TYPE',
         },
         { status: 415 },
@@ -30,7 +33,7 @@ export const POST = apiHandler(
     }
 
     const report = parseCspReport(
-      await readBoundedJsonBody(request, z.unknown(), 8_192, { requireJsonContentType: false }),
+      await readBoundedJsonBody(request, z.unknown(), 32_768, { requireJsonContentType: false }),
     );
     if (report && shouldSampleCspReport(report)) {
       logger.warn('Sampled CSP violation', report);

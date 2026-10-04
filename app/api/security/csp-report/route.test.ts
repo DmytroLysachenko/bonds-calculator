@@ -47,6 +47,36 @@ describe('CSP report route', () => {
     await expect(response.text()).resolves.toBe('');
   });
 
+  it('accepts batched Reporting API CSP reports', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+
+    const response = await POST(
+      new Request('https://app.example.test/api/security/csp-report', {
+        method: 'POST',
+        headers: { 'content-type': 'application/reports+json' },
+        body: JSON.stringify([
+          {
+            type: 'csp-violation',
+            body: {
+              documentURL: 'https://app.example.test/compare?scenario=private',
+              effectiveDirective: 'style-src-elem',
+              blockedURL: 'inline',
+            },
+          },
+        ]),
+      }) as never,
+      {} as never,
+    );
+
+    expect(response.status).toBe(204);
+    expect(mocks.warn).toHaveBeenCalledWith('Sampled CSP violation', {
+      blockedOrigin: 'inline',
+      directive: 'style-src-elem',
+      documentPath: '/compare',
+      sourcePath: null,
+    });
+  });
+
   it('logs only sampled, redacted report fields', async () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
 
@@ -94,7 +124,8 @@ describe('CSP report route', () => {
       type: 'https://api.obligacje.pl/errors/unsupported-media-type',
       title: 'Unsupported Media Type',
       status: 415,
-      detail: 'CSP reports must use application/csp-report or application/json.',
+      detail:
+        'CSP reports must use application/csp-report, application/reports+json, or application/json.',
       code: 'UNSUPPORTED_MEDIA_TYPE',
     });
   });

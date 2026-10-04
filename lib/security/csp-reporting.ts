@@ -24,6 +24,23 @@ const CspReportEnvelopeSchema = z
   })
   .strict();
 
+const ModernCspReportBodySchema = z.object({
+  blockedURL: z.string().max(MAX_URI_LENGTH).optional(),
+  blocked_url: z.string().max(MAX_URI_LENGTH).optional(),
+  documentURL: z.string().max(MAX_URI_LENGTH).optional(),
+  document_url: z.string().max(MAX_URI_LENGTH).optional(),
+  effectiveDirective: z.string().max(MAX_DIRECTIVE_LENGTH).optional(),
+  effective_directive: z.string().max(MAX_DIRECTIVE_LENGTH).optional(),
+  sourceFile: z.string().max(MAX_URI_LENGTH).optional(),
+  source_file: z.string().max(MAX_URI_LENGTH).optional(),
+});
+
+const ModernCspReportSchema = z.object({
+  type: z.literal('csp-violation'),
+  url: z.string().max(MAX_URI_LENGTH).optional(),
+  body: ModernCspReportBodySchema,
+});
+
 export type SanitizedCspReport = {
   blockedOrigin: string | null;
   directive: string | null;
@@ -48,10 +65,26 @@ function sanitizeDirective(value: string | undefined) {
 }
 
 /**
- * Parses only legacy CSP report envelopes and strips query strings, fragments,
- * policy text, referrers, and line details before an event reaches logs.
+ * Parses legacy envelopes or a bounded Reporting API batch and strips query
+ * strings, fragments, policy text, referrers, and line details before logging.
  */
 export function parseCspReport(payload: unknown): SanitizedCspReport | null {
+  if (Array.isArray(payload)) {
+    if (payload.length > 64) return null;
+    for (const item of payload) {
+      const modern = ModernCspReportSchema.safeParse(item);
+      if (!modern.success) continue;
+      const { body } = modern.data;
+      return {
+        blockedOrigin: sanitizeUrl(body.blockedURL ?? body.blocked_url, true),
+        directive: sanitizeDirective(body.effectiveDirective ?? body.effective_directive),
+        documentPath: sanitizeUrl(body.documentURL ?? body.document_url ?? modern.data.url, false),
+        sourcePath: sanitizeUrl(body.sourceFile ?? body.source_file, false),
+      };
+    }
+    return null;
+  }
+
   const parsed = CspReportEnvelopeSchema.safeParse(payload);
   if (!parsed.success) return null;
 

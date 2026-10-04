@@ -32,7 +32,10 @@ describe('content security policy', () => {
     const production = createContentSecurityPolicy('prod-nonce', false);
 
     expect(development).toContain("'unsafe-eval'");
-    expect(development).toContain("style-src-elem 'self' 'nonce-dev-nonce' 'unsafe-inline'");
+    expect(development).toContain("script-src 'self' 'nonce-dev-nonce' 'unsafe-eval'");
+    expect(development).toContain("style-src 'self' 'unsafe-inline'");
+    expect(development).toContain("style-src-elem 'self' 'unsafe-inline'");
+    expect(development).not.toContain("style-src-elem 'self' 'nonce-dev-nonce'");
     expect(production).not.toContain("'unsafe-eval'");
     expect(production).not.toContain("style-src-elem 'self' 'nonce-prod-nonce' 'unsafe-inline'");
   });

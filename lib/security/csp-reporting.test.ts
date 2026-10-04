@@ -23,6 +23,30 @@ describe('CSP report privacy boundary', () => {
     });
   });
 
+  it('sanitizes a Reporting API CSP violation batch', () => {
+    expect(
+      parseCspReport([
+        { type: 'network-error', body: { secret: 'not a CSP report' } },
+        {
+          type: 'csp-violation',
+          url: 'https://app.example.test/compare?scenario=private',
+          body: {
+            blockedURL: 'inline',
+            documentURL: 'https://app.example.test/compare?scenario=private',
+            sourceFile: 'https://app.example.test/_next/devtools.js?token=secret',
+            effectiveDirective: 'style-src-elem',
+            originalPolicy: "style-src 'nonce-secret'",
+          },
+        },
+      ]),
+    ).toEqual({
+      blockedOrigin: 'inline',
+      directive: 'style-src-elem',
+      documentPath: '/compare',
+      sourcePath: '/_next/devtools.js',
+    });
+  });
+
   it('rejects malformed and oversized report bodies', () => {
     expect(parseCspReport({ 'csp-report': { unexpected: 'value' } })).toBeNull();
     expect(parseCspReport({ 'csp-report': { 'document-uri': 'x'.repeat(513) } })).toBeNull();
