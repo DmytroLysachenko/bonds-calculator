@@ -2,6 +2,8 @@
 
 Audit date: 14 September 2026. Repository baseline: cc6e3353. This report is an implementation program, not certification of financial outcomes or a deployment authorization. Only this document was changed during the audit.
 
+Implementation status (29 September 2026): all 34 findings, F01–F34, are marked Completed based on the per-finding evidence below. The dated 14 and 24 September assessments and checkpoints remain historical records, not the current completion state. These local changes are not a deployment certification or a claim of a passing CI run of uncommitted work.
+
 The application is substantially implemented. It has eight bond families, several calculator workflows, PostgreSQL persistence, authenticated portfolio records, historical reference data, exports, localization, accessible component primitives, and unusually extensive regression and architectural checks. Its Next.js App Router architecture is worth retaining.
 
 The largest opportunity is to turn these separate tools into a coherent decision workspace: configure a scenario, understand its cash flows, compare alternative strategies, save it, and return to it without losing its assumptions. New functionality belongs in this program, especially contribution planning, sensitivity analysis, mixed-bond strategies, and a useful local scenario library.
@@ -1074,6 +1076,8 @@ F04–F07, F10, F19.
 **Type:** Accessibility  
 **Scope:** L
 
+**Status:** Completed (28 September 2026). Expanded CPI/NBP paths have distinct visible-name-compatible field and group names with associated help, and reverse target remains explicitly labelled. Enter shortcuts now apply only to editable value inputs, so mode, timing, preset and dialog buttons retain native keyboard behavior without starting duplicate calculations. Shared and comparison result workspaces preserve focus when controls or the fixed action disappear, restore it on edit/close and keep a newer dirty draft open when an older request finishes. The page header owns concise calculation announcements; decorative loading skeletons and the fixed action no longer duplicate live status. Component tests cover labels, help, Enter routing, stale-result transitions and focus restoration. The populated PL/EN desktop/mobile Chromium accessibility matrix passes (70 passed, 10 intentional project skips), including axe, invalid submission, successful calculation, edit/close focus, 320px reflow, zoom and reduced motion. Notebook chart projections retain a semantic data table next to the visual chart.
+
 ### Current state
 
 The app has skip links, Radix dialogs, captions, chart tables and axe tests. ProjectedRatePathEditor renders Label/Input pairs without IDs or htmlFor and with identical Y prefixes across CPI/NBP. The reverse target label is not linked to savingsGoal. CalculatorWorkspace conditionally removes controls after results; edit/close transitions do not explicitly manage focus. Result live regions are nested.
@@ -1112,6 +1116,8 @@ F07 for request-state transitions; label fixes are independent.
 **Priority:** Medium  
 **Type:** UX  
 **Scope:** L
+
+**Status:** Completed (28 September 2026). Single, regular, ladder and comparison now keep the committed result separate from edits and show compact receipts with amount, dates, tax and cash policy. Regular and ladder receipts display the actual committed rollover setting rather than claiming automatic rollover; comparison receipt facts link to named shared/scenario controls and its mobile view jumps directly to results. Changing a recurring or ladder bond family requires an explicit choice between preserving the plan horizon and using native maturity, with focus restored around the choice. Existing progressive disclosures, responsive design tokens and fixed-action behavior remain intact. Component tests cover both horizon choices and receipt navigation; production-build mobile Chromium journeys cover named editing, focus and result navigation, with desktop Chromium focus checks and the broader accessibility matrix validating the surrounding routes.
 
 ### Current state
 
@@ -1152,6 +1158,8 @@ F07, F24; coordinate with F17/F19 new controls.
 **Type:** Refactor  
 **Scope:** L
 
+**Status:** Completed (28 September 2026). Calculation envelopes carry typed diagnostic codes with severity, parameters and optional source references; the result panel and PDF share one PL/EN localization adapter, retaining a clearly separated compatibility path for older prose-only results. The audit panel never invents a model version, and exports use committed inputs plus one shared provenance record for model, tax rules, issuer offer, data source and coverage. The lazy-loaded PDF embeds a Polish-capable font, wraps long notes and rate paths across pages, and identifies modeled scenario artifacts separately from historical performance; the structured CSV preserves numeric columns and appends the same provenance fields. Tests cover all known diagnostic translations in both languages, unknown-code fallback, older model restoration, metadata and CSV parity, Unicode extraction, negative amounts and multipage PDF output.
+
 ### Current state
 
 BaseHandler builds English string assumptions. CalculationMetaPanel and pdf-utils translate them via separate string/regex matches. CalculationMetaPanel defaults the version to v1.2.0 while MODEL_VERSION is 2.9.0-issuer-terms-authoritative; single details does not pass envelope.calculationVersion. PDF receives results/inputs, not the full envelope, uses standard Helvetica and lacks actual source revisions and complete paths.
@@ -1190,6 +1198,8 @@ F07, F12; coordinate F21.
 **Priority:** High  
 **Type:** Architecture  
 **Scope:** L
+
+**Status:** Completed (28 September 2026). Effective calendar horizons, independent comparison overrides, optimizer date pairs and portfolio lot-month budgets are checked before context/database work. The handler registry and exhaustive service dispatch preserve each scenario kind's input/result pairing. Normalized and independent comparison policies, portfolio lots, optimizer and retirement payloads reject unknown fields; unsupported single/regular coupon strategy keys reject instead of disappearing. The legacy single rollover marker and normalized `reinvest: true` are explicitly compatibility-only; effective horizon and independent strategy policy remain authoritative. URL, API, local package and persisted single intents share a boundary matrix for date, horizon, rate, unsupported policy and corruption cases; comparison API/package/URL cases cover 360-month, overlong, fractional and unknown-policy inputs. Focused tests, typecheck and the production build pass.
 
 ### Current state
 
@@ -1232,6 +1242,26 @@ None; coordinate F05, F12 and F16.
 **Type:** Test  
 **Scope:** L
 
+**Status:** Completed (28 September 2026). The F01–F13 witness matrix below pins the financial rule examples, dates, cash conservation, minimum solver and committed/persistence boundaries to independent expectations, cross-engine checks and the cited issuer/statutory references. The default unit suite clears inherited live `DATABASE_URL` values and passes 1,243 tests (13 intentional skips); the separate Node server suite passes 288 tests and contract suite 86. An isolated local PostgreSQL 16 instance exposed a stale migration-readiness count, missing runtime columns/tables and two adapter-shape/timezone assumptions; additive reviewed migrations, a full runtime-column coverage test and UTC-stable rate-limit timestamps now pass 13 database tests. The default authenticated integration command rebuilds with the integration-only PostgreSQL adapter and passes ownership, notebook edit/delete/export/import and anonymous public-share cases under production CSP (3/3). The setup seeds only a disposable COI family fixture, and no live credentials or preview database were used.
+
+Independent and cross-boundary witnesses for the corrected findings:
+
+| Finding | Pinned external rule or independent expectation                                                                                                                  | Boundary/conservation witness                                                                            |
+| ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| F01     | `production.test.ts` pins 0.33 PLN standard interest tax to 0.07 PLN under the Article 63 §1a grosz rule linked above.                                           | `single-bond-engine.test.ts` separately settles a paid ROR coupon and fee.                               |
+| F02     | `single-bond-engine.test.ts` hand-computes the ROR first/later redemption periods from the linked ROR1225 issuer explanation.                                    | `regular-investment-golden.test.ts` compares the same dated lot across engines.                          |
+| F03     | `calendar-inflation.test.ts` pins all twelve January-31 calendar anniversaries; `calculations.test.ts` covers leap day.                                          | `regular-investment-golden.test.ts` checks lot maturity spacing and off-grid terminal settlement.        |
+| F04     | `calendar-inflation.test.ts` pins 12% annual CPI to factor 1.12; `price-index.test.ts` checks leap-year and partial-month factors.                               | `portfolio-simulation-aggregation.test.ts` checks aggregate deflation exactly once.                      |
+| F05     | `regular-investment-golden.test.ts` pins a 150 PLN contribution to one bond plus 50 PLN residual cash.                                                           | The same suite asserts one terminal withdrawal and no remaining terminal wealth.                         |
+| F06     | The issuer period counts are 12 for monthly ROR/DOR and one for annual families in `regular-investment-golden.test.ts`.                                          | Eight one-lot regular cases match the same single-engine issuer outcome.                                 |
+| F07     | `calculator-session.test.ts` pins draft/committed separation through failed and cancelled requests.                                                              | `accessibility.spec.ts` exercises result focus and edit/close behavior in populated browser states.      |
+| F08     | `portfolio-repository.integration.test.ts` pins atomic import rollback against a real disposable database.                                                       | `portfolio-mutations.spec.ts` exports, deletes, imports and re-reads an owned lot under Auth.js and CSP. |
+| F09     | `portfolio-simulation-aggregation.test.ts` pins the exact 15 January terminal row, its lot tax and fee components.                                               | `cross-calculator-consistency.test.ts` matches a one-lot portfolio to direct single.                     |
+| F10     | `single-calculator-actions.test.ts` verifies the selected integer purchase quantity meets the target and its predecessor does not.                               | The same suite preserves non-reverse inputs unchanged.                                                   |
+| F11     | `calculator-truth-qa.test.ts` now pins an unequal 3,000/7,000 PLN IKE/standard split to principal-weighted returns and verifies missing-limit standard fallback. | The handler's overflow, tax and payout agree with the two separately evaluated parts.                    |
+| F12     | `offer-terms.test.ts` pins invalid sale-window and failed explicit-series lookups as unresolved.                                                                 | `comparison-selected-series.test.ts` and report provenance tests retain exact issue identity/source.     |
+| F13     | `ladder-display.test.ts` uses unequal horizon values and invested principals, pinning 2037 maturity principal to 700 PLN rather than the 750 PLN horizon value.  | `calculator-truth-qa.test.ts` checks sequential maturity bucket spacing.                                 |
+
 ### Current state
 
 The default suite is extensive and green, and separate contract, trusted-scope and browser suites already exist. Nevertheless, recurring-engine tests preserve monthly capitalization and ignored policy behavior; aggregate tests can validate internal consistency without checking the issuer outcome. Server tests run under a broadly shared jsdom environment, producing Neon browser warnings, and some service mocks still reach database fallback paths. Authenticated Playwright integration has a separate configuration but is not part of the inspected normal browser CI jobs.
@@ -1272,11 +1302,15 @@ Start independently with failing witnesses; corrected acceptance fixtures depend
 **Type:** Security  
 **Scope:** L
 
+**Status:** Completed (29 September 2026). Production-build, CSP-enforced populated single and narrow comparison journeys now pass in Chromium, Firefox and WebKit. The checks exercise chart rendering and resize, tooltip, date picker, theme and locale changes, the keyboard-focused mobile navigation dialog, and a negative untrusted-inline-script assertion; the Chromium chart has a reviewed visual baseline. An isolated authenticated Chromium integration run also passes notebook ownership, edit/delete/export/import and anonymous public sharing under the production policy. The WebKit run passed 2/2 interaction tests plus 11/11 route, notebook and issue-explorer checks using a persistent user-local Ubuntu library runtime; its host dependency preflight was skipped only because the unprivileged runtime is not registered in the system package database, while the real WebKit browser launched and completed the tests. The populated tests passed again after moving that runtime to its persistent location. CI installs native WebKit dependencies and runs the strict-CSP project. The documented style-attribute allowance remains presentation-scoped; script and style-element nonce enforcement was not relaxed.
+
 ### Current state
 
 proxy.ts generates a nonce-based restrictive policy, including style-src-attr 'none'. ChartContainer has inline sizing and Recharts/Radix may apply runtime styles. playwright.config.ts normally sets bypassCSP: true; a separate Firefox CSP project checks a narrow initial smoke. The fresh Chromium smoke passed with the default bypass.
 
 Implementation checkpoint (23 September 2026): populated single and narrow-viewport comparison calculations pass Chromium and Firefox with CSP enforced. The test first exposed Zod's blocked JIT capability probe; the client now configures jitless validation before route hydration. It then exposed dynamic style attributes from Recharts, Radix, and Next's route announcer. Application-owned chart sizing moved to classes. The policy now permits only style attributes (`style-src-attr 'unsafe-inline'`) while style elements remain nonce-protected and scripts remain nonce-only without eval. This is a deliberate, presentation-scoped relaxation: CSS injection would be more capable if an attacker could inject HTML/style attributes, so HTML escaping and input validation remain necessary. The expanded test also covers chart rendering/resize, hover tooltips, date selection, theme/locale, and a focus-trapped mobile navigation sheet. The sheet exposed an un-nonced scroll-lock style element; the request nonce now reaches that library without relaxing `style-src-elem`. The tests still reject unexplained CSP violations and verify that an untrusted inline script does not execute. WebKit, authenticated notebook and representative visual coverage remain to be evidenced before closing F29.
+
+28–29 September continuation: the authenticated notebook and anonymous public-share paths pass an isolated production-build Chromium/CSP integration run (3/3), including focused lot dialog, owner-scoped edit/delete and export/import. Populated single/comparison strict-CSP interactions pass Chromium and Firefox (4/4); Chromium also compares the rendered populated chart against a reviewed visual baseline. After supplying the missing Ubuntu libraries in an unprivileged local runtime, the same populated tests pass in real WebKit (2/2), and WebKit's strict-CSP route/notebook/issue-explorer checks pass (11/11). No passing CI run of these uncommitted local changes is claimed.
 
 ### Problem or opportunity
 
@@ -1311,6 +1345,8 @@ None for the compatibility investigation; coordinate F24 and F28 for interaction
 **Priority:** High  
 **Type:** Performance  
 **Scope:** L
+
+**Status:** Completed (28 September 2026). The common scenario boundary rejects over-360-month lot horizons and more than 12,000 lot-months before engine execution. The portfolio handler shares one history fetch, reuses offer resolution by series/date identity, deduplicates identical immutable calculations, advances sorted event cursors and deflates aggregate wealth through a shared price-index path. Summary transport omits per-lot detail, while owned detail remains available through the separate simulation flow. The 100-lot/108-month local fixture took 838 ms and serialized 13,619,637 detail bytes versus 25,238 overview bytes for the same result; these are diagnostic measurements, not an SLA. Aggregate terminal reconciliation and sparse/off-grid events have focused financial tests. Worker error, messageerror, abort and missing-reply timeout paths reject pending requests; focused validation, aggregation and worker tests pass. No background architecture or broader work limit was introduced.
 
 ### Current state
 
@@ -1356,6 +1392,8 @@ F27 for canonical work limits; coordinate F09 for aggregate correctness. Benchma
 **Type:** Bug  
 **Scope:** L
 
+**Status:** Completed (28 September 2026). Replay now reads a separately stored GUS previous-month CPI series (`pl-cpi-mom`) from the same [official monthly archive](https://stat.gov.pl/obszary-tematyczne/ceny-handel/wskazniki-cen/wskazniki-cen-towarow-i-uslug-konsumpcyjnych-pot-inflacja-/miesieczne-wskazniki-cen-towarow-i-uslug-konsumpcyjnych-od-1982-roku/); the existing year-over-year `pl-cpi` series remains exclusive to annual macro defaults. Both seed and ongoing macro synchronization label and persist the monthly unit separately, and observed replay becomes available only after the monthly series and aligned PLN asset/FX data are present. The replay path validates finite observations and contiguous selected months, reports actual gaps, rejects missing FX or unsupported windows instead of filling zero returns, and labels illustrative mixed-currency fallback as non-comparable. Bond reset rates compound twelve monthly CPI changes and remain locked for the issuer year; drawdown uses contribution-independent returns. Tests pin independently checked GUS 2026 monthly indexes, source selection, annual-CPI rejection, missing/gapped months, FX/nonoverlap, locked resets and contribution-independent drawdown. No historical database sync was run without a configured local database.
+
 ### Current state
 
 lib/api-clients/gus-cpi.ts parses the year-over-year CPI presentation (index relative to the corresponding month of the preceding year) into an annual percentage. lib/data/multi-asset-history-projection.ts places it into a MonthlyReturn inflation field; asset-calculations applies that as a monthly price change. Missing asset/NBP values can become zero, while availability checks count series independently rather than proving aligned coverage. Market references include USD-denominated indices/commodities without an explicit PLN currency conversion. Historical averages used by calculator assumptions depend on this composite history and can fall back when unrelated asset data is absent.
@@ -1396,6 +1434,8 @@ F04 for shared real-value semantics; coordinate F12 for provenance. Remain exper
 **Type:** Bug  
 **Scope:** M
 
+**Status:** Completed (24 September 2026). The bounded steady-rate model starts at an unaccrued month-zero balance, records only paid withdrawals, reconciles the terminal month and retains it in chart sampling. The shared input schema now rejects unsupported families and missing tax policy before calculation. A localized, semantic monthly table exposes every modeled balance and paid withdrawal, including exhaustion. Unit, API and desktop/mobile browser tests cover first-month, exact and partial depletion, zero return, wrapper treatment, nonannual terminal months and the visible table; this remains explicitly an approximation, not issuer-exact liquidation.
+
 ### Current state
 
 features/bond-core/handlers/retirement-planner.ts accrues interest at month zero and can report a full withdrawal in a timeline row after only a partial remaining balance was withdrawn. A probe with PLN 100 capital and PLN 90 monthly withdrawals produced approximately PLN 100.4047 total withdrawals, but the two timeline withdrawal rows summed to PLN 180. Rate/tax defaults and family support are not consistently enforced server-side. Retirement chart sampling every 12 rows can omit the exhaustion endpoint.
@@ -1435,6 +1475,8 @@ F01, F03 and F27; this bounded correction does not require a full retirement pro
 **Type:** Architecture  
 **Scope:** M
 
+**Status:** Completed (24 September 2026). One route policy drives canonical paths, navigation eligibility and the explicit sitemap allowlist. Preview remains noindex with an empty sitemap; private/experimental routes remain excluded in indexable mode. Shared scenario/portfolio pages now use generic noindex metadata without loading or publishing user-entered titles/descriptions. Contract and localized tests cover both locales, safe base-URL fallback, private-page behavior and unique canonical routes; no deployment/indexability switch was changed.
+
 ### Current state
 
 The private-preview default correctly disables indexing and produces restrictive robots/empty sitemap behavior. In indexable configuration app/sitemap.ts enumerates tools, including routes with different support/private-use characteristics. Page metadata and navigation encode overlapping route knowledge.
@@ -1473,6 +1515,8 @@ None; coordinate F25 only when navigation changes.
 **Priority:** Medium  
 **Type:** Feature  
 **Scope:** L
+
+**Status:** Completed (28 September 2026). The existing education page now includes a filterable issued-series explorer, retaining its original family table. Stored issue identity, sale and maturity dates, issued opening rate/reset margin, early-exit fee/cap, eligibility, source revision and explicitly unknown freshness appear in equivalent mobile cards and a semantic desktop table. Current, historical, upcoming, unavailable and no-record/fallback states are distinct; calculation and comparison links carry the exact stored series ID and dates through the validated portable scenario codec. A compact checkpoint preview uses the shared issuer-period schedule and stored maturity, while the UI explicitly labels today's family payout cadence and checkpoints illustrative because the series schema does not evidence historical cadence. Unknown fees, missing margins, absent documents and unsupported families are not presented as verified issuer terms. Component tests and production-build desktop/mobile Chromium plus Chromium/Firefox strict-CSP browser tests cover filtering, historical badges, fee/source uncertainty and exact-identity handoff.
 
 ### Current state
 
@@ -1521,6 +1565,10 @@ F24–F34 have local implementation work, but this checkpoint does **not** close
 24 September continuation: F34 explorer reads now use the shared SWR GET cache instead of an ad hoc request effect. Its comparison action carries the exact selected series ID through URL validation, offer resolution and per-side result provenance; URL/component/browser fixtures pin that round trip. Explorer cards and table now distinguish an evidenced issued fee/cap rule from an unresolved fee, rather than silently displaying the family default as an issue fact. F27 comparison overrides now reject unknown and formerly silently ignored policy fields. F17 also gained per-side maturity/coupon overrides and an actual zero-rate cash checkpoint to the chosen horizon; URL, handler and timeline fixtures cover the distinction from native maturity. F02/F28 gained an issuer-source-linked ROR first/later redemption fixture and one-lot cross-engine parity; periodic coupon tax and cash-flow events now settle the final unpaid coupon separately. Rate-only offer synchronization preserves reviewed fee/policy/source columns instead of clearing them. F26 now uses an independent PDF text parser in tests to verify Polish diacritics, negative values and committed model metadata survive export; full cross-tool report parity remains open. These are local implementation and test improvements, not closure of the remaining F24–F34 browser, database-integration and independent-reference acceptance work.
 
 Further 24 September continuation: a desktop/mobile comparison browser check exposed an ICU variable-contract collision between bond and multi-asset chart summaries. Bond charts now use a distinct translated key, with English/Polish formatting tests; the same-family per-side policy receipt passes desktop and mobile Chromium. The issue explorer passes desktop/mobile Chromium and enforced-CSP Firefox with its issued-fee and exact-series handoff fixture. F31's illustrative fallback previously fed month-on-month CPI changes directly to an annual macro-default slot; it now compounds contiguous twelve-month windows, rejects annual-CPI rows and gaps, and carries a model-version bump. This corrects an offline-default unit mismatch but does not establish independent historical replay evidence or close F31.
+
+Later 24 September F34 continuation: issue cards and the desktop table now present the same explicit payout cadence and source-freshness uncertainty, use the stored issued maturity for exact-series calculation/comparison links, avoid implying a reset margin on fixed-rate bonds or turning a missing margin into zero, and surface unknown-family records as unavailable instead of silently omitting them. Focused component tests cover rate/margin boundaries, the stored-maturity schedule, unavailable family and deep-link dates; rebuilt-production desktop/mobile Chromium tests cover keyboard filtering, historical badges, displayed cadence and exact-maturity handoff. The production webpack build, typecheck, lint and focused tests pass. This does not close F34: the stored series schema has no per-series payout-cadence or independently checked freshness timestamp, so historical cadence remains explicitly illustrative from current family definitions; broader issuer-term boundary evidence is still required. The default Turbopack build hit a local process/port permission panic during CSS processing, while the webpack production build succeeded.
+
+F33 follow-up: metadata now rejects an unregistered route before requesting its translation namespace. Contract tests cover missing/unsafe canonical base URLs, an empty preview sitemap, unique public canonical routes and private/experimental exclusions; localized metadata tests verify Polish social locale and private-page noindex. The full release suite (461 tests) and separately configured contract suite (86 tests), typecheck and lint pass. No public discovery policy was broadened.
 
 The production webpack build, typecheck, lint, full Vitest suite (224 files passed, 3 skipped; 1,190 tests passed, 12 skipped), isolated server suite (285 tests), release suite (447 tests), contract suite (82 tests), desktop/mobile Chromium browser CI matrix (77 passed, 7 intentionally skipped), Chromium/Firefox strict-CSP interactions (4 tests), Chromium/mobile-Chromium accessibility matrix (62 passed, 10 skipped), and issue-explorer desktop/mobile plus enforced-CSP Chromium/Firefox checks (4 tests) passed locally at this checkpoint. The browser matrix exposed a hidden-desktop-selector failure in the mobile preferences test; it now opens the mobile navigation and targets the visible settings control. The previously stalled full Vitest run exposed a floating-point non-progress loop in the recurring goal solver; cent-integer search and its regression tests now pass. The local WebKit run failed before application launch due to missing host dependencies. Docker and local PostgreSQL were unavailable, so authenticated database integration remains CI-only evidence until that job passes. Preserve these distinctions in any support classification or release claim.
 
