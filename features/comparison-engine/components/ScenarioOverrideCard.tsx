@@ -107,7 +107,6 @@ export const ScenarioOverrideCard: React.FC<ScenarioOverrideCardProps> = ({
   return (
     <ScenarioSetupCard
       title={title}
-      description={t('comparison.scenario_card_desc')}
       tone={colorClass}
       meta={<span className="ui-kicker text-muted-foreground">{formatBondLabel(bondType)}</span>}
     >

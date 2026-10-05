@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 
 import { BondInputs, CalculationResult, ChartStep } from '@/features/bond-core/types';
+import { useAppI18n } from '@/i18n/client';
 import { Notice } from '@/shared/components/feedback/Notice';
 
 import type { ComparisonChartPoint } from '../lib/comparison-display';
@@ -66,6 +67,7 @@ export function ComparisonCommittedResults({
   warningsA,
   warningsB,
 }: ComparisonCommittedResultsProps) {
+  const { t } = useAppI18n();
   return (
     <div
       className={`${comparisonLayout.results} ${isCalculating ? 'pointer-events-none opacity-60' : ''}`}
@@ -84,6 +86,9 @@ export function ComparisonCommittedResults({
         taxStrategy={inputsA.taxStrategy}
         formatCurrency={formatCurrency}
       />
+      <p className="border-l-2 border-border pl-3 text-base leading-7 text-muted-foreground">
+        {t('comparison.result_fairness_caveat')}
+      </p>
       <ComparisonAssumptionsMetaPanel
         envelopeA={envelopeA}
         envelopeB={envelopeB}

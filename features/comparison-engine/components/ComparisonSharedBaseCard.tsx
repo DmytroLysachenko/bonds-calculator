@@ -49,9 +49,6 @@ export function ComparisonSharedBaseCard({
       <div className="space-y-2 border-b border-border pb-4">
         <h2 className="ui-section-title">{t('comparison.shared_base_title')}</h2>
         <p className="ui-body text-muted-foreground">{t('comparison.shared_base_desc')}</p>
-        <p className="text-base leading-7 text-muted-foreground">
-          {t('comparison.shared_base_scope')}
-        </p>
       </div>
       <div className="space-y-6">
         <div className="space-y-2">
@@ -70,7 +67,9 @@ export function ComparisonSharedBaseCard({
               onUpdateSharedConfig('strategyPolicy', value as SharedConfig['strategyPolicy'])
             }
           />
-          <p className="text-xs text-muted-foreground">{t('comparison.maturity_cash_note')}</p>
+          <p className="text-base leading-6 text-muted-foreground">
+            {t('comparison.maturity_cash_note')}
+          </p>
         </div>
         <div className="space-y-2">
           <Label
