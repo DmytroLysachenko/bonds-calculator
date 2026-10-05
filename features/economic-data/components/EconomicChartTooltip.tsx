@@ -5,6 +5,7 @@ import { chartColorClass } from '@/shared/components/charts/chart-color-class';
 interface EconomicChartTooltipPayloadEntry {
   value: number;
   color: string;
+  payload?: { rate?: number };
 }
 
 interface EconomicChartTooltipProps {
@@ -34,7 +35,7 @@ export function EconomicChartTooltip({
               <span className={`ui-chart-tooltip-dot ${chartColorClass(entry.color)}`} />
               {metricLabel}:
             </span>
-            <span className="ui-chart-tooltip-value">{entry.value}%</span>
+            <span className="ui-chart-tooltip-value">{entry.payload?.rate ?? entry.value}%</span>
           </div>
         ))}
       </div>
