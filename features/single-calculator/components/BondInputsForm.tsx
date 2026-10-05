@@ -36,6 +36,7 @@ interface BondSeries {
 interface BondInputsFormProps {
   formId?: string;
   onSubmit?: React.FormEventHandler<HTMLFormElement>;
+  action?: React.ReactNode;
   inputs: BondInputs;
   onUpdate: (key: keyof BondInputs, value: unknown) => void;
   onBondTypeChange: (type: BondType, horizonChoice: 'preserve' | 'native') => void;
@@ -49,6 +50,7 @@ interface BondInputsFormProps {
 export const BondInputsForm: React.FC<BondInputsFormProps> = ({
   formId,
   onSubmit,
+  action,
   inputs,
   onUpdate,
   onBondTypeChange,
@@ -254,12 +256,7 @@ export const BondInputsForm: React.FC<BondInputsFormProps> = ({
           maturityDate={maturityDate}
           hasMounted={hasMounted}
         />
-        <button
-          type="submit"
-          tabIndex={-1}
-          className="sr-only"
-          aria-label={t('common.calculate')}
-        />
+        {action}
       </form>
     </TooltipProvider>
   );

@@ -13,6 +13,7 @@ interface RecalculateButtonProps {
   disabled?: boolean;
   onClick: () => void;
   className?: string;
+  placement?: 'floating' | 'inline-desktop' | 'mobile-only';
 }
 export const RecalculateButton = ({
   formId,
@@ -22,6 +23,7 @@ export const RecalculateButton = ({
   disabled = false,
   onClick,
   className,
+  placement = 'floating',
 }: RecalculateButtonProps) => {
   const { t } = useAppI18n();
   const showButton = loading || isDirty || !hasResults;
@@ -38,7 +40,11 @@ export const RecalculateButton = ({
   return (
     <div
       className={cn(
-        'fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50 sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(23rem,calc(100vw-2.5rem))]',
+        'fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-50',
+        placement === 'floating' &&
+          'sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(23rem,calc(100vw-2.5rem))]',
+        placement === 'inline-desktop' && 'sm:static sm:z-auto sm:w-full sm:max-w-md',
+        placement === 'mobile-only' && 'sm:hidden',
         className,
       )}
     >
@@ -50,9 +56,6 @@ export const RecalculateButton = ({
             </p>
             <p className="text-sm leading-6 text-muted-foreground">{helperText}</p>
           </div>
-          {(isDirty || isInitialRun) && !loading ? (
-            <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-success" />
-          ) : null}
         </div>
 
         <div className="mt-3 sm:mt-4">

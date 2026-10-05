@@ -141,6 +141,22 @@ export const RegularInvestmentCalculatorContainer: React.FC = () => {
             onBondTypeChange={setBondType}
             guardrails={guardrails}
             guardrailSummaryRef={guardrailSummaryRef}
+            action={
+              <RecalculateButton
+                placement="inline-desktop"
+                isDirty={isDirty}
+                hasResults={!!results}
+                loading={isCalculating}
+                disabled={hasBlockingGuardrails}
+                onClick={() => {
+                  if (hasBlockingGuardrails) {
+                    guardrailSummaryRef.current?.focus();
+                    return;
+                  }
+                  calculate();
+                }}
+              />
+            }
           />
         }
         results={
@@ -219,20 +235,6 @@ export const RegularInvestmentCalculatorContainer: React.FC = () => {
             />
           ) : null
         }
-      />
-
-      <RecalculateButton
-        isDirty={isDirty}
-        hasResults={!!results}
-        loading={isCalculating}
-        disabled={hasBlockingGuardrails}
-        onClick={() => {
-          if (hasBlockingGuardrails) {
-            guardrailSummaryRef.current?.focus();
-            return;
-          }
-          calculate();
-        }}
       />
     </CalculatorPageShell>
   );

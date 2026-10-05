@@ -157,8 +157,15 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
           />
         ) : null}
 
-        <ScenarioDraftStatus inputs={inputs} isDirty={isDirty} onRestore={replaceInputs} />
-        <SavedScenarioLibrary isDirty={isDirty} onRestore={replaceInputs} t={t} />
+        <div className="space-y-2">
+          <ScenarioDraftStatus inputs={inputs} isDirty={isDirty} onRestore={replaceInputs} />
+          <a
+            href="#saved-scenarios-title"
+            className="ui-focus-ring inline-flex min-h-9 items-center text-sm font-semibold text-foreground underline underline-offset-4"
+          >
+            {t('bonds.saved_library.title')}
+          </a>
+        </div>
 
         <CalculatorWorkspace
           className="gap-8 xl:gap-10"
@@ -236,6 +243,17 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
               guardrails={guardrails}
               guardrailSummaryRef={guardrailSummaryRef}
               onApplyGuardrailFix={handleApplyGuardrailFix}
+              action={
+                <RecalculateButton
+                  placement="inline-desktop"
+                  isDirty={isDirty}
+                  hasResults={!!results}
+                  loading={isCalculating}
+                  disabled={blockingGuardrails.length > 0}
+                  formId={SINGLE_CALCULATOR_FORM_ID}
+                  onClick={() => calculate()}
+                />
+              }
             />
           }
           results={
@@ -263,16 +281,8 @@ export const BondCalculatorContainer: React.FC<BondCalculatorContainerProps> = (
             />
           }
         />
+        <SavedScenarioLibrary isDirty={isDirty} onRestore={replaceInputs} t={t} />
       </div>
-
-      <RecalculateButton
-        isDirty={isDirty}
-        hasResults={!!results}
-        loading={isCalculating}
-        disabled={blockingGuardrails.length > 0}
-        formId={SINGLE_CALCULATOR_FORM_ID}
-        onClick={() => calculate()}
-      />
 
       <AppToast
         message={statusMessage}
