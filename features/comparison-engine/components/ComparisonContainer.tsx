@@ -446,6 +446,7 @@ export const ComparisonContainer: React.FC = () => {
                   durationMismatchTitle={t('comparison.auto_rollover_notice_title')}
                   durationMismatchText={durationMismatchText}
                   hasResults={!!resultsA && !!resultsB}
+                  isDirty={isDirty}
                   isCalculating={isCalculating}
                   onCalculate={calculate}
                   onUpdateSharedConfig={onSharedConfigChange}
@@ -516,6 +517,7 @@ export const ComparisonContainer: React.FC = () => {
         ) : null}
       </div>
       <RecalculateButton
+        placement="mobile-only"
         isDirty={isDirty}
         hasResults={!!resultsA && !!resultsB}
         loading={isCalculating}

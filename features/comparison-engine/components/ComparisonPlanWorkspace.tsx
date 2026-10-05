@@ -1,12 +1,17 @@
 'use client';
 
 import type { BondType } from '@/features/bond-core/types';
+import { useAppI18n } from '@/i18n/client';
 import type { FieldUpdater } from '@/shared/types/field-updater';
 
 import type { ScenarioOverride, SharedComparisonConfig } from '../lib/comparison-calculator-state';
 
 import { comparisonLayout } from './comparison-layout';
-import { ComparisonFairnessPanel, ComparisonSetupStatePanel } from './ComparisonContainerPanels';
+import {
+  ComparisonFairnessPanel,
+  ComparisonPendingResultsPanel,
+} from './ComparisonContainerPanels';
+import { ComparisonDraftAssumptionsReceipt } from './ComparisonDraftAssumptionsReceipt';
 import {
   ComparisonSharedAssumptionsPanel,
   ComparisonSharedBaseCard,
@@ -32,6 +37,7 @@ interface ComparisonPlanWorkspaceProps {
   durationMismatchText: string | null;
   durationMismatchTitle: string;
   hasResults: boolean;
+  isDirty: boolean;
   isCalculating: boolean;
   onCalculate: () => void;
   onUpdateSharedConfig: SharedConfigUpdate;
@@ -47,6 +53,7 @@ export function ComparisonPlanWorkspace({
   durationMismatchText,
   durationMismatchTitle,
   hasResults,
+  isDirty,
   isCalculating,
   onCalculate,
   onUpdateSharedConfig,
@@ -55,8 +62,26 @@ export function ComparisonPlanWorkspace({
   sharedBaseLabel,
   sharedConfig,
 }: ComparisonPlanWorkspaceProps) {
+  const { t } = useAppI18n();
   return (
     <>
+      <nav
+        aria-label={t('comparison.setup_order')}
+        className="grid gap-2 border-y border-border py-3 text-sm text-muted-foreground md:grid-cols-3"
+      >
+        {(['base', 'scenarios', 'assumptions'] as const).map((step, index) => (
+          <a
+            key={step}
+            href={`#comparison-${step === 'base' ? 'shared' : step}-setup`}
+            className="ui-focus-ring flex min-h-11 items-center gap-2 px-2 hover:text-foreground"
+          >
+            <span className="font-mono font-semibold text-foreground">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            {t(`comparison.setup_steps.${step}`)}
+          </a>
+        ))}
+      </nav>
       <div className={comparisonLayout.workspace}>
         <aside
           id="comparison-shared-setup"
@@ -92,24 +117,31 @@ export function ComparisonPlanWorkspace({
             ))}
           </div>
 
+          <div id="comparison-assumptions-setup">
+            <ComparisonSharedAssumptionsPanel
+              sharedConfig={sharedConfig}
+              assumptionsBondType={assumptionsBondType}
+              onUpdateSharedConfig={onUpdateSharedConfig}
+            />
+          </div>
+
+          <ComparisonDraftAssumptionsReceipt
+            sharedConfig={sharedConfig}
+            scenarioA={scenarioA.scenario}
+            scenarioB={scenarioB.scenario}
+          />
+
           <ComparisonFairnessPanel
             durationMismatchTitle={durationMismatchTitle}
             durationMismatchText={durationMismatchText}
             hasResults={hasResults}
+            isDirty={isDirty}
             isCalculating={isCalculating}
             onCalculate={onCalculate}
           />
 
-          <ComparisonSetupStatePanel hasResults={hasResults} isCalculating={isCalculating} />
+          <ComparisonPendingResultsPanel hasResults={hasResults} isCalculating={isCalculating} />
         </div>
-      </div>
-
-      <div id="comparison-assumptions-setup">
-        <ComparisonSharedAssumptionsPanel
-          sharedConfig={sharedConfig}
-          assumptionsBondType={assumptionsBondType}
-          onUpdateSharedConfig={onUpdateSharedConfig}
-        />
       </div>
     </>
   );
