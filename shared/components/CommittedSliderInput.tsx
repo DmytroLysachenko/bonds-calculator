@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 interface CommittedSliderInputProps {
   label?: string;
+  ariaLabel?: string;
   value: number;
   min: number;
   max: number;
@@ -33,6 +34,7 @@ function toPrecision(value: number, step: number) {
 
 export function CommittedSliderInput({
   label,
+  ariaLabel,
   value,
   min,
   max,
@@ -120,7 +122,7 @@ export function CommittedSliderInput({
           min={min}
           max={max}
           step={step}
-          aria-label={label ?? unit ?? 'Committed slider input'}
+          aria-label={ariaLabel ?? label ?? unit ?? 'Committed slider input'}
           onValueChange={handleSliderChange}
           onValueCommit={([nextValue]) => commitValue(nextValue)}
           className={cn('flex-1', sliderClassName)}
@@ -135,7 +137,7 @@ export function CommittedSliderInput({
               min={min}
               max={max}
               disabled={disabled}
-              aria-label={label ?? unit ?? 'Slider value'}
+              aria-label={ariaLabel ?? label ?? unit ?? 'Slider value'}
               className={cn('h-10 w-28 pr-10 text-right text-sm font-semibold', inputClassName)}
               value={draftText}
               onChange={(event) => {

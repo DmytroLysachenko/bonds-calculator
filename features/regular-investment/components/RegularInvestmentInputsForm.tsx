@@ -125,7 +125,8 @@ export const RegularInvestmentInputsForm: React.FC<RegularInvestmentInputsFormPr
               oneOffContributions={inputs.oneOffContributions ?? []}
               skippedContributionDates={inputs.skippedContributionDates ?? []}
               contributionOverrides={inputs.contributionOverrides ?? []}
-              previewRows={buildContributionSchedule(inputs).slice(0, 8)}
+              previewRows={buildContributionSchedule(inputs)}
+              investmentHorizonMonths={investmentHorizonMonths}
               language={language}
               frequency={inputs.frequency}
               taxStrategy={inputs.taxStrategy}

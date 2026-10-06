@@ -23,8 +23,7 @@ export function AllocationStrategySection({
   };
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-[15px] font-semibold">{t('regular_investment_page.allocation_title')}</p>
+      <div className="flex justify-end">
         <Button
           type="button"
           variant="outline"
