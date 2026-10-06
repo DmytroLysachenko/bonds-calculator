@@ -64,6 +64,8 @@ export const NBPRateChart = ({ period = 'ALL' }: { period?: PeriodValue }) => {
       fallbackTone={response?.usedFallback ? 'warning' : 'good'}
       fallbackStatusLabel={t('economic.reference_state.fallback')}
       syncedStatusLabel={t('economic.reference_state.synced')}
+      verificationHref="https://nbp.pl/podstawowe-stopy-procentowe-nbp/"
+      verificationLabel={t('economic.verify_source')}
     >
       <ChartContainer
         height={420}
