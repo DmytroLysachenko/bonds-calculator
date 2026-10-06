@@ -13,7 +13,7 @@ import { useAppI18n } from '@/i18n/client';
 import { SectionHeading } from '@/shared/components/page/SectionHeading';
 
 import { HomeDecisionSlip } from './HomeDecisionSlip';
-import { HomePrimaryRoute, HomeSupportingRoutes } from './HomeRouteSections';
+import { HomeSupportingRoutes } from './HomeRouteSections';
 type ToolItem = {
   href: string;
   title: string;
@@ -43,11 +43,10 @@ export function LandingDashboardClient({ offerProvenance }: { offerProvenance?: 
   }));
   const secondaryTitle = t('landing.secondary_tools.title');
   const secondaryDesc = t('landing.secondary_tools.description');
-  const primaryTool = primaryTools.find((item) => item.href === '/single-calculator');
   const supportingTools = primaryTools.filter((item) => item.href !== '/single-calculator');
   return (
     <div className="ui-page-flow">
-      <section className="pb-8 md:pb-10">
+      <section className="pb-5 md:pb-6">
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start xl:gap-12">
           <div className="max-w-4xl space-y-6 md:space-y-8">
             <p className="inline-flex items-center gap-2 border-l-2 border-border px-3 py-1 text-xs font-semibold text-muted-foreground">
@@ -93,14 +92,6 @@ export function LandingDashboardClient({ offerProvenance }: { offerProvenance?: 
 
           <HomeDecisionSlip />
         </div>
-      </section>
-
-      <section className="space-y-5">
-        <SectionHeading
-          title={t('landing.home_routes.primary_title')}
-          description={t('landing.home_routes.primary_description')}
-        />
-        {primaryTool ? <HomePrimaryRoute item={primaryTool} /> : null}
       </section>
 
       <section className="space-y-5 bg-muted/20 px-4 py-7 md:rounded-md md:px-6 md:py-8">

@@ -34,7 +34,7 @@ test('home primary action opens the single-bond calculator', async ({ page }, te
   await stubOpportunisticSync(page);
   await page.goto('/', { waitUntil: 'networkidle' });
 
-  const primaryAction = page.getByRole('link', { name: 'Otwórz kalkulator' });
+  const primaryAction = page.getByRole('link', { name: 'Zasymuluj obligację' });
   await expect(primaryAction).toBeVisible();
   await primaryAction.click();
   await expect(page).toHaveURL(/\/single-calculator$/);
@@ -51,7 +51,7 @@ test('home keeps the primary action and decision guide in the first viewport', a
   await page.goto('/', { waitUntil: 'networkidle' });
 
   const [primaryAction, decisionSlip] = await Promise.all([
-    page.getByRole('link', { name: 'Otwórz kalkulator' }).boundingBox(),
+    page.getByRole('link', { name: 'Zasymuluj obligację' }).boundingBox(),
     page.getByTestId('home-decision-slip').first().boundingBox(),
   ]);
 
@@ -60,7 +60,7 @@ test('home keeps the primary action and decision guide in the first viewport', a
   await expectNoBrowserDiagnostics(testInfo, diagnostics);
 });
 
-test('home keeps the decision guide ahead of the primary route on mobile', async ({
+test('home keeps the decision guide available after the primary action on mobile', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chromium', 'Mobile-specific layout assertion');
@@ -70,14 +70,14 @@ test('home keeps the decision guide ahead of the primary route on mobile', async
   await page.goto('/', { waitUntil: 'networkidle' });
 
   const decisionSlip = page.getByTestId('home-decision-slip');
-  const primaryRoute = page.getByTestId('home-primary-route');
+  const primaryAction = page.getByRole('link', { name: 'Zasymuluj obligację' });
   await expect(decisionSlip).toBeVisible();
-  await expect(primaryRoute).toBeVisible();
+  await expect(primaryAction).toBeVisible();
 
   const [decisionBox, primaryBox] = await Promise.all([
     decisionSlip.boundingBox(),
-    primaryRoute.boundingBox(),
+    primaryAction.boundingBox(),
   ]);
-  expect(decisionBox?.y).toBeLessThan(primaryBox?.y ?? 0);
+  expect(primaryBox?.y).toBeLessThan(decisionBox?.y ?? 0);
   await expectNoBrowserDiagnostics(testInfo, diagnostics);
 });
