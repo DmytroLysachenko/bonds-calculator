@@ -22,7 +22,24 @@ export interface BondDefinition {
   isFloating: boolean;
   isFamilyOnly?: boolean;
   rebuyDiscount: number;
+  rateProvenance?: {
+    kind: 'issued-series' | 'database-reference' | 'curated-reference';
+    /** Issued/curated sale-window start, or database reference record date. */
+    asOf?: string;
+    seriesCode?: string;
+    sourceUrl?: string;
+  };
 }
+
+// These fallback opening rates and margins match the Ministry's September 2026
+// retail-offer table. The date is that sale window's start, not a claim that
+// the static values are today's verified offer.
+const CURATED_RATE_PROVENANCE = {
+  kind: 'curated-reference',
+  asOf: '2026-09-01',
+  sourceUrl:
+    'https://www.gov.pl/web/finanse/podaz-skarbowych-papierow-wartosciowych-we-wrzesniu-2026',
+} as const satisfies BondDefinition['rateProvenance'];
 
 export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
   [BondType.OTS]: {
@@ -41,6 +58,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: false,
     payoutFrequency: InterestPayout.MATURITY,
     firstYearRate: 2.0,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 0,
     earlyWithdrawalFee: 0,
     isInflationIndexed: false,
@@ -63,6 +81,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: false,
     payoutFrequency: InterestPayout.MONTHLY,
     firstYearRate: 4.0,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 0,
     earlyWithdrawalFee: 0.5,
     isInflationIndexed: false,
@@ -85,6 +104,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: false,
     payoutFrequency: InterestPayout.MONTHLY,
     firstYearRate: 4.15,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 0.15,
     earlyWithdrawalFee: 0.7,
     isInflationIndexed: false,
@@ -107,6 +127,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: true,
     payoutFrequency: InterestPayout.MATURITY,
     firstYearRate: 4.4,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 0,
     earlyWithdrawalFee: 0.7,
     isInflationIndexed: false,
@@ -129,6 +150,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: false,
     payoutFrequency: InterestPayout.YEARLY,
     firstYearRate: 4.75,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 1.5,
     earlyWithdrawalFee: 0.7,
     isInflationIndexed: true,
@@ -151,6 +173,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: true,
     payoutFrequency: InterestPayout.MATURITY,
     firstYearRate: 5.0,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 2.0,
     earlyWithdrawalFee: 2.0,
     isInflationIndexed: true,
@@ -174,6 +197,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: true,
     payoutFrequency: InterestPayout.MATURITY,
     firstYearRate: 5.35,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 2.0,
     earlyWithdrawalFee: 3.0,
     isInflationIndexed: true,
@@ -196,6 +220,7 @@ export const BOND_DEFINITIONS: Record<BondType, BondDefinition> = {
     isCapitalized: true,
     payoutFrequency: InterestPayout.MATURITY,
     firstYearRate: 5.6,
+    rateProvenance: CURATED_RATE_PROVENANCE,
     margin: 2.5,
     earlyWithdrawalFee: 3.0,
     isInflationIndexed: true,
