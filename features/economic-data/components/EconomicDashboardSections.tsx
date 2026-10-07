@@ -72,9 +72,14 @@ export function RangeActions({
   const { t } = useAppI18n();
 
   return (
-    <div className="space-y-3 border-t border-border pt-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex rounded-md bg-muted/45 p-1" aria-label="Series">
+    <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2 xl:grid-cols-[auto_1fr_auto]">
+      <div className="space-y-1.5">
+        <p className="ui-label">{t('economic.toolbar_series')}</p>
+        <div
+          className="inline-flex rounded-md bg-muted/45 p-1"
+          role="group"
+          aria-label={t('economic.toolbar_series')}
+        >
           <button
             type="button"
             aria-pressed={series === 'cpi'}
@@ -102,28 +107,38 @@ export function RangeActions({
             NBP
           </button>
         </div>
-        <span className="inline-flex items-center gap-1 px-1 text-sm font-medium text-muted-foreground">
-          <CalendarRange className="h-3.5 w-3.5" />
-          {rangeLabel}
-        </span>
-        {ECONOMIC_RANGE_OPTIONS.map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            aria-pressed={period === item.value}
-            onClick={() => setPeriod(item.value)}
-            className={cn(
-              'min-h-11 rounded px-3 py-1.5 text-sm transition-colors ui-focus-ring',
-              period === item.value
-                ? 'bg-foreground font-semibold text-background'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-            )}
-          >
-            {item.label}
-          </button>
-        ))}
+      </div>
+      <div className="space-y-1.5">
+        <p className="ui-label inline-flex items-center gap-1">
+          <CalendarRange className="h-3.5 w-3.5" aria-hidden="true" /> {rangeLabel}
+        </p>
+        <div className="flex flex-wrap gap-1" role="group" aria-label={rangeLabel}>
+          {ECONOMIC_RANGE_OPTIONS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              aria-pressed={period === item.value}
+              onClick={() => setPeriod(item.value)}
+              className={cn(
+                'min-h-11 rounded px-3 py-1.5 text-sm transition-colors ui-focus-ring',
+                period === item.value
+                  ? 'bg-foreground font-semibold text-background'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="space-y-1.5 sm:col-span-2 xl:col-span-1">
+        <p className="ui-label">{t('economic.toolbar_scale_cpi')}</p>
         {series === 'cpi' ? (
-          <div className="ml-auto inline-flex rounded-md border border-border p-1">
+          <div
+            className="inline-flex rounded-md border border-border p-1"
+            role="group"
+            aria-label={t('economic.toolbar_scale_cpi')}
+          >
             {(['readable', 'full'] as const).map((mode) => (
               <button
                 key={mode}
@@ -141,7 +156,9 @@ export function RangeActions({
               </button>
             ))}
           </div>
-        ) : null}
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('economic.toolbar_scale_unavailable')}</p>
+        )}
         <InfoTooltip content={hint} />
       </div>
     </div>

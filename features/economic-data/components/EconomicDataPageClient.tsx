@@ -92,7 +92,11 @@ export function EconomicDataPageClient({ initialView }: { initialView: EconomicV
         title={t('economic.inflation_title')}
         description={t('economic.inflation_desc')}
       >
-        <InflationChart period={view.range} scaleMode={view.scale} />
+        <InflationChart
+          period={view.range}
+          scaleMode={view.scale}
+          onShowFullScale={() => updateView({ scale: 'full' })}
+        />
       </ChartSection>
     ) : (
       <ChartSection title={t('economic.nbp_rate_title')} description={t('economic.nbp_rate_desc')}>
