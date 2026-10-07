@@ -9,6 +9,7 @@ import { BondType } from '@/features/bond-core/types';
 import { isIsoCalendarDate } from '@/features/bond-core/types/iso-calendar-date';
 import { generateCyclePeriods } from '@/features/bond-core/utils/engine/timeline-builder';
 import { buildDefaultSharedConfig } from '@/features/comparison-engine/lib/comparison-calculator-state';
+import { getIssueAvailability } from '@/features/education/lib/issue-availability';
 import {
   applyDefinitionToInputs,
   buildFallbackInputs,
@@ -16,7 +17,7 @@ import {
 import { useAppI18n } from '@/i18n/client';
 import { useBondDefinitions } from '@/shared/context/BondDefinitionsContext';
 import { bondSeriesClient, type BondSeriesMetadata } from '@/shared/lib/bond-series-client';
-import { getHorizonMonths, toDateString } from '@/shared/lib/date-timing';
+import { getHorizonMonths } from '@/shared/lib/date-timing';
 import {
   createComparisonScenarioPackage,
   createSingleScenarioPackage,
@@ -38,20 +39,7 @@ function familyForSeries(code: string) {
   return Object.values(BondType).find((type) => code.toUpperCase().startsWith(type)) ?? null;
 }
 
-export function getIssueAvailability(issue: BondSeriesMetadata, today = toDateString(new Date())) {
-  if (!issue.sellStartDate || !issue.sellEndDate || !issue.maturityDate) return 'issue_unavailable';
-  if (
-    !isIsoCalendarDate(issue.sellStartDate) ||
-    !isIsoCalendarDate(issue.sellEndDate) ||
-    !isIsoCalendarDate(issue.maturityDate) ||
-    issue.sellStartDate > issue.sellEndDate ||
-    issue.maturityDate <= issue.sellStartDate
-  )
-    return 'issue_unavailable';
-  if (issue.sellEndDate < today) return 'historical';
-  if (issue.sellStartDate > today) return 'upcoming';
-  return 'current';
-}
+export { getIssueAvailability } from '@/features/education/lib/issue-availability';
 
 export function getIssueSchedulePreview(issue: BondSeriesMetadata, definition: BondDefinition) {
   if (
@@ -260,9 +248,15 @@ export function BondIssueExplorer() {
           {t('education.issue_explorer.load_failed')}
         </p>
       ) : issues.length === 0 ? (
-        <p role="status" className="ui-status-note">
-          {t('education.issue_explorer.fallback_only')}
-        </p>
+        <div role="status" className="ui-status-note space-y-2">
+          <p>{t('education.issue_explorer.fallback_only')}</p>
+          <a
+            href="#choose-a-path"
+            className="ui-focus-ring inline-block font-semibold underline underline-offset-4"
+          >
+            {t('education.back_to_choices')}
+          </a>
+        </div>
       ) : visible.length === 0 ? (
         <p role="status" className="ui-status-note">
           {t('education.issue_explorer.unavailable')}
@@ -300,7 +294,9 @@ export function BondIssueExplorer() {
                     <dt>{t('education.issue_explorer.exit')}</dt>
                     <dd>
                       {exitRule.amount}
-                      <span className="block text-xs text-muted-foreground">{exitRule.cap}</span>
+                      <span className="block text-base leading-6 text-muted-foreground">
+                        {exitRule.cap}
+                      </span>
                     </dd>
                     {definition.isFamilyOnly ? (
                       <>
@@ -314,7 +310,7 @@ export function BondIssueExplorer() {
                       {t('education.issue_explorer.schedule')}: {schedule.join(' · ')}
                     </p>
                   ) : null}
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-base leading-6 text-muted-foreground">
                     {issue.termsSourceUrl && issue.termsRevision
                       ? issue.termsRevision
                       : t('education.issue_explorer.unverified_source')}
@@ -405,7 +401,9 @@ export function BondIssueExplorer() {
                       </td>
                       <td className="p-2">
                         {exitRule.amount}
-                        <span className="block text-xs text-muted-foreground">{exitRule.cap}</span>
+                        <span className="block text-base leading-6 text-muted-foreground">
+                          {exitRule.cap}
+                        </span>
                         {definition.isFamilyOnly ? (
                           <span className="block">{t('bonds.family_bond')}</span>
                         ) : null}
@@ -431,7 +429,7 @@ export function BondIssueExplorer() {
                             {t('education.issue_explorer.compare')}
                           </Link>
                         ) : null}
-                        <span className="block text-xs text-muted-foreground">
+                        <span className="block text-base leading-6 text-muted-foreground">
                           {issue.termsSourceUrl && issue.termsRevision
                             ? issue.termsRevision
                             : t('education.issue_explorer.unverified_source')}

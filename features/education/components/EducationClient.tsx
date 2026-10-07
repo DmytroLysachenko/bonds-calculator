@@ -100,6 +100,30 @@ export default function EducationClient({
           <EducationDecisionRail />
         </section>
 
+        <nav aria-label={t('education.section_index')} className="border-y border-border py-3">
+          <p className="ui-kicker mb-2">{t('education.section_index')}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+            <a href="#choose-a-path" className="ui-focus-ring underline underline-offset-4">
+              {t('education.decision_title')}
+            </a>
+            <a href="#current-offers" className="ui-focus-ring underline underline-offset-4">
+              {t('education.bond_types')}
+            </a>
+            {educationOfferGroups.map((group) => (
+              <a
+                key={group.key}
+                href={`#offers-${group.key}`}
+                className="ui-focus-ring underline underline-offset-4"
+              >
+                {t(`education.groups.${group.key}.title`)}
+              </a>
+            ))}
+            <a href="#education-compare" className="ui-focus-ring underline underline-offset-4">
+              {t('education.comparison.compare_selected')}
+            </a>
+          </div>
+        </nav>
+
         <SectionBlock
           id="current-offers"
           className="scroll-mt-6 md:scroll-mt-10"
@@ -129,14 +153,26 @@ export default function EducationClient({
                   </div>
                   <div className="mt-5 grid gap-x-8 md:grid-cols-2">
                     {bonds.map((bond) => (
-                      <BondEducationCard key={bond.type} bond={bond} />
+                      <BondEducationCard
+                        key={bond.type}
+                        bond={bond}
+                        dataFreshness={dataFreshness}
+                      />
                     ))}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold">
+                    <a href="#choose-a-path" className="ui-focus-ring underline underline-offset-4">
+                      {t('education.back_to_choices')}
+                    </a>
+                    <Link href="/compare" className="ui-focus-ring underline underline-offset-4">
+                      {t('education.compare_in_calculator')}
+                    </Link>
                   </div>
                 </section>
               );
             })}
           </div>
-          <details className="border-t border-border pt-5">
+          <details id="education-compare" className="scroll-mt-10 border-t border-border pt-5">
             <summary className="ui-focus-ring cursor-pointer text-sm font-semibold text-foreground">
               {t('education.comparison.compare_selected')}
             </summary>
