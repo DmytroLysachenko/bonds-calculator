@@ -96,7 +96,7 @@ function NavLinkItem({
         </div>
 
         <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate text-sm font-medium leading-5">
+          <span className="min-w-0 flex-1 break-words text-sm font-medium leading-5">
             {item.label}
           </span>
           <ChevronRight
