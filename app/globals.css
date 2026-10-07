@@ -337,10 +337,10 @@ html {
     @apply space-y-2;
   }
   .ui-field-description {
-    @apply text-xs leading-5 text-muted-foreground;
+    @apply text-base leading-6 text-muted-foreground;
   }
   .ui-field-error {
-    @apply text-xs font-medium leading-5 text-destructive;
+    @apply text-base font-medium leading-6 text-destructive;
   }
   .ui-form-panel {
     @apply border-y border-border bg-transparent p-5 md:p-6;
@@ -469,6 +469,9 @@ html {
   }
   .ui-chart-tooltip {
     @apply rounded-md border border-border bg-popover text-popover-foreground shadow-lg;
+  }
+  .recharts-cartesian-axis-tick-value {
+    fill: var(--finance-muted);
   }
   .ui-chart-tooltip-heading {
     @apply border-b border-border/70 pb-2 text-xs font-semibold tracking-[0.02em] text-foreground;
