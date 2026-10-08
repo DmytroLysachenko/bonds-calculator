@@ -28,6 +28,7 @@ Welcome to the official documentation for **Obligacje Calculator**. This documen
 - [UI Rules](./ui/02_ui_rules.md) - Layout, typography, color, and table rules.
 - [Design System](./ui/03_design_system.md) - Shared formatter, token, component, and refactor rules.
 - [Financial Workflow Accessibility Contract](./ui/04_accessibility_financial_workflow_contract.md) - Required accessible behavior for financial workflows.
+- [Desktop Visual and UX Audit](./ui/05_desktop_visual_ux_audit.md) - Screenshot-based, prioritized UI findings and implementation acceptance criteria for six desktop routes.
 
 ### 2. Technical Architecture
 
