@@ -320,6 +320,9 @@
     "hero_secondary_cta": "Compare current offers",
     "decision_title": "Choose a starting point",
     "decision_subtitle": "This guide narrows the offer by your goal. It is a place to begin an analysis, not a recommendation.",
+    "section_index": "On this page",
+    "back_to_choices": "Back to choices",
+    "compare_in_calculator": "Compare bond families",
     "concepts_title": "Fundamental Financial Concepts",
     "concepts_subtitle": "Key terms essential to understanding your investments.",
     "starter_title": "Which bond should I check first?",
@@ -367,21 +370,25 @@
       }
     },
     "decision": {
+      "stored_current_issue": "Stored sale window active — verify with issuer",
+      "no_stored_current_issue": "No active sale window in stored issues — verify with issuer",
+      "availability_unknown": "Stored issue availability unavailable — verify with issuer",
+      "checking_availability": "Checking stored issue availability…",
       "short_term": {
         "label": "Need access sooner",
-        "description": "Start with fixed-rate bonds when flexibility matters more than long compounding."
+        "description": "Shorter horizon; check early-exit fees if you may need the cash sooner. Fixed rates do not adjust with inflation. Generally available."
       },
       "inflation": {
         "label": "Protect purchasing power",
-        "description": "Compare inflation-indexed bonds when future buying power is the main concern."
+        "description": "Longer horizon; rates follow inflation after the first year. Early exit may cost a fee. Generally available."
       },
       "family": {
         "label": "Eligible for family bonds",
-        "description": "Check family bonds only when the 800+ eligibility condition applies."
+        "description": "Long horizon and inflation-linked rates; early exit may cost a fee. Only for eligible 800+ beneficiaries."
       },
       "long_term": {
         "label": "Saving for the long term",
-        "description": "Look at long horizons when annual capitalisation can make a meaningful difference."
+        "description": "Long horizon with annual compounding and inflation-linked rates after year one. Early exit may cost a fee; family bonds require 800+ eligibility."
       }
     },
     "faq": "Frequently Asked Questions",
@@ -453,6 +460,9 @@
       "edit": "Edit scenario details",
       "duplicate": "Duplicate scenario",
       "delete": "Delete scenario",
+      "more_actions": "More actions",
+      "delete_confirm_title": "Confirm scenario deletion",
+      "delete_confirm": "Permanently delete “{name}” from this browser?",
       "name": "Name",
       "notes": "Notes",
       "tags": "Tags (comma-separated)",
@@ -1187,7 +1197,17 @@
     },
     "offer_provenance": {
       "label": "Current offer evidence",
-      "no_date": "Last-checked date unavailable"
+      "no_date": "Last-checked date unavailable",
+      "reference": "Fallback reference data — not a confirmed current offer",
+      "verified": "Synced offer data — check before purchase",
+      "issued_series": "Recorded issued-series terms — verify before purchase",
+      "recorded_as_of": "Reference rate recorded on",
+      "reference_rates_as_of": "Reference opening rates from offer starting",
+      "reference_source": "View dated Ministry source ↗",
+      "last_offer_check": "Last offer check attempt",
+      "terms_as_of": "Displayed terms effective date",
+      "verify": "Check official offer ↗",
+      "generic_family": "Bond family parameters; this card does not confirm the terms of a specific issued series."
     },
     "home_routes": {
       "primary_title": "Start with one bond scenario",
@@ -1201,7 +1221,7 @@
     "decision_slip": {
       "eyebrow": "Starting point",
       "title": "Choose what you know today",
-      "description": "Begin with the next useful step. You can refine the scenario inside the calculator.",
+      "description": "Need context before calculating? Choose one focused reference path.",
       "options": {
         "simulate": {
           "title": "I know the bond or my horizon",
@@ -1735,6 +1755,9 @@
     "import_completed_added_lots": "Import completed. Added {count} lots."
   },
   "economic": {
+    "toolbar_series": "Series",
+    "toolbar_scale_cpi": "CPI scale",
+    "toolbar_scale_unavailable": "Only for CPI",
     "subtitle": "Historical context of Polish inflation and interest rates.",
     "reference_copy": {
       "synced_dataset": "Synced dataset",
@@ -1807,12 +1830,14 @@
     "nbp_rate_desc": "Historical reference rate set by the National Bank of Poland.",
     "failed_to_load": "Failed to load data",
     "as_of": "As of",
+    "verify_source": "Check official source ↗",
     "fallback_in_use": "fallback data in use",
     "nbp_target": "NBP Target",
     "loading_chart": "Loading chart...",
     "readable_scale": "Readable scale",
     "full_scale": "Full scale",
-    "inflation_scale_notice": "Readable mode caps the early spike so the rest of the series stays readable. Peak visible history exceeds {max}%.",
+    "inflation_scale_notice": "Readable scale clips CPI values above {cap}% at the marked points. The underlying values remain available in the tooltip and Full scale view.",
+    "inflation_peak": "Peak in the selected range: {max}% ({date})",
     "reference_state": {
       "synced": "Synced",
       "needs_refresh": "Needs refresh",
@@ -1913,6 +1938,14 @@
     "shared_base": "Shared scenario base",
     "shared_base_title": "Shared scenario base",
     "shared_base_desc": "Keep one shared base scenario, then apply scenario-specific overrides only when they truly matter.",
+    "setup_order": "Comparison setup order",
+    "setup_steps": {
+      "base": "Shared base",
+      "scenarios": "Bonds A and B",
+      "assumptions": "Assumptions, then Calculate"
+    },
+    "run_cue": "Review the receipt above, then run one comparison.",
+    "result_fairness_caveat": "These are modeled outcomes under the selected shared assumptions. Check scenario-specific overrides, maturity handling, and taxes before treating the spread as a like-for-like difference.",
     "shared_base_scope": "The left panel defines amount, purchase date, shared horizon, macro assumptions, and default tax wrapper for both scenarios.",
     "shared_assumptions_title": "Shared assumptions and tax",
     "shared_assumptions_desc": "Adjust the economic path or tax wrapper only when the default setup needs to change.",
@@ -2024,7 +2057,21 @@
     "ready_overrides_desc": "Bond type and optional per-scenario adjustments.",
     "ready_committed": "Committed result",
     "ready_committed_desc": "Run comparison, then inspect snapshot, chart, and table.",
-    "ready_footer": "Run the comparison from the fixed calculate control in the bottom-right corner.",
+    "ready_footer": "Review the shared assumptions, then use Calculate to commit the comparison.",
+    "draft_receipt": {
+      "title": "Assumptions for this run",
+      "description": "Review the active draft before calculating.",
+      "edit_assumptions": "Edit assumptions",
+      "scenarios": "Bond families",
+      "amount_horizon": "Shared amount and horizon",
+      "cpi": "Projected CPI",
+      "nbp": "Projected NBP rate",
+      "custom_path": "Custom path: {first}% → {last}%",
+      "side_override": "{side}: {value}",
+      "reference_defaults": "Reference defaults: {source} · CPI as of {cpiDate} · NBP as of {nbpDate}. The values above are scenario assumptions and may differ from these defaults.",
+      "fallback_source": "fallback",
+      "synced_source": "synced"
+    },
     "stale_results": "Inputs changed. Results below are stale until you rerun the comparison.",
     "chart_header_desc": "Chart points are aligned by actual calendar date so both scenarios share one time axis.",
     "chart_help_title": "How to read the chart",
@@ -2272,6 +2319,15 @@
     "core_plan_title": "Core plan",
     "core_plan_description": "Set bond type, tax wrapper, and repeating contribution amount.",
     "schedule_title": "Contribution schedule",
+    "equivalent_pln": "Equivalent contribution (PLN)",
+    "fine_tune_quantity": "Fine-tune with slider",
+    "plan_summary": "Plan at a glance",
+    "base_per_payment": "Base per contribution",
+    "months_unit": "months",
+    "cash_flow_count": "Scheduled cash-flow dates",
+    "schedule_range": "First–last cash flow",
+    "schedule_details": "Edit extras and view full schedule",
+    "schedule_details_help": "Optional initial capital, annual increase, one-off payments, skipped dates, and replacements. The table below shows every scheduled cash flow.",
     "initial_lump_sum": "Initial capital (PLN)",
     "annual_increase": "Annual nominal increase (%)",
     "topup_date": "Top-up date",
@@ -2279,7 +2335,15 @@
     "add_topup": "Add top-up",
     "skip_date": "Skip base",
     "override_date": "Replace base",
-    "schedule_preview": "Upcoming normalized cash flows",
+    "date_format_hint": "Choose a date; the English format is DD/MM/YYYY. The field display may follow your browser locale.",
+    "amount_hint": "Amount in PLN. Skipping a base contribution only needs a date.",
+    "add_topup_help": "Adds a one-off amount on this date; requires a date and an amount above zero.",
+    "skip_date_help": "Skips the scheduled base contribution on this date; only a date is needed.",
+    "override_date_help": "Replaces the scheduled base contribution with this amount (including PLN 0); requires a date and amount.",
+    "topup_date_error": "Choose a valid date.",
+    "topup_amount_error": "Enter an amount above PLN 0.",
+    "override_amount_error": "Enter an amount of at least PLN 0.",
+    "schedule_preview": "Full normalized cash-flow schedule",
     "allocation_title": "Allocation and cash benchmark",
     "enable_allocation": "Use mixed allocation",
     "allocation_note": "New contributions are split by your targets; no existing bonds are sold or rebalanced.",

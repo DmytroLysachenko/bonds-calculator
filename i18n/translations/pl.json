@@ -94,7 +94,7 @@
     "reset_filters": "Wyczyść filtry",
     "skip_to_content": "Przejdź do głównej treści",
     "primary_navigation": "Nawigacja główna",
-    "open_navigation": "Otwórz nawigacje",
+    "open_navigation": "Otwórz nawigację",
     "navigation_menu": "Menu nawigacji",
     "calculation_in_progress": "Trwa obliczanie. Przeliczenie kończy się dopiero po zamodelowaniu całego scenariusza.",
     "initial_calculation_hint": "Uruchom scenariusz, aby zobaczyć pełny wynik.",
@@ -320,6 +320,9 @@
     "hero_secondary_cta": "Porównaj aktualną ofertę",
     "decision_title": "Wybierz punkt startowy",
     "decision_subtitle": "Ten przewodnik zawęża ofertę według Twojego celu. To punkt wyjścia do analizy, nie rekomendacja.",
+    "section_index": "Na tej stronie",
+    "back_to_choices": "Wróć do wyboru",
+    "compare_in_calculator": "Porównaj rodziny obligacji",
     "concepts_title": "Podstawowe Pojęcia Finansowe",
     "concepts_subtitle": "Kluczowe terminy niezbędne do zrozumienia Twoich inwestycji.",
     "starter_title": "Która obligację sprawdzić najpierw?",
@@ -367,21 +370,25 @@
       }
     },
     "decision": {
+      "stored_current_issue": "Zapisany okres sprzedaży trwa — potwierdź u emitenta",
+      "no_stored_current_issue": "Brak aktywnego okresu sprzedaży w zapisanych emisjach — potwierdź u emitenta",
+      "availability_unknown": "Brak danych o dostępności zapisanych emisji — potwierdź u emitenta",
+      "checking_availability": "Sprawdzanie dostępności zapisanych emisji…",
       "short_term": {
         "label": "Potrzebujesz dostępu do środków",
-        "description": "Zacznij od obligacji o stałym oprocentowaniu, gdy elastyczność jest ważniejsza niż długie składanie odsetek."
+        "description": "Krótszy horyzont; przy wcześniejszym wyjściu sprawdź opłatę. Stałe oprocentowanie nie podąża za inflacją. Dostępne powszechnie."
       },
       "inflation": {
         "label": "Chcesz chronić siłę nabywczą",
-        "description": "Porównaj obligacje indeksowane inflacją, gdy najważniejsza jest przyszła wartość pieniędzy."
+        "description": "Dłuższy horyzont; po pierwszym roku oprocentowanie zależy od inflacji. Wcześniejszy wykup może kosztować. Dostępne powszechnie."
       },
       "family": {
         "label": "Masz prawo do obligacji rodzinnych",
-        "description": "Sprawdź obligacje rodzinne tylko wtedy, gdy spełniasz warunek uprawnienia do programu 800+."
+        "description": "Długi horyzont i oprocentowanie zależne od inflacji; wcześniejszy wykup może kosztować. Tylko dla uprawnionych do 800+."
       },
       "long_term": {
-        "label": "Oszczędzasz długoterminówo",
-        "description": "Rozważ długi horyzont, gdy roczna kapitalizacja może mieć istotne znaczenie."
+        "label": "Oszczędzasz długoterminowo",
+        "description": "Długi horyzont, roczna kapitalizacja i oprocentowanie zależne od inflacji po pierwszym roku. Wcześniejszy wykup może kosztować; obligacje rodzinne wymagają uprawnień do 800+."
       }
     },
     "faq": "Często Zadawane Pytania",
@@ -453,6 +460,9 @@
       "edit": "Edytuj szczegóły scenariusza",
       "duplicate": "Duplikuj scenariusz",
       "delete": "Usuń scenariusz",
+      "more_actions": "Więcej działań",
+      "delete_confirm_title": "Potwierdź usunięcie scenariusza",
+      "delete_confirm": "Usunąć trwale „{name}” z tej przeglądarki?",
       "name": "Nazwa",
       "notes": "Notatki",
       "tags": "Tagi (oddzielone przecinkami)",
@@ -1187,7 +1197,17 @@
     },
     "offer_provenance": {
       "label": "Potwierdzenie aktualnej oferty",
-      "no_date": "Brak daty ostatniego sprawdzenia"
+      "no_date": "Brak daty ostatniego sprawdzenia",
+      "reference": "Dane referencyjne / zapasowe — niepotwierdzona bieżąca oferta",
+      "verified": "Zsynchronizowane dane ofertowe — sprawdź przed zakupem",
+      "issued_series": "Warunki zapisanej serii emisyjnej — sprawdź przed zakupem",
+      "recorded_as_of": "Stopę referencyjną zapisano",
+      "reference_rates_as_of": "Referencyjne stawki początkowe z oferty od",
+      "reference_source": "Zobacz datowane źródło MF ↗",
+      "last_offer_check": "Ostatnia próba sprawdzenia oferty",
+      "terms_as_of": "Data obowiązywania pokazanych warunków",
+      "verify": "Sprawdź oficjalną ofertę ↗",
+      "generic_family": "Parametry rodziny obligacji; ta karta nie potwierdza warunków konkretnej serii emisyjnej."
     },
     "home_routes": {
       "primary_title": "Zacznij od jednego scenariusza obligacji",
@@ -1201,7 +1221,7 @@
     "decision_slip": {
       "eyebrow": "Punkt startowy",
       "title": "Wybierz, co już wiesz",
-      "description": "Zacznij od najbliższego kroku. Scenariusz doprecyzujesz w kalkulatorze.",
+      "description": "Potrzebujesz kontekstu przed obliczeniem? Wybierz jedną ścieżkę pomocniczą.",
       "options": {
         "simulate": {
           "title": "Znam obligację lub horyzont",
@@ -1735,6 +1755,9 @@
     "import_completed_added_lots": "Import zakończony. Dodano {count} partii."
   },
   "economic": {
+    "toolbar_series": "Seria danych",
+    "toolbar_scale_cpi": "Skala CPI",
+    "toolbar_scale_unavailable": "Tylko dla CPI",
     "range_data": "Zakres danych",
     "range_hint": "Ten zakres działa na wykres CPI i NBP, aby kontekst makro pozostał spójny.",
     "reference_panel": "Panel kontekstowy",
@@ -1813,12 +1836,14 @@
     "nbp_rate_desc": "Historyczna stopa referencyjną ustalana przez Narodowy Bank Polski.",
     "failed_to_load": "Nie udało się załadować danych",
     "as_of": "Stan na",
+    "verify_source": "Sprawdź u źródła ↗",
     "fallback_in_use": "użyto danych zapasowych",
     "nbp_target": "Cel NBP",
     "loading_chart": "Ładowanie wykresu...",
     "readable_scale": "Czytelna skala",
     "full_scale": "Pełna skala",
-    "inflation_scale_notice": "Tryb czytelny ogranicza wczesny skok, aby reszta serii pozostała czytelna. Szczyt widocznej historii przekracza {max}%.",
+    "inflation_scale_notice": "Czytelna skala ucina wartości CPI powyżej {cap}% w oznaczonych punktach. Dokładne wartości pozostają w podpowiedzi i widoku pełnej skali.",
+    "inflation_peak": "Szczyt w wybranym zakresie: {max}% ({date})",
     "fallback_notices": {
       "nbp_warning": "Używane są zapasowe dane referencyjne NBP. Czytaj stronę referencyjną ostrożniej.",
       "nbp_live": "Dane referencyjne NBP pochodzą z zsynchronizowanego zbioru referencyjnego.",
@@ -1913,6 +1938,14 @@
     "shared_base": "Wspólna baza scenariusza",
     "shared_base_title": "Wspólna baza scenariusza",
     "shared_base_desc": "Utrzymaj jedną bazę: kwotę, daty i założenia. Nadpisania scenariuszy włączaj tylko wtedy, gdy rzeczywiście mają znaczenie.",
+    "setup_order": "Kolejność ustawiania porównania",
+    "setup_steps": {
+      "base": "Wspólna baza",
+      "scenarios": "Obligacje A i B",
+      "assumptions": "Założenia, potem Oblicz"
+    },
+    "run_cue": "Sprawdź podsumowanie powyżej i uruchom jedno porównanie.",
+    "result_fairness_caveat": "To wyniki modelowe przy wybranych wspólnych założeniach. Przed uznaniem różnicy za porównanie jeden do jednego sprawdź nadpisania scenariuszy, wykup i podatek.",
     "shared_base_scope": "Lewy panel definiuje kwotę, datę zakupu, wspólny horyzont, założenia makro i domyślne opakowanie podatkowe dla obu scenariuszy.",
     "shared_assumptions_title": "Wspólne założenia i podatek",
     "shared_assumptions_desc": "Zmień ścieżkę makro lub opakowanie podatkowe tylko wtedy, gdy domyślna konfiguracja wymaga korekty.",
@@ -2024,7 +2057,21 @@
     "ready_overrides_desc": "Typ obligacji i opcjonalne korekty dla każdego scenariusza.",
     "ready_committed": "Zatwierdzony wynik",
     "ready_committed_desc": "Uruchom porównanie, potem przejdź do podsumowania, wykresu i tabeli.",
-    "ready_footer": "Uruchom porównanie przez stały przycisk oblicz w prawym dolnym rogu.",
+    "ready_footer": "Sprawdź wspólne założenia, a następnie użyj przycisku Oblicz, aby zatwierdzić porównanie.",
+    "draft_receipt": {
+      "title": "Założenia tego przebiegu",
+      "description": "Sprawdź aktywny szkic przed obliczeniem.",
+      "edit_assumptions": "Edytuj założenia",
+      "scenarios": "Rodziny obligacji",
+      "amount_horizon": "Wspólna kwota i horyzont",
+      "cpi": "Prognoza CPI",
+      "nbp": "Prognoza stopy NBP",
+      "custom_path": "Własna ścieżka: {first}% → {last}%",
+      "side_override": "{side}: {value}",
+      "reference_defaults": "Dane odniesienia: {source} · CPI na {cpiDate} · NBP na {nbpDate}. Powyższe wartości są założeniami scenariusza i mogą różnić się od danych odniesienia.",
+      "fallback_source": "zapasowe",
+      "synced_source": "zsynchronizowane"
+    },
     "stale_results": "Dane zostały zmienione. Wyniki poniżej nadal pokazują poprzedni przebieg, dopóki nie uruchomisz porównania ponownie.",
     "chart_header_desc": "Punkty wykresu są ustawione według rzeczywistych dat kalendarzowych, dzięki czemu oba scenariusze korzystaja z jednej osi czasu.",
     "chart_help_title": "Jak czytać wykres",
@@ -2272,6 +2319,15 @@
     "core_plan_title": "Plan bazowy",
     "core_plan_description": "Ustaw typ obligacji, otoczkę podatkowa i powtarzalna kwotę wpłaty.",
     "schedule_title": "Harmonogram wpłat",
+    "equivalent_pln": "Odpowiednik wpłaty (PLN)",
+    "fine_tune_quantity": "Dostrój suwakiem",
+    "plan_summary": "Plan w skrócie",
+    "base_per_payment": "Wpłata bazowa na termin",
+    "months_unit": "miesięcy",
+    "cash_flow_count": "Terminy przepływów pieniężnych",
+    "schedule_range": "Pierwszy–ostatni przepływ",
+    "schedule_details": "Edytuj dodatki i zobacz pełny harmonogram",
+    "schedule_details_help": "Opcjonalny kapitał początkowy, wzrost roczny, dopłaty jednorazowe, pominięcia i zastąpienia. Tabela poniżej pokazuje wszystkie zaplanowane przepływy.",
     "initial_lump_sum": "Kapitał początkowy (PLN)",
     "annual_increase": "Roczny wzrost nominalny (%)",
     "topup_date": "Data dopłaty",
@@ -2279,7 +2335,15 @@
     "add_topup": "Dodaj dopłatę",
     "skip_date": "Pomiń bazę",
     "override_date": "Zastąp bazę",
-    "schedule_preview": "Najbliższe znormalizowane przepływy pieniężne",
+    "date_format_hint": "Wybierz datę; polski zapis to DD.MM.RRRR. Wygląd pola może zależeć od przeglądarki.",
+    "amount_hint": "Kwota w PLN. Pomijanie wpłaty bazowej wymaga tylko daty.",
+    "add_topup_help": "Dodaje jednorazową kwotę do planu w wybranym dniu; wymaga daty i kwoty większej od zera.",
+    "skip_date_help": "Pomija zaplanowaną wpłatę bazową w wybranym dniu; wymaga tylko daty.",
+    "override_date_help": "Zastępuje zaplanowaną wpłatę bazową podaną kwotą (także 0 PLN); wymaga daty i kwoty.",
+    "topup_date_error": "Wybierz prawidłową datę.",
+    "topup_amount_error": "Podaj kwotę większą od 0 PLN.",
+    "override_amount_error": "Podaj kwotę co najmniej 0 PLN.",
+    "schedule_preview": "Pełny znormalizowany harmonogram przepływów pieniężnych",
     "allocation_title": "Alokacja i benchmark gotówkowy",
     "enable_allocation": "Użyj mieszanej alokacji",
     "allocation_note": "Nowe wpłaty są dzielone według Twoich celów; istniejące obligacje nie są sprzedawane ani równoważone.",
