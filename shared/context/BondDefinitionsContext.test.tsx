@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { BOND_DEFINITIONS } from '@/features/bond-core/constants/bond-definitions';
+
 import { BondDefinitionsProvider, useBondDefinitions } from './BondDefinitionsContext';
 
 const mocks = vi.hoisted(() => ({ useBondDefinitions: vi.fn() }));
@@ -33,6 +35,16 @@ describe('bond definitions provider seam', () => {
     );
 
     expect(screen.getByText('EDO:false:none')).toBeTruthy();
+  });
+
+  it('passes a server snapshot into the resource hook', () => {
+    render(
+      <BondDefinitionsProvider initialDefinitions={BOND_DEFINITIONS}>
+        <Consumer />
+      </BondDefinitionsProvider>,
+    );
+
+    expect(mocks.useBondDefinitions).toHaveBeenCalledWith(BOND_DEFINITIONS);
   });
 
   it('fails loudly outside the provider', () => {
