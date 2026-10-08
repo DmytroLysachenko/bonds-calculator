@@ -1,4 +1,5 @@
 import EducationClient from '@/features/education/components/EducationClient';
+import { getBondDefinitionsMap } from '@/lib/data/bond-definition-data';
 import { getGlobalDataFreshness } from '@/lib/data/market-data';
 import { getLocalizedPageMetadata } from '@/lib/page-metadata';
 import { LocalizedMetadataMarker } from '@/shared/components/page/LocalizedMetadataMarker';
@@ -9,11 +10,14 @@ export async function generateMetadata() {
 }
 
 export default async function EducationPage() {
-  const dataFreshness = await getGlobalDataFreshness();
+  const [dataFreshness, initialDefinitions] = await Promise.all([
+    getGlobalDataFreshness(),
+    getBondDefinitionsMap(),
+  ]);
 
   return (
     <>
-      <BondDefinitionsBoundary>
+      <BondDefinitionsBoundary initialDefinitions={initialDefinitions}>
         <EducationClient dataFreshness={dataFreshness} />
       </BondDefinitionsBoundary>
       <LocalizedMetadataMarker />

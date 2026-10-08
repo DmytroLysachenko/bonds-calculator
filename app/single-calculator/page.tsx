@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 
 import { BondCalculatorContainer } from '@/features/single-calculator/components/BondCalculatorContainer';
 import { parseBondType } from '@/features/single-calculator/lib/single-calculator-state';
+import { getBondDefinitionsMap } from '@/lib/data/bond-definition-data';
 import { getLocalizedPageMetadata } from '@/lib/page-metadata';
 import { PageSuspenseFallback } from '@/shared/components/page/PageSuspenseFallback';
 import { PageTransition } from '@/shared/components/page/PageTransition';
@@ -31,7 +32,7 @@ async function SingleCalculatorContent({
 }: {
   searchParams: Promise<{ bond?: string | string[]; scenario?: string | string[] }>;
 }) {
-  const params = await searchParams;
+  const [params, initialDefinitions] = await Promise.all([searchParams, getBondDefinitionsMap()]);
   const bond = params.bond;
   const initialBondType = parseBondType(Array.isArray(bond) ? bond[0] : bond);
   const encodedScenario = Array.isArray(params.scenario) ? params.scenario[0] : params.scenario;
@@ -42,7 +43,7 @@ async function SingleCalculatorContent({
       : undefined;
 
   return (
-    <BondDefinitionsBoundary>
+    <BondDefinitionsBoundary initialDefinitions={initialDefinitions}>
       <BondCalculatorContainer initialBondType={initialBondType} initialInputs={initialInputs} />
     </BondDefinitionsBoundary>
   );
