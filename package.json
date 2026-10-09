@@ -41,7 +41,7 @@
     "test:home": "playwright test tests/browser/home-page.spec.ts",
     "test:web-vitals": "playwright test tests/browser/web-vitals.spec.ts --project=chromium --project=mobile-chromium --workers=1",
     "test:a11y": "playwright test tests/browser/accessibility.spec.ts --project=chromium --project=mobile-chromium",
-    "test:lighthouse": "lhci autorun",
+    "test:lighthouse": "lhci autorun && tsx scripts/check-lighthouse-route-budgets.ts",
     "test:quality": "pnpm test:a11y && pnpm test:web-vitals && pnpm test:lighthouse",
     "test:ci": "vitest run",
     "test:coverage": "vitest run --coverage",

@@ -32,6 +32,7 @@ module.exports = {
       startServerReadyTimeout: 60_000,
       url: [
         'http://127.0.0.1:3100/',
+        'http://127.0.0.1:3100/education',
         'http://127.0.0.1:3100/single-calculator',
         'http://127.0.0.1:3100/economic-data',
         'http://127.0.0.1:3100/compare',
