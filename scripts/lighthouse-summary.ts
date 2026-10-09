@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, resolve } from 'node:path';
 
 type LighthouseReport = {
   requestedUrl?: string;
@@ -33,13 +33,27 @@ function routeFromReport(report: LighthouseReport) {
   return new URL(url).pathname || '/';
 }
 
-function readReports(inputDirectory: string): LighthouseReport[] {
-  if (!existsSync(inputDirectory)) return [];
-  return readdirSync(inputDirectory)
-    .filter((file) => file.endsWith('.report.json'))
-    .map(
-      (file) => JSON.parse(readFileSync(resolve(inputDirectory, file), 'utf8')) as LighthouseReport,
-    );
+type LighthouseManifestEntry = { jsonPath?: unknown };
+
+export function reportNamesFromManifest(entries: readonly LighthouseManifestEntry[]) {
+  return entries.map((entry) => {
+    if (typeof entry.jsonPath !== 'string' || !entry.jsonPath.endsWith('.report.json')) {
+      throw new Error('Lighthouse manifest contains an invalid report path');
+    }
+    return basename(entry.jsonPath);
+  });
+}
+
+export function readCurrentLighthouseReports(inputDirectory = '.lighthouseci'): LighthouseReport[] {
+  const manifestPath = resolve(inputDirectory, 'manifest.json');
+  if (!existsSync(manifestPath)) return [];
+  const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (!Array.isArray(manifest)) {
+    throw new Error('Lighthouse manifest must be a list of reports');
+  }
+  return reportNamesFromManifest(manifest).map(
+    (file) => JSON.parse(readFileSync(resolve(inputDirectory, file), 'utf8')) as LighthouseReport,
+  );
 }
 
 export function summarizeLighthouseReports(reports: readonly LighthouseReport[]) {
@@ -101,7 +115,7 @@ export function writeLighthouseSummary({
   inputDirectory?: string;
   outputDirectory?: string;
 } = {}) {
-  const summary = summarizeLighthouseReports(readReports(inputDirectory));
+  const summary = summarizeLighthouseReports(readCurrentLighthouseReports(inputDirectory));
   const jsonPath = resolve(outputDirectory, 'lighthouse-summary.json');
   const markdownPath = resolve(outputDirectory, 'lighthouse-summary.md');
   mkdirSync(dirname(jsonPath), { recursive: true });

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatLighthouseSummary, summarizeLighthouseReports } from './lighthouse-summary';
+import {
+  formatLighthouseSummary,
+  reportNamesFromManifest,
+  summarizeLighthouseReports,
+} from './lighthouse-summary';
 
 describe('summarizeLighthouseReports', () => {
   it('formats an empty report set without masking the preceding Lighthouse failure', () => {
@@ -37,5 +41,17 @@ describe('summarizeLighthouseReports', () => {
       },
     ]);
     expect(formatLighthouseSummary(summary)).toContain('| /compare | 2 | 0.80 | 2500 | 0.015 |');
+  });
+
+  it('selects only reports from the current Lighthouse manifest', () => {
+    expect(
+      reportNamesFromManifest([
+        { jsonPath: '/tmp/current/home.report.json' },
+        { jsonPath: '/tmp/current/single.report.json' },
+      ]),
+    ).toEqual(['home.report.json', 'single.report.json']);
+    expect(() => reportNamesFromManifest([{ jsonPath: '/tmp/old-report.json' }])).toThrow(
+      'invalid report path',
+    );
   });
 });
