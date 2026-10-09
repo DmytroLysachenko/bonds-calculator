@@ -45,6 +45,31 @@ for (const route of smokeRoutes.filter((route) => route.path !== '/notebook')) {
   defineSmokeTest(route);
 }
 
+for (const { path, setupSelector } of [
+  { path: '/education', setupSelector: '#choose-a-path' },
+  { path: '/single-calculator', setupSelector: 'form#single-calculator-inputs' },
+  { path: '/compare', setupSelector: '#comparison-shared-setup' },
+  { path: '/regular-investment', setupSelector: '#regular-instrument-setup' },
+]) {
+  test(`${path} paints setup before client offer revalidation`, async ({ page }) => {
+    let releaseDefinitionRequest: () => void = () => undefined;
+    const definitionRequestGate = new Promise<void>((resolve) => {
+      releaseDefinitionRequest = resolve;
+    });
+    await page.route('**/api/bond-definitions', async (route) => {
+      await definitionRequestGate;
+      await route.continue();
+    });
+
+    try {
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await expect(page.locator(setupSelector)).toBeVisible();
+    } finally {
+      releaseDefinitionRequest();
+    }
+  });
+}
+
 test('shared content canvas aligns routes and prevents horizontal overflow', async ({ page }) => {
   await stubOpportunisticSync(page);
   await stubGuestPortfolioAccess(page);
