@@ -1,14 +1,12 @@
-'use client';
-
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { homeDecisionRoutes } from '@/features/home/constants/decision-slip';
-import { useAppI18n } from '@/i18n/client';
 import { InfoTooltip } from '@/shared/components/feedback/InfoTooltip';
 
-export function HomeDecisionSlip() {
-  const { t } = useAppI18n();
+export async function HomeDecisionSlip() {
+  const t = await getTranslations();
 
   return (
     <aside data-testid="home-decision-slip" className="bg-muted/25 px-4 py-5 lg:rounded-md lg:px-5">

@@ -1,10 +1,7 @@
-'use client';
-
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 import type { HomeToolDefinition } from '@/features/home/constants/dashboard';
-import { useAppI18n } from '@/i18n/client';
 
 type HomeRouteItem = Omit<HomeToolDefinition, 'titleKey' | 'descriptionKey'> & {
   title: string;
@@ -13,12 +10,13 @@ type HomeRouteItem = Omit<HomeToolDefinition, 'titleKey' | 'descriptionKey'> & {
 
 export function HomeSupportingRoutes({
   items,
+  supportingActionLabel,
   optional = false,
 }: {
   items: HomeRouteItem[];
+  supportingActionLabel: string;
   optional?: boolean;
 }) {
-  const { t } = useAppI18n();
   return (
     <div className="grid gap-x-8 md:grid-cols-2">
       {items.map((item) => (
@@ -34,7 +32,7 @@ export function HomeSupportingRoutes({
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p>
                 {!optional ? (
                   <span className="mt-3 inline-flex text-xs font-semibold text-foreground">
-                    {t('landing.home_routes.supporting_action')}
+                    {supportingActionLabel}
                   </span>
                 ) : null}
               </div>

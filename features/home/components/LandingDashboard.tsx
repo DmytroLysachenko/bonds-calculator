@@ -1,6 +1,6 @@
-'use client';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,6 @@ import {
   primaryHomeTools,
   secondaryHomeTools,
 } from '@/features/home/constants/dashboard';
-import { useAppI18n } from '@/i18n/client';
 import { SectionHeading } from '@/shared/components/page/SectionHeading';
 
 import { HomeDecisionSlip } from './HomeDecisionSlip';
@@ -21,16 +20,15 @@ type ToolItem = {
   icon: HomeToolDefinition['icon'];
   status: HomeToolDefinition['status'];
 };
-function HeroTrustStrip() {
-  const { t } = useAppI18n();
+function HeroTrustStrip({ note }: { note: string }) {
   return (
     <p className="border-l-2 border-success/70 pl-3 text-xs font-semibold leading-5 text-muted-foreground">
-      {t('landing.hero_trust_note')}
+      {note}
     </p>
   );
 }
-export function LandingDashboardClient({ offerProvenance }: { offerProvenance?: ReactNode }) {
-  const { t } = useAppI18n();
+export async function LandingDashboard({ offerProvenance }: { offerProvenance?: ReactNode }) {
+  const t = await getTranslations();
   const primaryTools: ToolItem[] = primaryHomeTools.map((item) => ({
     ...item,
     title: t(item.titleKey),
@@ -85,7 +83,7 @@ export function LandingDashboardClient({ offerProvenance }: { offerProvenance?: 
             </div>
 
             <div className="max-w-4xl space-y-3">
-              <HeroTrustStrip />
+              <HeroTrustStrip note={t('landing.hero_trust_note')} />
               {offerProvenance}
             </div>
           </div>
@@ -99,12 +97,19 @@ export function LandingDashboardClient({ offerProvenance }: { offerProvenance?: 
           title={t('landing.home_routes.supporting_title')}
           description={t('landing.home_routes.supporting_description')}
         />
-        <HomeSupportingRoutes items={supportingTools} />
+        <HomeSupportingRoutes
+          items={supportingTools}
+          supportingActionLabel={t('landing.home_routes.supporting_action')}
+        />
       </section>
 
       <section className="space-y-5 pb-8">
         <SectionHeading title={secondaryTitle} description={secondaryDesc} />
-        <HomeSupportingRoutes items={secondaryTools} optional />
+        <HomeSupportingRoutes
+          items={secondaryTools}
+          supportingActionLabel={t('landing.home_routes.supporting_action')}
+          optional
+        />
       </section>
     </div>
   );
